@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dynamic Playground</title>
+    <meta
+      name="description"
+      content="一个具有动态背景、交互卡片、鼠标跟随光效和粒子画布的网页示例。"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <canvas id="particle-canvas" aria-hidden="true"></canvas>
+    <div class="noise"></div>
+    <div class="cursor-glow"></div>
+    <div class="theme-wave" aria-hidden="true"></div>
+
+    <main class="page-shell">
+      <header class="topbar">
+        <button
+          class="theme-icon-button"
+          id="theme-toggle"
+          type="button"
+          aria-label="切换浅色或深色模式"
+          title="切换浅色或深色模式"
+        >
+          <span class="theme-icon" aria-hidden="true">
+            <span class="theme-icon-sun"></span>
+            <span class="theme-icon-moon"></span>
+          </span>
+        </button>
+      </header>
+
+      <section class="welcome-section" id="welcome-section">
+        <div class="welcome-stage" aria-hidden="true">
+          <p class="welcome-kicker">For You</p>
+          <div class="welcome-word" id="welcome-word">
+            <canvas id="welcome-canvas"></canvas>
+            <span class="welcome-text-fallback">Welcome</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Creative Interactive Web</p>
+          <h1>让网页自己“动起来”</h1>
+          <p class="hero-text">
+            这是一个从零配置好的动态网页模板，内置流动背景、粒子连线、鼠标光晕、3D
+            卡片、主题切换与数字计数动画，适合继续扩展成作品展示页或活动主页。
+          </p>
+
+          <div class="hero-actions">
+            <button class="ghost-btn" id="pulse-trigger" type="button">
+              触发能量波
+            </button>
+          </div>
+
+          <div class="stats">
+            <article class="stat-card">
+              <span class="stat-number" data-target="12">0</span>
+              <span class="stat-label">动画层级</span>
+            </article>
+            <article class="stat-card">
+              <span class="stat-number" data-target="6">0</span>
+              <span class="stat-label">交互模块</span>
+            </article>
+            <article class="stat-card">
+              <span class="stat-number" data-target="100">0</span>
+              <span class="stat-label">可扩展空间</span>
+            </article>
+          </div>
+        </div>
+
+        <div class="hero-visual">
+          <div class="orb orb-a"></div>
+          <div class="orb orb-b"></div>
+          <div class="glass-panel tilt-card" id="feature-card">
+            <p class="panel-tag">Live Interaction</p>
+            <h2>Hover / Move / Click</h2>
+            <p>
+              鼠标移动时，这张卡片会产生轻微 3D
+              倾斜，背景光效也会跟随位置实时变化。
+            </p>
+            <div class="panel-grid">
+              <span>Canvas</span>
+              <span>CSS Motion</span>
+              <span>Theme Swap</span>
+              <span>JS Logic</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="feature-section">
+        <article class="feature-card reveal">
+          <h3>动态背景</h3>
+          <p>渐变、模糊光球和颗粒纹理叠加，避免页面看起来单薄。</p>
+        </article>
+        <article class="feature-card reveal">
+          <h3>粒子连线</h3>
+          <p>使用 Canvas 绘制漂浮粒子，在视觉上更有科技感与生命力。</p>
+        </article>
+        <article class="feature-card reveal">
+          <h3>互动体验</h3>
+          <p>按钮、卡片和滚动进入动画都已预埋，方便继续加功能。</p>
+        </article>
+      </section>
+    </main>
+
+    <script src="./script.js"></script>
+  </body>
+</html>

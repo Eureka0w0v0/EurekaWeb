@@ -1,0 +1,7 @@
+{
+  "files.associations": {
+    "*.css": "css",
+    "*.js": "javascript"
+  },
+  "liveServer.settings.port": 5500
+}
