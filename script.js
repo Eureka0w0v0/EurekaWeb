@@ -46,6 +46,17 @@ const ctx = canvas.getContext("2d");
 const i18nNodes = document.querySelectorAll("[data-i18n]");
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
 const PARTICLE_BACKGROUND_ENABLED = false;
+const DESKTOP_BRAIN_WRAP_WIDTH = 660;
+const DESKTOP_BRAIN_RENDER_WIDTH = Math.round(DESKTOP_BRAIN_WRAP_WIDTH * 1.16);
+const DESKTOP_BRAIN_RENDER_HEIGHT = Math.round((DESKTOP_BRAIN_WRAP_WIDTH / 2) * 1.22);
+
+const isDesktopInputDevice = () => (navigator.maxTouchPoints || 0) === 0;
+
+function syncInputDeviceClass() {
+  root.classList.toggle("is-desktop-input", isDesktopInputDevice());
+}
+
+syncInputDeviceClass();
 
 function initPhotoQueueCards() {
   if (!photoStage) {
@@ -827,10 +838,15 @@ function scheduleThemeRenderWork(theme) {
     themeRenderFrame = 0;
     syncThemeRenderState();
     brainSceneController?.setTheme(theme);
+    const welcomeVisible = isElementInViewport(welcomeSection);
     buildWelcomeCanvas();
-    requestWelcomeRender();
-    window.requestAnimationFrame(() => {
+    if (welcomeVisible) {
       drawWelcome();
+    } else {
+      requestWelcomeRender();
+    }
+
+    window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         if (PARTICLE_BACKGROUND_ENABLED && theme === "dark") {
           requestParticleFrame();
@@ -4953,8 +4969,13 @@ async function createBrainWireframeScene(mount) {
     let lastBrainRenderHeight = 0;
 
     function resize() {
-      const width = Math.max(mount.clientWidth, 1);
-      const height = Math.max(mount.clientHeight, 1);
+      const lockDesktopRenderSize = isDesktopInputDevice();
+      const width = lockDesktopRenderSize
+        ? DESKTOP_BRAIN_RENDER_WIDTH
+        : Math.max(mount.clientWidth, 1);
+      const height = lockDesktopRenderSize
+        ? DESKTOP_BRAIN_RENDER_HEIGHT
+        : Math.max(mount.clientHeight, 1);
       const widthChanged = Math.abs(width - lastBrainRenderWidth) > 1;
       const heightChanged = Math.abs(height - lastBrainRenderHeight) > 1;
 
@@ -5111,6 +5132,7 @@ async function initApp() {
   });
   tiltCard?.addEventListener("mouseleave", resetTilt);
   window.addEventListener("resize", () => {
+    syncInputDeviceClass();
     invalidatePhotoLayoutCaches();
     syncViewportHeightVar();
     if (shouldReflowParticles()) {
