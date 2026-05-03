@@ -3973,16 +3973,22 @@ function updatePhotoScene(timestamp = window.performance.now()) {
       : insertMetrics.opacity;
     const previewMix = previewEase;
     const previewScaleMix = previewScaleEase;
-    const x = interpolate(queuedX, previewMetrics.x, previewMix);
-    const y = interpolate(queuedY, previewMetrics.y, previewMix);
-    const scale = interpolate(queuedScale, previewMetrics.scale, previewScaleMix);
-    const rotate = interpolate(queuedRotate, previewMetrics.rotate, previewMix);
-    const opacity = interpolate(queuedOpacity, previewMetrics.opacity, previewMix);
+    const shouldUseCarouselMetrics = (
+      photoCarouselEnabled &&
+      !photoReinsertActive &&
+      previewProgress >= carouselReadyThreshold
+    );
+    const finalMetrics = shouldUseCarouselMetrics ? carouselMetrics : previewMetrics;
+    const x = interpolate(queuedX, finalMetrics.x, previewMix);
+    const y = interpolate(queuedY, finalMetrics.y, previewMix);
+    const scale = interpolate(queuedScale, finalMetrics.scale, previewScaleMix);
+    const rotate = interpolate(queuedRotate, finalMetrics.rotate, previewMix);
+    const opacity = interpolate(queuedOpacity, finalMetrics.opacity, previewMix);
     const layerSwitchProgress = isCompact ? 0.42 : 0.04;
     const baseZIndex = shouldInterpolateFromLine && insertProgress <= layerSwitchProgress
       ? effectiveLineMetrics.zIndex
       : insertMetrics.zIndex;
-    const queueZIndex = previewMix > 0.5 ? previewMetrics.zIndex : baseZIndex;
+    const queueZIndex = previewMix > 0.5 ? finalMetrics.zIndex : baseZIndex;
     const carouselLayout = {
       x: x - cardWidth / 2,
       y: queueLocalOffsetY + y,
@@ -3992,7 +3998,7 @@ function updatePhotoScene(timestamp = window.performance.now()) {
       zIndex: queueZIndex,
     };
     return {
-      carouselMetrics: previewMix > 0.5 ? carouselMetrics : insertMetrics,
+      carouselMetrics: previewMix > 0.5 ? finalMetrics : insertMetrics,
       carouselLayout,
       expandedLayout,
     };
