@@ -2362,6 +2362,20 @@ html[lang="en"] .career-statement {
   will-change: transform, opacity;
 }
 
+.photo-card-image {
+  position: absolute;
+  inset: 12px;
+  display: block;
+  width: calc(100% - 24px);
+  height: calc(100% - 24px);
+  border-radius: 14px;
+  object-fit: cover;
+  image-orientation: from-image;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
 .photo-card::before {
   content: "";
   position: absolute;
@@ -2371,6 +2385,7 @@ html[lang="en"] .career-statement {
   background:
     linear-gradient(160deg, color-mix(in srgb, var(--text) 5%, transparent), transparent 42%),
     color-mix(in srgb, var(--surface-strong) 36%, transparent);
+  z-index: 1;
 }
 
 .photo-card::after {
@@ -2382,6 +2397,7 @@ html[lang="en"] .career-statement {
   height: 5px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--text) 12%, transparent);
+  z-index: 2;
 }
 
 .photo-queue-card {
@@ -2415,6 +2431,7 @@ html[lang="en"] .career-statement {
   transform: translateX(var(--photo-shine-x, -18%));
   opacity: 0.54;
   pointer-events: none;
+  z-index: 3;
 }
 
 html.theme-dark .photo-card,
