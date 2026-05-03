@@ -39,6 +39,7 @@ const photoShowAllButton = document.querySelector("#photo-show-all");
 const photoFloatingCards = document.querySelectorAll(".photo-floating-card");
 const photoQueueCards = document.querySelectorAll(".photo-queue-card");
 const photoCarouselCards = [...photoQueueCards, ...photoFloatingCards];
+const photoSlotContentMap = new Map();
 const themeWave = document.querySelector(".theme-wave");
 const themeWaveCore = document.querySelector(".theme-wave-core");
 const canvas = document.querySelector("#particle-canvas");
@@ -3074,6 +3075,94 @@ function applyPhotoShowAllFrame({
   setStylePropertyIfChanged(photoShowAllButton, "--photo-show-all-y", `${y.toFixed(2)}px`);
 }
 
+function readPhotoCardContent(card) {
+  const sourceImage = card?.querySelector(".photo-card-image");
+  if (!sourceImage) {
+    return null;
+  }
+
+  return {
+    src: sourceImage.getAttribute("src") || "",
+    srcset: sourceImage.getAttribute("srcset") || "",
+    sizes: sourceImage.getAttribute("sizes") || "",
+    label: card.getAttribute("aria-label") || "",
+    sourceId: card.dataset.photoBase || card.dataset.photoInsert || card.dataset.photoCloneSource || "",
+  };
+}
+
+function syncPhotoCardImageContent(targetCard, sourceContent) {
+  if (!targetCard || !sourceContent?.src) {
+    return;
+  }
+
+  let targetImage = targetCard.querySelector(".photo-card-image");
+  if (!targetImage) {
+    targetImage = document.createElement("img");
+    targetImage.className = "photo-card-image";
+    targetImage.alt = "";
+    targetImage.loading = "lazy";
+    targetImage.decoding = "async";
+    targetImage.draggable = false;
+    const shine = targetCard.querySelector(".photo-card-shine");
+    targetCard.insertBefore(targetImage, shine || targetCard.firstChild);
+  }
+
+  ["src", "srcset", "sizes"].forEach((attribute) => {
+    const value = sourceContent[attribute];
+    if (value) {
+      setAttributeIfChanged(targetImage, attribute, value);
+    } else if (targetImage.hasAttribute(attribute)) {
+      targetImage.removeAttribute(attribute);
+    }
+  });
+}
+
+function ensurePhotoSlotContentMap({
+  finalCount,
+  initialCount,
+  centerSlot,
+}) {
+  if (photoSlotContentMap.size > 0 || finalCount <= 0) {
+    return;
+  }
+
+  const initialFloatingSlots = (() => {
+    if (photoFloatingCards.length === 1) {
+      return [centerSlot];
+    }
+
+    if (photoFloatingCards.length === 3) {
+      return [
+        Math.max(0, centerSlot - 5),
+        centerSlot,
+        Math.min(finalCount - 1, centerSlot + 4),
+      ];
+    }
+
+    return photoFloatingCards.map((_, index) => Math.min(finalCount - 1, centerSlot + index));
+  })();
+  const initialFloatingSlotSet = new Set(initialFloatingSlots);
+  const initialQueueSlots = Array.from({ length: finalCount }, (_, index) => index)
+    .filter((slot) => !initialFloatingSlotSet.has(slot))
+    .slice(0, initialCount);
+
+  photoQueueCards.forEach((card, index) => {
+    const slot = initialQueueSlots[index];
+    const content = readPhotoCardContent(card);
+    if (Number.isFinite(slot) && content) {
+      photoSlotContentMap.set(slot, content);
+    }
+  });
+
+  photoFloatingCards.forEach((card, index) => {
+    const slot = initialFloatingSlots[index];
+    const content = readPhotoCardContent(card);
+    if (Number.isFinite(slot) && content) {
+      photoSlotContentMap.set(slot, content);
+    }
+  });
+}
+
 function applyPhotoCardFrames({
   cardFrames,
   hitRect,
@@ -3345,6 +3434,11 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   const centerSlot = Math.floor(finalCount / 2);
   const centerInsertSlot = centerSlot;
   const hasSingleFloatingCard = photoFloatingCards.length === 1;
+  ensurePhotoSlotContentMap({
+    finalCount,
+    initialCount,
+    centerSlot: centerInsertSlot,
+  });
   const hasValidSelectedSlot = (
     Number.isFinite(photoSelectedSlot) &&
     photoSelectedSlot >= 0 &&
@@ -4024,6 +4118,7 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   };
 
   const nextPhotoCardSlotMap = new Map();
+  const selectedContent = photoSlotContentMap.get(contentSlot);
   const selectedContentCard = photoCardSlotMap.get(contentSlot) || photoSelectedSourceCard;
   const photoHitCollector = createPhotoHitRectCollector(stageRect, cardWidth, cardHeight);
   const queueCardBaseX = stageRect.width / 2;
@@ -4031,6 +4126,10 @@ function updatePhotoScene(timestamp = window.performance.now()) {
 
   photoQueueCards.forEach((card, index) => {
     const slot = baseFinalSlots[index];
+    const slotContent = photoSlotContentMap.get(slot);
+    if (slotContent) {
+      syncPhotoCardImageContent(card, slotContent);
+    }
     const queueLayout = computePhotoQueueInsertLayout({ index, slot });
     const layout = resolveExpandedLayout(
       card,
@@ -4062,6 +4161,10 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     const dropLayout = computePhotoDropLayout({ index, slot, gapSlot });
     const layout = resolveExpandedLayout(card, slot, dropLayout.carouselLayout, dropLayout.expandedLayout);
 
+    if (hasSingleFloatingCard && selectedContent) {
+      syncPhotoCardImageContent(card, selectedContent);
+    }
+
     nextPhotoCardSlotMap.set(slot, card);
     const cardData = [
       ["photoSlot", String(slot)],
@@ -4070,13 +4173,14 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     const cardAttributes = [];
     if (hasSingleFloatingCard) {
       cardData.push(["photoContentSlot", String(contentSlot)]);
-      const sourceId = selectedContentCard?.dataset.photoCloneSource ||
+      const sourceId = selectedContent?.sourceId ||
+        selectedContentCard?.dataset.photoCloneSource ||
         selectedContentCard?.dataset.photoBase ||
         selectedContentCard?.dataset.photoInsert;
       if (sourceId) {
         cardData.push(["photoCloneSource", sourceId]);
       }
-      const sourceLabel = selectedContentCard?.getAttribute("aria-label");
+      const sourceLabel = selectedContent?.label || selectedContentCard?.getAttribute("aria-label");
       if (sourceLabel) {
         cardAttributes.push(["aria-label", sourceLabel]);
       }
