@@ -106,17 +106,39 @@ let photoVisualProgress = 0;
 let photoProgressVelocity = 0;
 let photoLastFrameTime = 0;
 const PHOTO_INTRO_PHASES = {
-  rawDurationVh: 1.55,
-  mobileRawDurationVh: 1.86,
+  rawDurationVh: 4.2,
+  mobileRawDurationVh: 4.2,
   queueVisibleStart: 0,
-  queueVisibleEnd: 0.16,
-  queueSpreadStart: 0.48,
+  queueVisibleEnd: 0.18,
+  queueSpreadStart: 0.54,
   queueSpreadEnd: 0.995,
-  dropStart: 0.32,
+  dropStart: 0.26,
   dropEnd: 0.995,
   insertHoldEnd: 0.995,
-  carouselStart: 0.78,
+  carouselStart: 0.9,
   carouselEnd: 1,
+};
+const PHOTO_TITLE_DURATION_RATIO = 1.02;
+const PHOTO_TITLE_FADE_OUT_PROGRESS = 0.94;
+const PHOTO_DROP_DISTANCE_BOOST = {
+  desktop: 7.85,
+  mobile: 7.55,
+};
+const PHOTO_DROP_QUEUE_LIFT = {
+  desktop: 7.8,
+  mobile: 7.55,
+};
+const getPhotoTitleStartRatio = (isCompact) => (isCompact ? 0.6 : 0.34);
+const getPhotoDropStartProgress = (isCompact) => {
+  const durationVh = isCompact
+    ? PHOTO_INTRO_PHASES.mobileRawDurationVh
+    : PHOTO_INTRO_PHASES.rawDurationVh;
+  const titleStartRatio = getPhotoTitleStartRatio(isCompact);
+
+  return clamp01(
+    (0.72 - titleStartRatio + PHOTO_TITLE_FADE_OUT_PROGRESS * PHOTO_TITLE_DURATION_RATIO) /
+      durationVh
+  );
 };
 let photoCarouselEnabled = false;
 let photoCarouselIndex = 0;
@@ -3003,7 +3025,7 @@ function computePhotoPhaseFrame({
   const queueVisibility = reduceMotion
     ? 1
     : mapScrollSegment(progress, PHOTO_INTRO_PHASES.queueVisibleStart, PHOTO_INTRO_PHASES.queueVisibleEnd);
-  const queueEntryY = cardHeight + (isCompact ? 28 : 44);
+  const queueEntryY = cardHeight * (isCompact ? 1.42 : 1.3) + (isCompact ? 44 : 62);
   const queueRiseProgress = reduceMotion
     ? 1
     : mapScrollSegment(progress, PHOTO_INTRO_PHASES.queueVisibleStart, PHOTO_INTRO_PHASES.dropEnd);
@@ -3323,6 +3345,7 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   const reduceMotion = shouldReduceMotion();
   const { photoIntroStartY, rawProgress } = computePhotoRawProgress(rect, viewportHeight, isCompact);
   let deltaSeconds = 1 / 60;
+  const photoDropStartProgress = getPhotoDropStartProgress(isCompact);
   photoTargetProgress = clamp01(rawProgress);
 
   if (photoTargetProgress <= 0 && rect.top > photoIntroStartY) {
@@ -3345,7 +3368,7 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     const distance = Math.abs(delta);
     const isReverseExtraction = (
       direction < 0 &&
-      photoVisualProgress > PHOTO_INTRO_PHASES.dropStart &&
+      photoVisualProgress > photoDropStartProgress &&
       photoVisualProgress <= PHOTO_INTRO_PHASES.carouselEnd
     );
     const isMobileReverseExtraction = isReverseExtraction && isCompact;
@@ -3380,8 +3403,8 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   }
 
   const progress = photoVisualProgress;
-  const titleStartRatio = isCompact ? 0.6 : 0.34;
-  const titleDurationRatio = 1.02;
+  const titleStartRatio = getPhotoTitleStartRatio(isCompact);
+  const titleDurationRatio = PHOTO_TITLE_DURATION_RATIO;
   const titleProgress = reduceMotion
     ? 1
     : clamp01((viewportHeight * titleStartRatio - rect.top) / (viewportHeight * titleDurationRatio));
@@ -3407,24 +3430,26 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     previewScaleEase,
   } = photoPhaseFrame;
   applyPhotoQueueIntroFrame({ queueY, queueOpacity });
+  const gatedTitleOpacity = titleOpacity;
+  applyPhotoTitleFrame({ opacity: gatedTitleOpacity, y: titleY });
   const stageRect = photoStage.getBoundingClientRect();
   const queueRect = photoQueueAnchor.getBoundingClientRect();
   const stageHeadroom = Math.max(0, -stageRect.top);
-  const titleRect = titleOpacity > 0.02 ? photoFixedTitle?.getBoundingClientRect() : null;
-  const titleStartY = titleRect
-    ? titleRect.bottom - stageRect.top + 50
-    : stageHeadroom + viewportHeight * (isCompact ? 0.22 : 0.24);
-  const dropStartBaseY = Math.min(
-    titleStartY,
-    stageHeadroom + viewportHeight * (isCompact ? 0.14 : 0.08)
-  );
+  const titleRect = photoFixedTitle?.getBoundingClientRect();
+  const titleDropAnchorY = titleRect
+    ? titleRect.top - stageRect.top + titleRect.height * 0.5 - cardHeight * 0.5
+    : stageHeadroom + viewportHeight * (isCompact ? 0.12 : 0.1);
+  const dropStartBaseY = titleDropAnchorY;
   const queueCenterX = queueRect.left - stageRect.left + queueRect.width / 2;
   const queueVisualTopY = queueRect.top - stageRect.top;
-  const insertionAnchorY = queueVisualTopY;
+  const dropDistanceAdaptY = cardHeight * (
+    isCompact ? PHOTO_DROP_DISTANCE_BOOST.mobile : PHOTO_DROP_DISTANCE_BOOST.desktop
+  );
+  const queueLiftCompensationY = cardHeight * (
+    isCompact ? PHOTO_DROP_QUEUE_LIFT.mobile : PHOTO_DROP_QUEUE_LIFT.desktop
+  );
+  const insertionAnchorY = queueVisualTopY + dropDistanceAdaptY - queueLiftCompensationY;
   const queueLocalOffsetY = insertionAnchorY;
-
-  const gatedTitleOpacity = titleOpacity;
-  applyPhotoTitleFrame({ opacity: gatedTitleOpacity, y: titleY });
   const initialCount = photoQueueCards.length;
   const finalCount = initialCount + photoFloatingCards.length;
   const initialStep = cardWidth + gap;
@@ -3504,7 +3529,7 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   );
   const carouselIntroResetReady = (
     photoSectionIsVisible &&
-    progress < PHOTO_INTRO_PHASES.dropStart &&
+    progress < photoDropStartProgress &&
     previewProgress < 0.01
   );
 
@@ -3893,9 +3918,9 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   applyPhotoQueueAnchorFrame({ cardHeight, queueBleed, queueProgress });
 
   const getPhotoDropPathFrame = ({ index, gapSlot = centerInsertSlot }) => {
-    const appearStart = PHOTO_INTRO_PHASES.dropStart - 0.02 + index * 0.012;
-    const appearEnd = PHOTO_INTRO_PHASES.dropStart + 0.1 + index * 0.012;
-    const dropStart = PHOTO_INTRO_PHASES.dropStart;
+    const dropStart = photoDropStartProgress;
+    const appearStart = dropStart + index * 0.012;
+    const appearEnd = dropStart + 0.09 + index * 0.012;
     const dropEnd = PHOTO_INTRO_PHASES.dropEnd;
     const dropProgress = shouldReduceMotion()
       ? 1
@@ -3926,11 +3951,10 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     const firstMidX = startX + (insertedCenterX - startX) * 0.3 + curveOffset;
     const secondMidX = startX + (insertedCenterX - startX) * 0.68 + curveOffset * 0.35;
     const firstMidY = startY + (insertedCenterY - startY) * 0.3;
-    const secondMidY = startY + (insertedCenterY - startY) * 0.68;
+    const secondMidY = startY + (insertedCenterY - startY) * 0.72;
     const droppedX = cubicBezierValue(startX, firstMidX, secondMidX, insertedCenterX, dropProgress);
     const droppedPathY = cubicBezierValue(startY, firstMidY, secondMidY, insertedCenterY, dropProgress);
-    const droppedY = interpolate(startY - (isCompact ? 18 : 26), startY, appearProgress)
-      + (droppedPathY - startY);
+    const droppedY = droppedPathY;
     const startRotate = isCompact
       ? (hasSingleFloatingCard ? 1.6 : [-2.8, 1.8, 2.8][index])
       : (hasSingleFloatingCard ? 2.2 : [-4, 2, 4][index]);

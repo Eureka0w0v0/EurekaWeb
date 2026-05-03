@@ -2179,13 +2179,13 @@ html[lang="en"] .career-statement {
   --photo-stage-headroom: 0px;
   --photo-stage-offset: 0px;
   --photo-queue-shift: 0px;
-  --photo-queue-final-bottom: clamp(68px, 11vh, 142px);
-  --photo-queue-final-y: clamp(0px, 4vh, 56px);
+  --photo-queue-final-bottom: clamp(78px, 12vh, 154px);
+  --photo-queue-final-y: clamp(20px, 4vh, 76px);
   --photo-title-top: 72px;
   position: relative;
-  min-height: 200vh;
-  min-height: 200svh;
-  min-height: 200dvh;
+  min-height: 500vh;
+  min-height: 500svh;
+  min-height: 500dvh;
   color: var(--text);
   overflow: visible;
   background: transparent;
@@ -3099,11 +3099,11 @@ body.pulse-active::after {
 
   .photo-section {
     --photo-title-top: 64px;
-    --photo-queue-final-bottom: clamp(54px, 9.5vh, 118px);
-    --photo-queue-final-y: clamp(0px, 4vh, 56px);
-    min-height: 225vh;
-    min-height: 225svh;
-    min-height: 225dvh;
+    --photo-queue-final-bottom: clamp(74px, 12vh, 140px);
+    --photo-queue-final-y: clamp(28px, 4.5vh, 84px);
+    min-height: 520vh;
+    min-height: 520svh;
+    min-height: 520dvh;
   }
 
   .photo-sticky {
@@ -3427,11 +3427,11 @@ body.pulse-active::after {
 
   .photo-section {
     --photo-title-top: 64px;
-    --photo-queue-final-bottom: clamp(46px, 8.5vh, 98px);
-    --photo-queue-final-y: clamp(0px, 3vh, 40px);
-    min-height: 225vh;
-    min-height: 225svh;
-    min-height: 225dvh;
+    --photo-queue-final-bottom: clamp(66px, 11.5vh, 122px);
+    --photo-queue-final-y: clamp(22px, 4vh, 72px);
+    min-height: 520vh;
+    min-height: 520svh;
+    min-height: 520dvh;
   }
 
   .photo-sticky {
