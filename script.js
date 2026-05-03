@@ -3501,6 +3501,66 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   const nearestCenterSlot = isCompact || !photoCarouselLayoutActive
     ? Math.round(activeIndex)
     : Math.round(photoCarouselTargetIndex);
+  const getCompressedLineOffset = (slot, centerSlot) => {
+    if (slot < centerSlot) {
+      return slot - centerSlot + 0.5;
+    }
+
+    if (slot > centerSlot) {
+      return slot - centerSlot - 0.5;
+    }
+
+    return 0;
+  };
+  const getCompressedReinsertLineOffset = (offset) => {
+    if (offset < 0) {
+      return offset + 0.5;
+    }
+
+    if (offset > 0) {
+      return offset - 0.5;
+    }
+
+    return 0;
+  };
+  const getPhotoInsertStackMetrics = (relativeOffset, phase = "inserted") => {
+    const absOffset = Math.abs(relativeOffset);
+    const direction = Math.sign(relativeOffset);
+    const centerWeight = Math.max(0, 1 - absOffset);
+    const sideScale = 0.94 - Math.min(Math.max(absOffset - 1, 0) * 0.015, 0.06);
+    const centerScale = 1.14;
+    const mobileLineStep = cardWidth + Math.max(2, gap);
+    const mobileGuardX = cardWidth * ((centerScale + sideScale) / 2) + Math.max(4, gap);
+    const mobileStackStepX = Math.max(cardWidth * 0.1, 8);
+    const lineX = relativeOffset * mobileLineStep;
+    const stackX = absOffset <= 1
+      ? mobileGuardX * absOffset
+      : mobileGuardX + (absOffset - 1) * mobileStackStepX;
+
+    if (phase === "line") {
+      return {
+        x: lineX,
+        y: 0,
+        scale: 1,
+        rotate: 0,
+        opacity: 1,
+        shadowStrength: 3,
+        zIndex: 100,
+        isCenter: false,
+      };
+    }
+
+    return {
+      x: direction * stackX,
+      y: 0,
+      scale: interpolate(sideScale, centerScale, centerWeight),
+      rotate: 0,
+      opacity: 1,
+      shadowStrength: interpolate(Math.max(2.2, 4.4 - absOffset * 0.32), 7.2, centerWeight),
+      zIndex: Math.max(1, 1040 - absOffset * 18),
+      isCenter: centerWeight > 0.999,
+    };
+  };
   const getCarouselMetrics = (
     slot,
     metricsActiveIndex = activeIndex,
@@ -3522,32 +3582,16 @@ function updatePhotoScene(timestamp = window.performance.now()) {
             ? interpolate(guardOffset, desktopStackFirstX, desktopStackT)
             : Math.min(desktopStackFirstX + (desktopStackT - 1) * stackStep, maxStackX)
         );
-    const mobileInsertedGuardX = Math.max(finalStep, cardWidth * 0.96);
-    const compactFirstStackX = Math.min(
-      mobileInsertedGuardX,
-      viewportWidth / 2 - cardWidth * 0.06
-    );
-    const compactStackStep = Math.max(8, cardWidth * 0.11);
-    const compactMaxStackX = Math.max(
-      compactFirstStackX + compactStackStep,
-      viewportWidth / 2 - cardWidth * 0.04
-    );
-    const compactX = Math.min(
-      (absOffset <= 1
-        ? compactFirstStackX * absOffset
-        : compactFirstStackX + (absOffset - 1) * compactStackStep),
-      compactMaxStackX
-    );
     const centerWeight = Math.max(0, 1 - absOffset);
-    const sideScale = isCompact ? 0.94 - Math.min(Math.max(absOffset - 1, 0) * 0.015, 0.06) : 1;
     const centerScale = isCompact ? 1.14 : 1.54;
     const desktopScale = absOffset <= 1
       ? interpolate(centerScale, 1, absOffset)
       : interpolate(1, 0.96, clamp01(absOffset - 1));
-    const scale = isCompact
-      ? interpolate(sideScale, centerScale, centerWeight)
-      : desktopScale;
-    const x = sign * (isCompact ? compactX : desktopX);
+    const insertStackMetrics = isCompact
+      ? getPhotoInsertStackMetrics(offset, "carousel")
+      : null;
+    const scale = isCompact ? insertStackMetrics.scale : desktopScale;
+    const x = isCompact ? insertStackMetrics.x : sign * desktopX;
 
     return {
       x,
@@ -3555,7 +3599,9 @@ function updatePhotoScene(timestamp = window.performance.now()) {
       scale,
       rotate: 0,
       opacity: 1,
-      shadowStrength: interpolate(Math.max(2.2, 4.4 - absOffset * 0.32), 7.2, centerWeight),
+      shadowStrength: isCompact
+        ? insertStackMetrics.shadowStrength
+        : interpolate(Math.max(2.2, 4.4 - absOffset * 0.32), 7.2, centerWeight),
       zIndex: (() => {
         if (!isCompact || !photoCarouselLayoutActive || metricsActiveIndex !== activeIndex) {
           return Math.max(1, 1000 - layerDistance * 10);
@@ -3589,39 +3635,7 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     if (!isCompact) {
       return getCarouselMetricsByOffset(offset);
     }
-
-    const absOffset = Math.abs(offset);
-    const direction = Math.sign(offset);
-    const compactFirstStackX = Math.min(
-      Math.max(cardWidth * 0.82, 78),
-      viewportWidth / 2 - cardWidth * 0.06
-    );
-    const compactStackStep = Math.max(8, cardWidth * 0.11);
-    const compactMaxStackX = Math.max(
-      compactFirstStackX + compactStackStep,
-      viewportWidth / 2 - cardWidth * 0.04
-    );
-    const compactX = Math.min(
-      (absOffset <= 1
-        ? compactFirstStackX * absOffset
-        : compactFirstStackX + (absOffset - 1) * compactStackStep),
-      compactMaxStackX
-    );
-    const splitPush = Math.min(cardWidth * 0.18, viewportWidth * 0.09);
-    const centerWeight = Math.max(0, 1 - absOffset);
-    const sideScale = 0.94 - Math.min(Math.max(absOffset - 1, 0) * 0.015, 0.06);
-    const centerScale = 1.14;
-
-    return {
-      x: direction * (compactX + (absOffset > 0 ? splitPush : 0)),
-      y: 0,
-      scale: interpolate(sideScale, centerScale, centerWeight),
-      rotate: 0,
-      opacity: 1,
-      shadowStrength: interpolate(Math.max(2.2, 4.4 - absOffset * 0.32), 7.2, centerWeight),
-      zIndex: Math.max(1, 1040 - Math.abs(offset) * 18),
-      isCenter: centerWeight > 0.999,
-    };
+    return getPhotoInsertStackMetrics(offset, "split");
   };
   const expandedMix = shouldReduceMotion() ? photoAllExpandedTarget : easeInOut(photoAllExpandedProgress);
   const expandedScale = isCompact ? 0.88 : 1.1;
@@ -3828,47 +3842,78 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     const reinsertMetrics = isReinsert
       ? getReinsertMetricsByOffset(reinsertVisualOffset)
       : null;
-    const reinsertStartMetrics = isReinsert && isCompact
-      ? getReinsertMetricsByOffset(Math.sign(reinsertVisualOffset) * Math.min(Math.abs(reinsertVisualOffset), 0.35))
+    const reinsertLineOffset = getCompressedReinsertLineOffset(reinsertVisualOffset);
+    const reinsertLineMetrics = isReinsert && isCompact
+      ? getPhotoInsertStackMetrics(reinsertLineOffset, "line")
       : null;
     const reinsertStartX = isReinsert && isCompact
-      ? reinsertStartMetrics.x
+      ? reinsertLineMetrics.x
       : Math.sign(reinsertVisualOffset) *
         Math.min(
           Math.abs(reinsertVisualOffset) * cardWidth * (isCompact ? 0.1 : 0.16),
           cardWidth * (isCompact ? 0.3 : 0.44)
         );
+    const lineRelativeOffset = getCompressedLineOffset(insertSlot, centerInsertSlot);
+    const initialLineMetrics = isCompact
+      ? getPhotoInsertStackMetrics(lineRelativeOffset, "line")
+      : null;
     const initialX = isReinsert
       ? reinsertStartX
-      : initialStartX + index * initialStep - queueCenterX;
+      : (initialLineMetrics ? initialLineMetrics.x : initialStartX + index * initialStep - queueCenterX);
     const carouselMetrics = isReinsert
       ? reinsertMetrics
       : getCarouselMetrics(slot);
     const splitMetrics = isReinsert
       ? reinsertMetrics
       : carouselMetrics;
+    const insertRelativeOffset = insertSlot - centerInsertSlot;
+    const insertStackMetrics = isCompact && !isReinsert
+      ? getPhotoInsertStackMetrics(insertRelativeOffset, "split")
+      : null;
     const finalX = isReinsert
       ? splitMetrics.x
-      : finalStartX + insertSlot * finalStep - queueCenterX;
+      : (insertStackMetrics ? insertStackMetrics.x : finalStartX + insertSlot * finalStep - queueCenterX);
     const queueX = initialX + (finalX - initialX) * queueProgress;
     const reinsertReleaseProgress = isReinsert ? 0 : 1;
-    const previewX = interpolate(splitMetrics.x, carouselMetrics.x, reinsertReleaseProgress);
+    const previewX = insertStackMetrics && !photoCarouselHasInteracted
+      ? insertStackMetrics.x
+      : interpolate(splitMetrics.x, carouselMetrics.x, reinsertReleaseProgress);
     const previewScale = interpolate(splitMetrics.scale, carouselMetrics.scale, reinsertReleaseProgress);
     const previewRotate = interpolate(splitMetrics.rotate, carouselMetrics.rotate, reinsertReleaseProgress);
     const previewOpacity = interpolate(splitMetrics.opacity, carouselMetrics.opacity, reinsertReleaseProgress);
     const previewY = interpolate(splitMetrics.y, carouselMetrics.y, reinsertReleaseProgress);
     const previewZIndex = reinsertReleaseProgress < 0.5 ? splitMetrics.zIndex : carouselMetrics.zIndex;
+    const useMobileInsertPhases = isCompact && (isReinsert || Boolean(insertStackMetrics));
+    const mobileSplitScale = isReinsert ? splitMetrics.scale : insertStackMetrics?.scale;
+    const mobileSplitRotate = isReinsert ? splitMetrics.rotate : insertStackMetrics?.rotate;
+    const mobileSplitOpacity = isReinsert ? splitMetrics.opacity : insertStackMetrics?.opacity;
+    const mobileSplitZIndex = isReinsert ? previewZIndex : insertStackMetrics?.zIndex;
+    const mobileLineMetrics = isReinsert ? reinsertLineMetrics : initialLineMetrics;
     const x = interpolate(queueX, previewX, previewEase);
     const y = interpolate(0, previewY, previewEase);
-    const scale = interpolate(1, previewScale, previewScaleEase);
-    const rotate = interpolate(0, previewRotate, previewEase);
-    const opacity = interpolate(1, previewOpacity, previewEase);
+    const scale = useMobileInsertPhases
+      ? interpolate(mobileLineMetrics.scale, mobileSplitScale, queueProgress)
+      : interpolate(1, previewScale, previewScaleEase);
+    const rotate = useMobileInsertPhases
+      ? interpolate(mobileLineMetrics.rotate, mobileSplitRotate, queueProgress)
+      : interpolate(0, previewRotate, previewEase);
+    const opacity = useMobileInsertPhases
+      ? interpolate(mobileLineMetrics.opacity, mobileSplitOpacity, queueProgress)
+      : interpolate(1, previewOpacity, previewEase);
     const expandedMetrics = getExpandedMetrics(slot);
     const expandedX = expandedMetrics.centerX - queueCenterX;
     const expandedY = expandedMetrics.centerY - cardHeight / 2 - insertionAnchorY;
     const queueZIndex = isReinsert
-      ? previewZIndex
-      : (previewProgress > 0.01 ? previewZIndex : 1);
+      ? (
+          useMobileInsertPhases
+            ? (queueProgress > 0.04 ? mobileSplitZIndex : mobileLineMetrics.zIndex)
+            : previewZIndex
+        )
+      : (
+          useMobileInsertPhases
+            ? (queueProgress > 0.04 ? mobileSplitZIndex : mobileLineMetrics.zIndex)
+            : (previewProgress > 0.01 ? previewZIndex : 1)
+        );
     const carouselLayout = {
       x: x - cardWidth / 2,
       y: queueLocalOffsetY + y,
