@@ -1,0 +1,140 @@
+:root {
+  color-scheme: dark;
+  --bg: #050b14;
+  --bg-accent: #0d1930;
+  --surface: rgba(10, 20, 38, 0.7);
+  --line: rgba(176, 212, 255, 0.18);
+  --text: #f5f8ff;
+  --muted: #a6b6ce;
+  --primary: #79f0e0;
+  --secondary: #7db2ff;
+  --shadow: 0 32px 90px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  font-family:
+    "PingFang SC",
+    "PingFang TC",
+    "SF Pro SC",
+    "Hiragino Sans GB",
+    "Heiti SC",
+    "Microsoft YaHei",
+    sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top, rgba(121, 240, 224, 0.16), transparent 28%),
+    radial-gradient(circle at 80% 20%, rgba(125, 178, 255, 0.18), transparent 24%),
+    linear-gradient(160deg, var(--bg), var(--bg-accent));
+}
+
+.noise {
+  position: fixed;
+  inset: 0;
+  opacity: 0.08;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 120px 120px;
+  mask-image: radial-gradient(circle at center, black 34%, transparent 86%);
+  pointer-events: none;
+}
+
+.maintenance-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.maintenance-card {
+  width: min(100%, 760px);
+  padding: clamp(28px, 5vw, 52px);
+  border-radius: 32px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.08), transparent 40%),
+    var(--surface);
+  backdrop-filter: blur(22px);
+  box-shadow: var(--shadow);
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--primary);
+  font-size: 0.82rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(3rem, 9vw, 5.8rem);
+  line-height: 0.94;
+  letter-spacing: -0.05em;
+}
+
+.maintenance-text {
+  margin: 20px 0 0;
+  max-width: 32rem;
+  color: var(--muted);
+  font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+  line-height: 1.9;
+}
+
+.status-row {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(121, 240, 224, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 14px var(--primary);
+}
+
+.maintenance-panel {
+  margin-top: 28px;
+  padding: 18px 20px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.maintenance-panel p:first-child {
+  margin: 0 0 8px;
+  color: var(--secondary);
+  font-weight: 600;
+}
+
+.maintenance-panel p:last-child {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+@media (max-width: 640px) {
+  body {
+    overflow: auto;
+  }
+
+  .maintenance-card {
+    border-radius: 26px;
+  }
+}

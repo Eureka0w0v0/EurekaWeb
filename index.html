@@ -2,113 +2,338 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f3f7ff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Dynamic Playground</title>
     <meta
       name="description"
       content="一个具有动态背景、交互卡片、鼠标跟随光效和粒子画布的网页示例。"
     />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260503-80" />
   </head>
   <body>
     <canvas id="particle-canvas" aria-hidden="true"></canvas>
     <div class="noise"></div>
     <div class="cursor-glow"></div>
-    <div class="theme-wave" aria-hidden="true"></div>
+    <div class="theme-wave" aria-hidden="true">
+      <div class="theme-wave-core"></div>
+    </div>
+    <header class="topbar">
+      <div class="language-switcher" id="language-switcher">
+        <button
+          class="language-toggle"
+          id="language-toggle"
+          type="button"
+          aria-label="切换语言"
+          aria-expanded="false"
+          aria-haspopup="true"
+        >
+          <svg
+            class="language-globe-icon"
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              stroke="currentColor"
+              stroke-width="1.7"
+            />
+            <path
+              d="M12 3c2.485 0 4.5 4.03 4.5 9S14.485 21 12 21m0-18c-2.485 0-4.5 4.03-4.5 9s2.015 9 4.5 9"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M3.6 9h16.8"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+            />
+            <path
+              d="M3.6 15h16.8"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+            />
+            <path
+              d="M12 3v18"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+            />
+            <path
+              d="M4.8 6.7C6.82 8.08 9.23 8.8 12 8.8c2.77 0 5.18-.72 7.2-2.1"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M4.8 17.3c2.02-1.38 4.43-2.1 7.2-2.1 2.77 0 5.18.72 7.2 2.1"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <div class="language-menu" id="language-menu" role="menu" aria-hidden="true">
+          <button class="language-option" type="button" data-language="zh" role="menuitem">
+            <span class="language-option-copy">
+              <span class="language-option-code">CN</span>
+              <span class="language-option-name">中文</span>
+            </span>
+            <span class="language-option-mark" aria-hidden="true"></span>
+          </button>
+          <button class="language-option" type="button" data-language="en" role="menuitem">
+            <span class="language-option-copy">
+              <span class="language-option-code">EN</span>
+              <span class="language-option-name">English</span>
+            </span>
+            <span class="language-option-mark" aria-hidden="true"></span>
+          </button>
+          <button class="language-option" type="button" data-language="ja" role="menuitem">
+            <span class="language-option-copy">
+              <span class="language-option-code">JP</span>
+              <span class="language-option-name">日本語</span>
+            </span>
+            <span class="language-option-mark" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <button
+        class="theme-icon-button"
+        id="theme-toggle"
+        type="button"
+        aria-label="切换浅色或深色模式"
+        title="切换浅色或深色模式"
+      >
+        <span class="theme-icon" aria-hidden="true">
+          <span class="theme-icon-sun"></span>
+          <span class="theme-icon-moon"></span>
+        </span>
+      </button>
+    </header>
+    <div class="photo-fixed-title" aria-hidden="true">
+      <p class="eyebrow" data-i18n="photoEyebrow">Gallery</p>
+      <h2 class="photo-title" data-i18n="photoTitle">照片</h2>
+    </div>
 
     <main class="page-shell">
-      <header class="topbar">
-        <button
-          class="theme-icon-button"
-          id="theme-toggle"
-          type="button"
-          aria-label="切换浅色或深色模式"
-          title="切换浅色或深色模式"
-        >
-          <span class="theme-icon" aria-hidden="true">
-            <span class="theme-icon-sun"></span>
-            <span class="theme-icon-moon"></span>
-          </span>
-        </button>
-      </header>
-
-      <section class="welcome-section" id="welcome-section">
-        <div class="welcome-stage" aria-hidden="true">
-          <p class="welcome-kicker">For You</p>
-          <div class="welcome-word" id="welcome-word">
-            <canvas id="welcome-canvas"></canvas>
-            <span class="welcome-text-fallback">Welcome</span>
-          </div>
+      <section class="first-screen" data-theme-section="welcome">
+        <div class="section-shell first-screen-shell">
+          <section class="welcome-section" id="welcome-section">
+            <div class="welcome-stage" aria-hidden="true">
+              <p class="welcome-kicker" data-i18n="welcomeKicker">FOR YOU</p>
+              <div class="welcome-word" id="welcome-word">
+                <canvas id="welcome-canvas"></canvas>
+                <span class="welcome-text-fallback" data-i18n="welcomeWord">Welcome</span>
+              </div>
+            </div>
+          </section>
         </div>
       </section>
 
-      <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Creative Interactive Web</p>
-          <h1>让网页自己“动起来”</h1>
-          <p class="hero-text">
-            这是一个从零配置好的动态网页模板，内置流动背景、粒子连线、鼠标光晕、3D
-            卡片、主题切换与数字计数动画，适合继续扩展成作品展示页或活动主页。
-          </p>
-
-          <div class="hero-actions">
-            <button class="ghost-btn" id="pulse-trigger" type="button">
-              触发能量波
-            </button>
+      <section class="hero" data-hero-section data-theme-section="hero">
+        <div class="section-shell hero-shell">
+          <div class="hero-copy" data-hero-copy>
+            <p class="eyebrow" data-i18n="eyebrow">Eureka Web</p>
+            <h1 data-i18n="heroTitle">你好，
+我是尤里卡</h1>
+            <p class="hero-text" data-i18n="heroText">欢迎来到我的网页。</p>
           </div>
 
-          <div class="stats">
-            <article class="stat-card">
-              <span class="stat-number" data-target="12">0</span>
-              <span class="stat-label">动画层级</span>
-            </article>
-            <article class="stat-card">
-              <span class="stat-number" data-target="6">0</span>
-              <span class="stat-label">交互模块</span>
-            </article>
-            <article class="stat-card">
-              <span class="stat-number" data-target="100">0</span>
-              <span class="stat-label">可扩展空间</span>
-            </article>
-          </div>
-        </div>
-
-        <div class="hero-visual">
-          <div class="orb orb-a"></div>
-          <div class="orb orb-b"></div>
-          <div class="glass-panel tilt-card" id="feature-card">
-            <p class="panel-tag">Live Interaction</p>
-            <h2>Hover / Move / Click</h2>
-            <p>
-              鼠标移动时，这张卡片会产生轻微 3D
-              倾斜，背景光效也会跟随位置实时变化。
-            </p>
-            <div class="panel-grid">
-              <span>Canvas</span>
-              <span>CSS Motion</span>
-              <span>Theme Swap</span>
-              <span>JS Logic</span>
+          <div class="hero-visual" data-hero-visual>
+            <div class="orb orb-a"></div>
+            <div class="orb orb-b"></div>
+            <div class="glass-panel tilt-card" id="feature-card">
+              <div class="panel-top">
+                <div class="panel-avatar" aria-label="头像占位">
+                  <img
+                    class="panel-avatar-image"
+                    src="./images/assets-myicon.jpg"
+                    alt="尤里卡头像"
+                  />
+                </div>
+                <div class="panel-copy">
+                  <h2>EUREKA</h2>
+                  <p data-i18n="contactLine">联系方式:******</p>
+                  <p data-i18n="birthdayLine">生日:****.06.14</p>
+                  <p data-i18n="addressLine">住址:火星</p>
+                </div>
+              </div>
+              <div class="panel-grid">
+                <span data-i18n="tagHello">你好</span>
+                <span data-i18n="tagName">尤里卡</span>
+                <span data-i18n="tagWelcome">欢迎你</span>
+                <span data-i18n="tagHere">来到这里</span>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="feature-section">
-        <article class="feature-card reveal">
-          <h3>动态背景</h3>
-          <p>渐变、模糊光球和颗粒纹理叠加，避免页面看起来单薄。</p>
-        </article>
-        <article class="feature-card reveal">
-          <h3>粒子连线</h3>
-          <p>使用 Canvas 绘制漂浮粒子，在视觉上更有科技感与生命力。</p>
-        </article>
-        <article class="feature-card reveal">
-          <h3>互动体验</h3>
-          <p>按钮、卡片和滚动进入动画都已预埋，方便继续加功能。</p>
-        </article>
+      <section class="language-section" data-theme-section="language">
+        <div class="section-shell language-shell">
+          <article class="language-universe" id="language-universe">
+            <nav class="language-index" aria-label="Language node navigation">
+              <button class="language-index-item" type="button" data-language-node="py">01</button>
+              <button class="language-index-item" type="button" data-language-node="html">02</button>
+              <button class="language-index-item is-active" type="button" data-language-node="js">03</button>
+              <button class="language-index-item" type="button" data-language-node="css">04</button>
+              <button class="language-index-item" type="button" data-language-node="cpp">05</button>
+            </nav>
+
+            <div class="language-stage">
+              <div class="language-heading">
+                <p class="eyebrow" data-i18n="languageEyebrow">编程语言</p>
+                <h2 class="language-section-title" data-i18n="languageTitle">
+                  我接触过的
+                  编程语言
+                </h2>
+              </div>
+
+              <svg class="language-network" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <line class="network-line line-cpp" x1="43" y1="62" x2="12" y2="50" />
+                <line class="network-line line-html" x1="58" y1="60" x2="86" y2="50" />
+                <line class="network-line line-css" x1="43" y1="72" x2="15" y2="86" />
+                <line class="network-line line-js" x1="58" y1="72" x2="84" y2="86" />
+                <line class="network-line line-py" x1="50" y1="76" x2="50" y2="91" />
+              </svg>
+
+              <div class="brain-wrap" aria-hidden="true">
+                <div class="brain-three-mount" id="brain-three-mount"></div>
+              </div>
+
+              <div class="language-node-field" aria-label="Programming languages">
+                <button class="language-node node-cpp" type="button" data-language-node="cpp">
+                  <span class="node-index">05</span>
+                  <span class="node-label">C++</span>
+                </button>
+              <button class="language-node node-html" type="button" data-language-node="html">
+                <span class="node-index">02</span>
+                <span class="node-label">HTML</span>
+              </button>
+              <button class="language-node node-css" type="button" data-language-node="css">
+                <span class="node-index">04</span>
+                <span class="node-label">CSS</span>
+              </button>
+              <button class="language-node node-js is-active" type="button" data-language-node="js">
+                <span class="node-index">03</span>
+                <span class="node-label">JavaScript</span>
+              </button>
+              <button class="language-node node-py" type="button" data-language-node="py">
+                <span class="node-index">01</span>
+                <span class="node-label">Python</span>
+              </button>
+              </div>
+            </div>
+
+            <aside class="language-insight" aria-live="polite">
+              <p class="language-insight-kicker" data-i18n="languageInsightKicker">技能节点</p>
+              <h3 data-language-insight-title>JavaScript</h3>
+              <p data-language-insight-text data-i18n="languageNodeJsText">
+                JavaScript 是 Web 的脚本语言，运行在浏览器中，为页面加入交互、状态变化、数据处理和动态内容。
+              </p>
+              <div class="language-tags" data-language-insight-tags>
+                <span>脚本语言</span>
+                <span>交互</span>
+                <span>动态网页</span>
+              </div>
+            </aside>
+          </article>
+        </div>
       </section>
+
+      <section class="career-section" id="career-section" data-theme-section="career">
+        <div class="career-sticky">
+          <div class="career-scene" aria-label="职业">
+            <div class="career-orbit career-orbit-a"></div>
+            <div class="career-orbit career-orbit-b"></div>
+
+            <div class="career-ufo" aria-hidden="true">
+              <img class="career-ufo-img" src="./images/ufo.png?v=20260429-40" alt="" />
+            </div>
+
+            <div class="career-card-stack" data-active-layer="1" data-direction="forward" aria-label="职业卡片">
+              <article class="career-card-layer layer-card-scroll career-card-layer-1" data-career-layer="1">
+                <p class="career-kicker" data-i18n="careerLayer1Kicker">第 01 页</p>
+                <h2 class="career-title-primary" data-i18n="careerLayer1Title">职业</h2>
+              </article>
+              <article class="career-card-layer layer-card-scroll career-card-layer-2" data-career-layer="2">
+                <p class="career-kicker" data-i18n="careerLayer2Kicker">第 02 页</p>
+                <h2 class="career-title-medium" data-i18n="careerLayer2Title">外星人猎人</h2>
+              </article>
+              <article class="career-card-layer layer-card-scroll career-card-layer-3" data-career-layer="3">
+                <p class="career-kicker" data-i18n="careerLayer3Kicker">第 03 页</p>
+                <p class="career-statement" data-i18n="careerLayer3Text">
+                  请你在怀疑我的职业之前先想一下你在生活中有亲眼见到过任何外星人吗？
+                </p>
+              </article>
+            </div>
+
+            <div class="career-alien" aria-hidden="true">
+              <img class="career-alien-img" src="./images/alien.png" alt="" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="photo-section" id="photo-section" data-theme-section="photo">
+        <div class="photo-sticky">
+          <div class="section-shell photo-shell">
+            <header class="photo-heading" aria-hidden="true">
+              <p class="eyebrow" data-i18n="photoEyebrow">Gallery</p>
+              <h2 class="photo-title" data-i18n="photoTitle">照片</h2>
+            </header>
+
+            <div class="photo-stage" aria-label="照片卡片掉落动画">
+              <article class="photo-card photo-floating-card" data-photo-insert="1" aria-label="即将插入的照片 1">
+                <span class="photo-card-shine" aria-hidden="true"></span>
+              </article>
+
+              <div class="photo-queue" aria-label="照片卡片队列">
+                <article class="photo-card photo-queue-card" data-photo-base="1" aria-label="照片占位 1"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="2" aria-label="照片占位 2"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="3" aria-label="照片占位 3"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="4" aria-label="照片占位 4"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="5" aria-label="照片占位 5"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="6" aria-label="照片占位 6"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="7" aria-label="照片占位 7"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="8" aria-label="照片占位 8"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="9" aria-label="照片占位 9"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="10" aria-label="照片占位 10"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="11" aria-label="照片占位 11"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="12" aria-label="照片占位 12"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="13" aria-label="照片占位 13"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="14" aria-label="照片占位 14"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="15" aria-label="照片占位 15"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="16" aria-label="照片占位 16"></article>
+                <article class="photo-card photo-queue-card" data-photo-base="17" aria-label="照片占位 17"></article>
+              </div>
+              <button
+                class="photo-show-all-button"
+                id="photo-show-all"
+                type="button"
+                aria-expanded="false"
+              >
+                Show All
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </main>
 
-    <script src="./script.js"></script>
+    <script src="./script.js?v=20260503-72"></script>
   </body>
 </html>

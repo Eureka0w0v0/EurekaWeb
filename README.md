@@ -2,6 +2,34 @@
 
 一个已经配置好的动态交互网页模板，使用原生 HTML、CSS、JavaScript 构建，不依赖 Node 环境。
 
+## Netlify 发布
+
+项目已经加入 `Netlify` 发布配置，适合直接部署为免费静态站点。
+
+在 Netlify 中导入这个项目后：
+
+- Build command 留空
+- Publish directory 填 `.`，或者直接使用仓库里的 `netlify.toml`
+- 站点名可以尝试设置为 `EurekaWeb`
+
+如果这个站点名可用，默认网址通常会是：
+
+`https://eurekaweb.netlify.app`
+
+如果不可用，Netlify 会要求换一个未占用的名字。
+
+## 维护模式
+
+项目内已经加入维护模式开关，配置文件在 `site-config.json`。
+
+- 正常运行：`"maintenance": false`
+- 进入维护页：`"maintenance": true`
+
+当维护模式开启时：
+
+- 访问 `index.html` 会自动跳转到 `maintenance/index.html`
+- 维护页关闭后会自动跳回主页
+
 ## GitHub Pages 发布
 
 项目已经加入 GitHub Pages 工作流，推荐仓库名使用 `EurekaWeb`。
