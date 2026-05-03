@@ -3522,8 +3522,9 @@ function updatePhotoScene(timestamp = window.performance.now()) {
             ? interpolate(guardOffset, desktopStackFirstX, desktopStackT)
             : Math.min(desktopStackFirstX + (desktopStackT - 1) * stackStep, maxStackX)
         );
+    const mobileInsertedGuardX = Math.max(finalStep, cardWidth * 0.96);
     const compactFirstStackX = Math.min(
-      Math.max(cardWidth * 0.82, 78),
+      mobileInsertedGuardX,
       viewportWidth / 2 - cardWidth * 0.06
     );
     const compactStackStep = Math.max(8, cardWidth * 0.11);
