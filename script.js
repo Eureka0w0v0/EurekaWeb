@@ -3234,9 +3234,21 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     const delta = photoTargetProgress - photoVisualProgress;
     const direction = Math.sign(delta);
     const distance = Math.abs(delta);
-    const maxSpeed = 0.78;
-    const maxAcceleration = 2.85;
-    const brakingDistance = 0.2;
+    const isReverseExtraction = (
+      direction < 0 &&
+      photoVisualProgress > PHOTO_INTRO_PHASES.dropStart &&
+      photoVisualProgress <= PHOTO_INTRO_PHASES.carouselEnd
+    );
+    const isMobileReverseExtraction = isReverseExtraction && isCompact;
+    const velocityDirection = Math.sign(photoProgressVelocity);
+
+    if (direction && velocityDirection && direction !== velocityDirection) {
+      photoProgressVelocity *= isMobileReverseExtraction ? 0.035 : 0.08;
+    }
+
+    const maxSpeed = isMobileReverseExtraction ? 1.16 : (isReverseExtraction ? 1.0 : 0.78);
+    const maxAcceleration = isMobileReverseExtraction ? 6.8 : (isReverseExtraction ? 5.2 : 2.85);
+    const brakingDistance = isMobileReverseExtraction ? 0.075 : (isReverseExtraction ? 0.1 : 0.2);
     const speedLimitByDistance = maxSpeed * Math.min(1, distance / brakingDistance);
     const desiredVelocity = direction * speedLimitByDistance;
     const velocityDelta = desiredVelocity - photoProgressVelocity;
