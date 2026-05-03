@@ -3336,10 +3336,13 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   );
   const selectedSlot = hasValidSelectedSlot ? photoSelectedSlot : centerInsertSlot;
   const contentSlot = Math.min(Math.max(Math.round(selectedSlot), 0), Math.max(finalCount - 1, 0));
+  const layoutAnchorSlot = hasSingleFloatingCard
+    ? contentSlot
+    : centerInsertSlot;
   photoDropSlot = contentSlot;
   const insertGapSlots = (() => {
     if (hasSingleFloatingCard) {
-      return [centerInsertSlot];
+      return [contentSlot];
     }
 
     if (photoFloatingCards.length === 3) {
@@ -3354,7 +3357,7 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   })();
   // Single-card replay separates identity from layout:
   // - contentSlot is the selected card's identity and becomes the active carousel slot.
-  // - insertGapSlots stays locked to centerSlot, so the queue always opens in the middle.
+  // - insertGapSlots follows contentSlot, so the queue opens around the current active card.
   const insertFinalSlots = hasSingleFloatingCard ? [contentSlot] : insertGapSlots;
   const initialCarouselIndex = hasSingleFloatingCard
     ? contentSlot
@@ -3908,11 +3911,11 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     const isReinsert = photoReinsertActive && hasSingleFloatingCard;
     const insertSlot = baseInsertSlots[index] ?? slot;
     const reinsertVisualOffset = reinsertRelativeOffsetBySlot.get(slot) ?? (slot - contentSlot);
-    const lineRelativeOffset = getCompressedLineOffset(insertSlot, centerInsertSlot);
+    const lineRelativeOffset = getCompressedLineOffset(insertSlot, layoutAnchorSlot);
     const initialLineMetrics = isCompact
       ? getPhotoInsertStackMetrics(lineRelativeOffset, true)
       : null;
-    const insertRelativeOffset = insertSlot - centerInsertSlot;
+    const insertRelativeOffset = insertSlot - layoutAnchorSlot;
     const relativeOffset = isReinsert ? reinsertVisualOffset : insertRelativeOffset;
     const isMobileReinsert = isCompact && isReinsert;
     const reinsertLineRelativeOffset = reinsertVisualOffset < 0
@@ -4005,7 +4008,7 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   };
 
   const nextPhotoCardSlotMap = new Map();
-  const selectedContentCard = photoSelectedSourceCard || photoCardSlotMap.get(contentSlot);
+  const selectedContentCard = photoCardSlotMap.get(contentSlot) || photoSelectedSourceCard;
   const photoHitCollector = createPhotoHitRectCollector(stageRect, cardWidth, cardHeight);
   const queueCardBaseX = stageRect.width / 2;
   const cardFrames = [];
@@ -4082,7 +4085,7 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     cardFrames,
     hitRect: photoHitCollector.getRect(),
     slotEntries: [...nextPhotoCardSlotMap.entries()],
-    selectedSourceCard: nextPhotoCardSlotMap.get(contentSlot) || photoSelectedSourceCard,
+    selectedSourceCard: selectedContentCard || nextPhotoCardSlotMap.get(contentSlot) || photoSelectedSourceCard,
   });
 
   return !reduceMotion && photoSectionIsNearViewport && (
