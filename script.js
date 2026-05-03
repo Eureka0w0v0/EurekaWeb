@@ -3379,7 +3379,8 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   photoCarouselMaxIndex = Math.max(photoCarouselCards.length - 1, finalCount - 1, 0);
 
   const photoSectionIsVisible = rect.top < viewportHeight && rect.bottom > 0;
-  const introComplete = previewProgress >= 0.999;
+  const carouselReadyThreshold = 0.975;
+  const introComplete = previewProgress >= carouselReadyThreshold;
   const carouselReady = (
     (shouldReduceMotion() || introComplete) &&
     photoSectionIsVisible
