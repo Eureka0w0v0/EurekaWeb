@@ -2179,7 +2179,7 @@ html[lang="en"] .career-statement {
   --photo-stage-headroom: 0px;
   --photo-stage-offset: 0px;
   --photo-queue-shift: 0px;
-  --photo-queue-final-bottom: clamp(18px, 5.5vh, 78px);
+  --photo-queue-final-bottom: clamp(68px, 11vh, 142px);
   --photo-queue-final-y: clamp(0px, 4vh, 56px);
   --photo-title-top: 72px;
   position: relative;
@@ -2364,11 +2364,11 @@ html[lang="en"] .career-statement {
 
 .photo-card-image {
   position: absolute;
-  inset: 12px;
+  inset: 8px;
   display: block;
-  width: calc(100% - 24px);
-  height: calc(100% - 24px);
-  border-radius: 14px;
+  width: calc(100% - 16px);
+  height: calc(100% - 16px);
+  border-radius: 11px;
   object-fit: cover;
   image-orientation: from-image;
   pointer-events: none;
@@ -2379,8 +2379,8 @@ html[lang="en"] .career-statement {
 .photo-card::before {
   content: "";
   position: absolute;
-  inset: 12px;
-  border-radius: 14px;
+  inset: 8px;
+  border-radius: 11px;
   border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
   background:
     linear-gradient(160deg, color-mix(in srgb, var(--text) 5%, transparent), transparent 42%),
@@ -2390,6 +2390,7 @@ html[lang="en"] .career-statement {
 
 .photo-card::after {
   content: "";
+  display: none;
   position: absolute;
   left: 18px;
   right: 18px;
@@ -2424,6 +2425,7 @@ html[lang="en"] .career-statement {
 }
 
 .photo-floating-card .photo-card-shine {
+  display: none;
   position: absolute;
   inset: 0;
   background:
@@ -3097,7 +3099,7 @@ body.pulse-active::after {
 
   .photo-section {
     --photo-title-top: 64px;
-    --photo-queue-final-bottom: clamp(16px, 5vh, 62px);
+    --photo-queue-final-bottom: clamp(54px, 9.5vh, 118px);
     --photo-queue-final-y: clamp(0px, 4vh, 56px);
     min-height: 225vh;
     min-height: 225svh;
@@ -3425,7 +3427,7 @@ body.pulse-active::after {
 
   .photo-section {
     --photo-title-top: 64px;
-    --photo-queue-final-bottom: clamp(14px, 4.5vh, 48px);
+    --photo-queue-final-bottom: clamp(46px, 8.5vh, 98px);
     --photo-queue-final-y: clamp(0px, 3vh, 40px);
     min-height: 225vh;
     min-height: 225svh;
