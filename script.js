@@ -3259,9 +3259,11 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   }
 
   const progress = photoVisualProgress;
+  const titleStartRatio = isCompact ? 0.6 : 0.34;
+  const titleDurationRatio = 1.02;
   const titleProgress = reduceMotion
     ? 1
-    : clamp01((viewportHeight * 0.72 - rect.top) / (viewportHeight * 0.93));
+    : clamp01((viewportHeight * titleStartRatio - rect.top) / (viewportHeight * titleDurationRatio));
   const { cardWidth, cardHeight, gap } = getPhotoLayoutMetrics(isCompact, viewportWidth);
   const photoPhaseFrame = computePhotoPhaseFrame({
     progress,
@@ -3287,7 +3289,7 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   const stageRect = photoStage.getBoundingClientRect();
   const queueRect = photoQueueAnchor.getBoundingClientRect();
   const stageHeadroom = Math.max(0, -stageRect.top);
-  const titleRect = photoFixedTitle?.getBoundingClientRect();
+  const titleRect = titleOpacity > 0.02 ? photoFixedTitle?.getBoundingClientRect() : null;
   const titleStartY = titleRect
     ? titleRect.bottom - stageRect.top + 50
     : stageHeadroom + viewportHeight * (isCompact ? 0.22 : 0.24);
