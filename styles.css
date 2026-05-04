@@ -2183,9 +2183,9 @@ html[lang="en"] .career-statement {
   --photo-queue-final-y: clamp(20px, 4vh, 76px);
   --photo-title-top: 72px;
   position: relative;
-  min-height: 500vh;
-  min-height: 500svh;
-  min-height: 500dvh;
+  min-height: 580vh;
+  min-height: 580svh;
+  min-height: 580dvh;
   color: var(--text);
   overflow: visible;
   background: transparent;
@@ -3101,9 +3101,9 @@ body.pulse-active::after {
     --photo-title-top: 64px;
     --photo-queue-final-bottom: clamp(74px, 12vh, 140px);
     --photo-queue-final-y: clamp(28px, 4.5vh, 84px);
-    min-height: 520vh;
-    min-height: 520svh;
-    min-height: 520dvh;
+    min-height: 620vh;
+    min-height: 620svh;
+    min-height: 620dvh;
   }
 
   .photo-sticky {
@@ -3429,9 +3429,9 @@ body.pulse-active::after {
     --photo-title-top: 64px;
     --photo-queue-final-bottom: clamp(66px, 11.5vh, 122px);
     --photo-queue-final-y: clamp(22px, 4vh, 72px);
-    min-height: 520vh;
-    min-height: 520svh;
-    min-height: 520dvh;
+    min-height: 620vh;
+    min-height: 620svh;
+    min-height: 620dvh;
   }
 
   .photo-sticky {

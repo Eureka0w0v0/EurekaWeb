@@ -106,8 +106,8 @@ let photoVisualProgress = 0;
 let photoProgressVelocity = 0;
 let photoLastFrameTime = 0;
 const PHOTO_INTRO_PHASES = {
-  rawDurationVh: 4.2,
-  mobileRawDurationVh: 4.2,
+  rawDurationVh: 2.5,
+  mobileRawDurationVh: 2.5,
   queueVisibleStart: 0,
   queueVisibleEnd: 0.18,
   queueSpreadStart: 0.54,
@@ -120,13 +120,10 @@ const PHOTO_INTRO_PHASES = {
 };
 const PHOTO_TITLE_DURATION_RATIO = 1.02;
 const PHOTO_TITLE_FADE_OUT_PROGRESS = 0.94;
-const PHOTO_DROP_DISTANCE_BOOST = {
-  desktop: 7.85,
-  mobile: 7.55,
-};
-const PHOTO_DROP_QUEUE_LIFT = {
-  desktop: 7.8,
-  mobile: 7.55,
+const PHOTO_AFTER_COMPLETE_SCROLL_PX = 100;
+const PHOTO_DROP_EXTRA_DISTANCE_PX = {
+  desktop: 220,
+  mobile: 280,
 };
 const getPhotoTitleStartRatio = (isCompact) => (isCompact ? 0.6 : 0.34);
 const getPhotoDropStartProgress = (isCompact) => {
@@ -3005,6 +3002,15 @@ function computePhotoRawProgress(rect, viewportHeight, isCompact = false) {
   };
 }
 
+function applyPhotoSectionScrollHeight(viewportHeight, isCompact) {
+  const durationVh = isCompact
+    ? PHOTO_INTRO_PHASES.mobileRawDurationVh
+    : PHOTO_INTRO_PHASES.rawDurationVh;
+  const height = viewportHeight * (durationVh + 0.28) + PHOTO_AFTER_COMPLETE_SCROLL_PX;
+
+  setStyleFieldIfChanged(photoSection, "minHeight", `${height.toFixed(2)}px`);
+}
+
 function computePhotoPhaseFrame({
   progress,
   titleProgress,
@@ -3320,7 +3326,6 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     return false;
   }
 
-  const rect = photoSection.getBoundingClientRect();
   const isCompact = window.innerWidth <= 680;
   const viewportHeight = isCompact
     ? Math.max(stableMobileAppHeight || window.innerHeight, 1)
@@ -3328,6 +3333,10 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   const viewportWidth = isCompact
     ? Math.max(window.innerWidth, 1)
     : Math.max(window.innerWidth, window.visualViewport?.width || 0, 1);
+
+  applyPhotoSectionScrollHeight(viewportHeight, isCompact);
+
+  const rect = photoSection.getBoundingClientRect();
   const photoSectionIsNearViewport = rect.top < viewportHeight * 1.35 && rect.bottom > -viewportHeight * 0.35;
   const photoHasActiveMotion = (
     photoCarouselEnabled ||
@@ -3442,13 +3451,10 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   const dropStartBaseY = titleDropAnchorY;
   const queueCenterX = queueRect.left - stageRect.left + queueRect.width / 2;
   const queueVisualTopY = queueRect.top - stageRect.top;
-  const dropDistanceAdaptY = cardHeight * (
-    isCompact ? PHOTO_DROP_DISTANCE_BOOST.mobile : PHOTO_DROP_DISTANCE_BOOST.desktop
-  );
-  const queueLiftCompensationY = cardHeight * (
-    isCompact ? PHOTO_DROP_QUEUE_LIFT.mobile : PHOTO_DROP_QUEUE_LIFT.desktop
-  );
-  const insertionAnchorY = queueVisualTopY + dropDistanceAdaptY - queueLiftCompensationY;
+  const dropDistanceExtraY = isCompact
+    ? PHOTO_DROP_EXTRA_DISTANCE_PX.mobile
+    : PHOTO_DROP_EXTRA_DISTANCE_PX.desktop;
+  const insertionAnchorY = queueVisualTopY + dropDistanceExtraY;
   const queueLocalOffsetY = insertionAnchorY;
   const initialCount = photoQueueCards.length;
   const finalCount = initialCount + photoFloatingCards.length;
