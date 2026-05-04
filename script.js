@@ -125,6 +125,10 @@ const PHOTO_DROP_EXTRA_DISTANCE_PX = {
   desktop: 220,
   mobile: 280,
 };
+const PHOTO_SECTION_EXTRA_HEIGHT_PX = {
+  desktop: 520,
+  mobile: 620,
+};
 const getPhotoTitleStartRatio = (isCompact) => (isCompact ? 0.6 : 0.34);
 const getPhotoDropStartProgress = (isCompact) => {
   const durationVh = isCompact
@@ -3006,9 +3010,13 @@ function applyPhotoSectionScrollHeight(viewportHeight, isCompact) {
   const durationVh = isCompact
     ? PHOTO_INTRO_PHASES.mobileRawDurationVh
     : PHOTO_INTRO_PHASES.rawDurationVh;
+  const extraHeight = isCompact
+    ? PHOTO_SECTION_EXTRA_HEIGHT_PX.mobile
+    : PHOTO_SECTION_EXTRA_HEIGHT_PX.desktop;
   const height = viewportHeight * (durationVh + 0.28) + PHOTO_AFTER_COMPLETE_SCROLL_PX;
 
   setStyleFieldIfChanged(photoSection, "minHeight", `${height.toFixed(2)}px`);
+  setStyleFieldIfChanged(photoSection, "paddingBottom", `${extraHeight.toFixed(2)}px`);
 }
 
 function computePhotoPhaseFrame({
