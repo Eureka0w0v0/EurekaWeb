@@ -2540,17 +2540,19 @@ body.is-photo-zoom-open .topbar {
 .photo-zoom-close {
   position: relative;
   z-index: 1901;
-  width: 44px;
-  height: 44px;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  width: 38px;
+  height: 38px;
+  border: 1px solid color-mix(in srgb, var(--line) 42%, transparent);
   border-radius: 50%;
-  background: color-mix(in srgb, var(--surface-strong) 86%, transparent);
-  color: var(--text);
+  background: color-mix(in srgb, var(--surface-strong) 42%, transparent);
+  color: color-mix(in srgb, var(--text) 82%, transparent);
   cursor: pointer;
   touch-action: manipulation;
-  box-shadow:
-    0 14px 34px color-mix(in srgb, var(--text) 12%, transparent),
-    inset 0 1px 0 color-mix(in srgb, white 22%, transparent);
+  box-shadow: none;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
 }
 
 .photo-zoom-close::before,
@@ -2559,8 +2561,8 @@ body.is-photo-zoom-open .topbar {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 18px;
-  height: 2px;
+  width: 16px;
+  height: 1.5px;
   border-radius: 999px;
   background: currentColor;
   transform-origin: center;
@@ -2575,7 +2577,14 @@ body.is-photo-zoom-open .topbar {
 }
 
 .photo-zoom-close:hover {
-  border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+  border-color: color-mix(in srgb, var(--text) 32%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 66%, transparent);
+  color: var(--text);
+}
+
+.photo-zoom-close:active {
+  background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
+  color: var(--text);
 }
 
 html.theme-dark .photo-card,
