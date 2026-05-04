@@ -2383,8 +2383,7 @@ html[lang="en"] .career-statement {
   border-radius: 11px;
   border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
   background:
-    linear-gradient(160deg, color-mix(in srgb, var(--text) 5%, transparent), transparent 42%),
-    color-mix(in srgb, var(--surface-strong) 36%, transparent);
+    linear-gradient(160deg, color-mix(in srgb, white 8%, transparent), transparent 42%);
   z-index: 1;
 }
 
