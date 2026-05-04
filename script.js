@@ -45,6 +45,11 @@ const photoZoomImage = document.querySelector("#photo-zoom-image");
 const photoZoomCloseButton = document.querySelector("#photo-zoom-close");
 let photoZoomActive = false;
 let photoZoomOpenToken = 0;
+const photoZoomPreloadCache = new Map();
+const photoZoomPreloadQueue = [];
+let photoZoomPreloadRunning = false;
+let photoZoomPreloadActiveCount = 0;
+let photoZoomPreloadLastActiveSlot = 0;
 const themeWave = document.querySelector(".theme-wave");
 const themeWaveCore = document.querySelector(".theme-wave-core");
 const canvas = document.querySelector("#particle-canvas");
@@ -3232,6 +3237,222 @@ function decodePhotoZoomElement(image) {
   });
 }
 
+function getPhotoZoomSourceDescriptor(sourceContent) {
+  if (!sourceContent?.src) {
+    return null;
+  }
+
+  return {
+    src: sourceContent.fullSrc || sourceContent.src,
+    srcset: sourceContent.fullSrcset || "",
+    sizes: sourceContent.fullSizes || "",
+  };
+}
+
+function getPhotoZoomPreloadKey(sourceContent) {
+  const descriptor = getPhotoZoomSourceDescriptor(sourceContent);
+  if (!descriptor?.src) {
+    return "";
+  }
+
+  return [
+    descriptor.src,
+    descriptor.srcset,
+    descriptor.sizes,
+  ].join("|");
+}
+
+function getPhotoZoomPreloadLimit() {
+  return isMobileViewport() ? 6 : 10;
+}
+
+function getPhotoZoomPreloadConcurrency() {
+  return isMobileViewport() ? 1 : 2;
+}
+
+function prunePhotoZoomPreloadCache(activeSlot = photoZoomPreloadLastActiveSlot) {
+  const decodedEntries = [...photoZoomPreloadCache.entries()]
+    .filter(([, entry]) => entry.status === "decoded");
+  const limit = getPhotoZoomPreloadLimit();
+
+  if (decodedEntries.length <= limit) {
+    return;
+  }
+
+  decodedEntries
+    .sort(([, a], [, b]) => {
+      const distanceA = Number.isFinite(a.slot) ? Math.abs(a.slot - activeSlot) : Number.POSITIVE_INFINITY;
+      const distanceB = Number.isFinite(b.slot) ? Math.abs(b.slot - activeSlot) : Number.POSITIVE_INFINITY;
+      return distanceB - distanceA;
+    })
+    .slice(0, decodedEntries.length - limit)
+    .forEach(([key]) => {
+      photoZoomPreloadCache.delete(key);
+    });
+}
+
+function pumpPhotoZoomPreloadQueue() {
+  const concurrency = getPhotoZoomPreloadConcurrency();
+
+  while (photoZoomPreloadActiveCount < concurrency && photoZoomPreloadQueue.length > 0) {
+    const preloadTask = photoZoomPreloadQueue.shift();
+    const entry = photoZoomPreloadCache.get(preloadTask.key);
+
+    if (!entry || entry.status !== "queued") {
+      continue;
+    }
+
+    entry.status = "loading";
+    photoZoomPreloadActiveCount += 1;
+    photoZoomPreloadRunning = true;
+
+    const image = new Image();
+    image.decoding = "async";
+    try {
+      image.fetchPriority = preloadTask.priority ? "high" : "low";
+    } catch (error) {
+      // Older browsers may expose fetchPriority as read-only or not at all.
+    }
+    if (preloadTask.srcset) {
+      image.srcset = preloadTask.srcset;
+    }
+    if (preloadTask.sizes) {
+      image.sizes = preloadTask.sizes;
+    }
+    image.src = preloadTask.src;
+
+    entry.promise = decodePhotoZoomElement(image).then((decoded) => {
+      if (decoded) {
+        Object.assign(entry, {
+          status: "decoded",
+          image,
+          src: preloadTask.src,
+          srcset: preloadTask.srcset,
+          sizes: preloadTask.sizes,
+        });
+        prunePhotoZoomPreloadCache(entry.slot);
+        return entry;
+      }
+
+      entry.status = "error";
+      return null;
+    }).finally(() => {
+      photoZoomPreloadActiveCount = Math.max(0, photoZoomPreloadActiveCount - 1);
+      if (photoZoomPreloadActiveCount === 0 && photoZoomPreloadQueue.length === 0) {
+        photoZoomPreloadRunning = false;
+      }
+      pumpPhotoZoomPreloadQueue();
+    });
+  }
+
+  if (photoZoomPreloadActiveCount === 0 && photoZoomPreloadQueue.length === 0) {
+    photoZoomPreloadRunning = false;
+  }
+}
+
+function preloadPhotoZoomContent(sourceContent, priority = false, slot = null) {
+  const descriptor = getPhotoZoomSourceDescriptor(sourceContent);
+  const key = getPhotoZoomPreloadKey(sourceContent);
+
+  if (!descriptor?.src || !key) {
+    return;
+  }
+
+  const existingEntry = photoZoomPreloadCache.get(key);
+  if (existingEntry) {
+    if (Number.isFinite(slot)) {
+      existingEntry.slot = slot;
+    }
+    if (existingEntry.status === "decoded" || existingEntry.status === "loading") {
+      return;
+    }
+    if (existingEntry.status === "queued") {
+      if (priority && !existingEntry.priority) {
+        existingEntry.priority = true;
+        const queueIndex = photoZoomPreloadQueue.findIndex((task) => task.key === key);
+        if (queueIndex > 0) {
+          const [task] = photoZoomPreloadQueue.splice(queueIndex, 1);
+          task.priority = true;
+          photoZoomPreloadQueue.unshift(task);
+        }
+      }
+      return;
+    }
+  }
+
+  const entry = {
+    status: "queued",
+    priority,
+    slot,
+    src: descriptor.src,
+    srcset: descriptor.srcset,
+    sizes: descriptor.sizes,
+    image: null,
+    promise: null,
+  };
+  photoZoomPreloadCache.set(key, entry);
+
+  const preloadTask = {
+    key,
+    priority,
+    slot,
+    src: descriptor.src,
+    srcset: descriptor.srcset,
+    sizes: descriptor.sizes,
+  };
+
+  if (priority) {
+    photoZoomPreloadQueue.unshift(preloadTask);
+  } else {
+    photoZoomPreloadQueue.push(preloadTask);
+  }
+
+  pumpPhotoZoomPreloadQueue();
+}
+
+function preloadNearbyPhotoZoomImages(activeSlot, radius = (isMobileViewport() ? 1 : 2)) {
+  if (!Number.isFinite(activeSlot) || photoSlotContentMap.size === 0) {
+    return;
+  }
+
+  const clampedActiveSlot = clampPhotoCarouselIndex(Math.round(activeSlot));
+  photoZoomPreloadLastActiveSlot = clampedActiveSlot;
+  const slots = [clampedActiveSlot];
+
+  for (let offset = 1; offset <= radius; offset += 1) {
+    slots.push(clampedActiveSlot - offset, clampedActiveSlot + offset);
+  }
+
+  slots.forEach((slot) => {
+    if (slot < photoCarouselMinIndex || slot > photoCarouselMaxIndex) {
+      return;
+    }
+
+    const sourceContent = photoSlotContentMap.get(slot);
+    if (!sourceContent) {
+      return;
+    }
+
+    preloadPhotoZoomContent(sourceContent, slot === clampedActiveSlot, slot);
+  });
+  prunePhotoZoomPreloadCache(clampedActiveSlot);
+}
+
+function preloadActivePhotoZoomImage(priority = true) {
+  if (!photoCarouselEnabled || photoAllExpandedTarget > 0 || photoAllExpandedProgress > 0.01) {
+    return;
+  }
+
+  const activeSlot = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+  const activeContent = photoSlotContentMap.get(activeSlot);
+  if (!activeContent) {
+    return;
+  }
+
+  preloadPhotoZoomContent(activeContent, priority, activeSlot);
+  preloadNearbyPhotoZoomImages(activeSlot, isMobileViewport() ? 1 : 2);
+}
+
 function openPhotoZoom(sourceContent) {
   if (!sourceContent?.src) {
     return;
@@ -3242,10 +3463,16 @@ function openPhotoZoom(sourceContent) {
   }
 
   const token = ++photoZoomOpenToken;
-  const zoomSrc = sourceContent.fullSrc || sourceContent.src;
-  const zoomSrcset = sourceContent.fullSrcset || "";
-  const zoomSizes = sourceContent.fullSizes || "";
+  const zoomDescriptor = getPhotoZoomSourceDescriptor(sourceContent);
+  if (!zoomDescriptor?.src) {
+    return;
+  }
+  const zoomSrc = zoomDescriptor.src;
+  const zoomSrcset = zoomDescriptor.srcset;
+  const zoomSizes = zoomDescriptor.sizes;
   const zoomAlt = sourceContent.label || "Expanded photo";
+  const zoomCacheKey = getPhotoZoomPreloadKey(sourceContent);
+  const cachedZoom = photoZoomPreloadCache.get(zoomCacheKey);
 
   photoZoomImage.style.opacity = "0";
   photoZoomImage.style.visibility = "hidden";
@@ -3270,6 +3497,24 @@ function openPhotoZoom(sourceContent) {
   photoZoomOverlay.classList.add("is-active");
   photoZoomOverlay.setAttribute("aria-hidden", "false");
   photoZoomCloseButton?.focus({ preventScroll: true });
+
+  if (cachedZoom?.status === "decoded") {
+    if (cachedZoom.srcset) {
+      setAttributeIfChanged(photoZoomImage, "srcset", cachedZoom.srcset);
+    } else if (photoZoomImage.hasAttribute("srcset")) {
+      photoZoomImage.removeAttribute("srcset");
+    }
+    if (cachedZoom.sizes) {
+      setAttributeIfChanged(photoZoomImage, "sizes", cachedZoom.sizes);
+    } else if (photoZoomImage.hasAttribute("sizes")) {
+      photoZoomImage.removeAttribute("sizes");
+    }
+    setAttributeIfChanged(photoZoomImage, "src", cachedZoom.src);
+    photoZoomImage.style.visibility = "visible";
+    photoZoomImage.style.opacity = "1";
+    preloadNearbyPhotoZoomImages(clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex)), isMobileViewport() ? 1 : 2);
+    return;
+  }
 
   const nextImage = new Image();
   nextImage.decoding = "async";
@@ -3383,34 +3628,71 @@ function getActivePhotoMainCard() {
   return photoCardSlotMap.get(activeSlot) || null;
 }
 
+function getActivePhotoMainCardContentAtPoint(x, y) {
+  const activeCard = getActivePhotoMainCard();
+  if (!activeCard) {
+    return null;
+  }
+
+  const rect = activeCard.getBoundingClientRect();
+  const isInsideActiveCard = (
+    x >= rect.left &&
+    x <= rect.right &&
+    y >= rect.top &&
+    y <= rect.bottom
+  );
+
+  if (!isInsideActiveCard) {
+    return null;
+  }
+
+  const activeSlot = Number.parseInt(activeCard.dataset.photoSlot, 10);
+  return {
+    activeCard,
+    activeSlot,
+    sourceContent: photoSlotContentMap.get(activeSlot) || readPhotoCardContent(activeCard),
+  };
+}
+
+function handlePhotoMainCardPreloadAtPoint(x, y) {
+  const hitContent = getActivePhotoMainCardContentAtPoint(x, y);
+  if (!hitContent?.sourceContent) {
+    return;
+  }
+
+  preloadPhotoZoomContent(hitContent.sourceContent, true, hitContent.activeSlot);
+}
+
+function handlePhotoMainCardPointerPreload(event) {
+  if (photoZoomActive || !photoStage || photoShowAllButton?.contains(event.target)) {
+    return;
+  }
+
+  handlePhotoMainCardPreloadAtPoint(event.clientX, event.clientY);
+}
+
+function handlePhotoMainCardTouchPreload(event) {
+  if (photoZoomActive || !photoStage || photoShowAllButton?.contains(event.target) || event.touches.length !== 1) {
+    return;
+  }
+
+  const touch = event.touches[0];
+  handlePhotoMainCardPreloadAtPoint(touch.clientX, touch.clientY);
+}
+
 function handlePhotoMainCardClick(event) {
   if (photoZoomActive || !photoStage || photoShowAllButton?.contains(event.target)) {
     return;
   }
 
-  const activeCard = getActivePhotoMainCard();
-  if (!activeCard) {
+  const hitContent = getActivePhotoMainCardContentAtPoint(event.clientX, event.clientY);
+  if (!hitContent?.sourceContent) {
     return;
   }
-
-  const rect = activeCard.getBoundingClientRect();
-  const isInsideActiveCard = (
-    event.clientX >= rect.left &&
-    event.clientX <= rect.right &&
-    event.clientY >= rect.top &&
-    event.clientY <= rect.bottom
-  );
-
-  if (!isInsideActiveCard) {
-    return;
-  }
-
-  const activeSlot = Number.parseInt(activeCard.dataset.photoSlot, 10);
-  const sourceContent = photoSlotContentMap.get(activeSlot) || readPhotoCardContent(activeCard);
 
   event.preventDefault();
   event.stopPropagation();
-  openPhotoZoom(sourceContent);
+  openPhotoZoom(hitContent.sourceContent);
 }
 
 function ensurePhotoSlotContentMap({
@@ -3830,6 +4112,7 @@ function updatePhotoScene(timestamp = window.performance.now()) {
       photoCarouselWheelDirection = 0;
       photoCarouselBoundaryDelta = 0;
       photoCarouselBoundaryDirection = 0;
+      preloadNearbyPhotoZoomImages(photoCarouselTargetIndex, isCompact ? 1 : 2);
     }
   } else {
     photoCarouselEnabled = false;
@@ -4551,6 +4834,7 @@ function setPhotoSelectedSlot(slot) {
   photoSelectedSlot = nextSlot;
   photoDropSlot = nextSlot;
   photoSelectedSourceCard = photoCardSlotMap.get(nextSlot) || photoSelectedSourceCard;
+  preloadNearbyPhotoZoomImages(nextSlot, isMobileViewport() ? 1 : 2);
 }
 
 function beginPhotoCarouselSettle(preferTarget = false) {
@@ -4651,6 +4935,7 @@ function stepPhotoCarousel(direction) {
   photoCarouselTargetIndex = clampPhotoCarouselIndex(photoCarouselTargetIndex + direction);
   photoCarouselIndex = photoCarouselTargetIndex;
   setPhotoSelectedSlot(photoCarouselTargetIndex);
+  preloadNearbyPhotoZoomImages(photoCarouselTargetIndex, isMobileViewport() ? 1 : 2);
   photoCarouselTransitionDirection = direction;
   photoCarouselHasInteracted = true;
   photoCarouselSettling = false;
@@ -5575,6 +5860,8 @@ async function initApp() {
   careerCardStack?.addEventListener("touchstart", handleCareerLayerTouchStart, { passive: true, capture: true });
   careerCardStack?.addEventListener("touchmove", handleCareerLayerTouchMove, { passive: false, capture: true });
   careerCardStack?.addEventListener("touchend", handleCareerLayerTouchEnd, { passive: true, capture: true });
+  photoStage?.addEventListener("pointerover", handlePhotoMainCardPointerPreload);
+  photoStage?.addEventListener("touchstart", handlePhotoMainCardTouchPreload, { passive: true });
   photoStage?.addEventListener("click", handlePhotoMainCardClick);
   photoZoomCloseButton?.addEventListener("pointerdown", handlePhotoZoomClosePointerDown);
   photoZoomCloseButton?.addEventListener("mousedown", handlePhotoZoomClosePointerDown);
@@ -5660,6 +5947,8 @@ async function initApp() {
     careerCardStack?.removeEventListener("touchstart", handleCareerLayerTouchStart, { capture: true });
     careerCardStack?.removeEventListener("touchmove", handleCareerLayerTouchMove, { capture: true });
     careerCardStack?.removeEventListener("touchend", handleCareerLayerTouchEnd, { capture: true });
+    photoStage?.removeEventListener("pointerover", handlePhotoMainCardPointerPreload);
+    photoStage?.removeEventListener("touchstart", handlePhotoMainCardTouchPreload);
     photoStage?.removeEventListener("click", handlePhotoMainCardClick);
     photoZoomCloseButton?.removeEventListener("pointerdown", handlePhotoZoomClosePointerDown);
     photoZoomCloseButton?.removeEventListener("mousedown", handlePhotoZoomClosePointerDown);
