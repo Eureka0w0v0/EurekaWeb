@@ -3214,6 +3214,10 @@ function openPhotoZoom(sourceContent) {
   photoZoomActive = true;
   root.classList.add("is-photo-zoom-open");
   body.classList.add("is-photo-zoom-open");
+  photoZoomOverlay.style.opacity = "";
+  photoZoomOverlay.style.visibility = "";
+  photoZoomOverlay.style.transition = "";
+  photoZoomOverlay.style.pointerEvents = "auto";
   photoZoomOverlay.classList.add("is-active");
   photoZoomOverlay.setAttribute("aria-hidden", "false");
   photoZoomCloseButton?.focus({ preventScroll: true });
@@ -3227,11 +3231,32 @@ function closePhotoZoom() {
   photoZoomActive = false;
   root.classList.remove("is-photo-zoom-open");
   body.classList.remove("is-photo-zoom-open");
+  photoZoomOverlay.style.transition = "none";
+  photoZoomOverlay.style.pointerEvents = "none";
+  photoZoomOverlay.style.opacity = "0";
+  photoZoomOverlay.style.visibility = "hidden";
   photoZoomOverlay.classList.remove("is-active");
   photoZoomOverlay.setAttribute("aria-hidden", "true");
+  photoZoomCloseButton?.blur();
+  requestPhotoSceneUpdate();
+  window.requestAnimationFrame(() => {
+    if (photoZoomActive || !photoZoomOverlay) {
+      return;
+    }
+
+    photoZoomOverlay.style.transition = "";
+    photoZoomOverlay.style.opacity = "";
+    photoZoomOverlay.style.visibility = "";
+  });
 }
 
 function handlePhotoZoomCloseClick(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  closePhotoZoom();
+}
+
+function handlePhotoZoomClosePointerDown(event) {
   event.preventDefault();
   event.stopPropagation();
   closePhotoZoom();
@@ -3243,7 +3268,19 @@ function handlePhotoZoomOverlayClick(event) {
   }
 }
 
+function handlePhotoZoomOverlayPointerDown(event) {
+  if (event.target === photoZoomOverlay) {
+    event.preventDefault();
+    event.stopPropagation();
+    closePhotoZoom();
+  }
+}
+
 function stopPhotoZoomScroll(event) {
+  if (!photoZoomActive) {
+    return;
+  }
+
   event.preventDefault();
   event.stopPropagation();
 }
@@ -5450,7 +5487,13 @@ async function initApp() {
   careerCardStack?.addEventListener("touchmove", handleCareerLayerTouchMove, { passive: false, capture: true });
   careerCardStack?.addEventListener("touchend", handleCareerLayerTouchEnd, { passive: true, capture: true });
   photoStage?.addEventListener("click", handlePhotoMainCardClick);
+  photoZoomCloseButton?.addEventListener("pointerdown", handlePhotoZoomClosePointerDown);
+  photoZoomCloseButton?.addEventListener("mousedown", handlePhotoZoomClosePointerDown);
+  photoZoomCloseButton?.addEventListener("touchstart", handlePhotoZoomClosePointerDown, { passive: false });
   photoZoomCloseButton?.addEventListener("click", handlePhotoZoomCloseClick);
+  photoZoomOverlay?.addEventListener("pointerdown", handlePhotoZoomOverlayPointerDown);
+  photoZoomOverlay?.addEventListener("mousedown", handlePhotoZoomOverlayPointerDown);
+  photoZoomOverlay?.addEventListener("touchstart", handlePhotoZoomOverlayPointerDown, { passive: false });
   photoZoomOverlay?.addEventListener("click", handlePhotoZoomOverlayClick);
   photoZoomOverlay?.addEventListener("wheel", stopPhotoZoomScroll, { passive: false });
   photoZoomOverlay?.addEventListener("touchmove", stopPhotoZoomScroll, { passive: false });
@@ -5529,7 +5572,13 @@ async function initApp() {
     careerCardStack?.removeEventListener("touchmove", handleCareerLayerTouchMove, { capture: true });
     careerCardStack?.removeEventListener("touchend", handleCareerLayerTouchEnd, { capture: true });
     photoStage?.removeEventListener("click", handlePhotoMainCardClick);
+    photoZoomCloseButton?.removeEventListener("pointerdown", handlePhotoZoomClosePointerDown);
+    photoZoomCloseButton?.removeEventListener("mousedown", handlePhotoZoomClosePointerDown);
+    photoZoomCloseButton?.removeEventListener("touchstart", handlePhotoZoomClosePointerDown);
     photoZoomCloseButton?.removeEventListener("click", handlePhotoZoomCloseClick);
+    photoZoomOverlay?.removeEventListener("pointerdown", handlePhotoZoomOverlayPointerDown);
+    photoZoomOverlay?.removeEventListener("mousedown", handlePhotoZoomOverlayPointerDown);
+    photoZoomOverlay?.removeEventListener("touchstart", handlePhotoZoomOverlayPointerDown);
     photoZoomOverlay?.removeEventListener("click", handlePhotoZoomOverlayClick);
     photoZoomOverlay?.removeEventListener("wheel", stopPhotoZoomScroll);
     photoZoomOverlay?.removeEventListener("touchmove", stopPhotoZoomScroll);
