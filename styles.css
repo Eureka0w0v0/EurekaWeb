@@ -2479,6 +2479,7 @@ body.is-photo-zoom-open .topbar {
 }
 
 .photo-zoom-frame {
+  position: relative;
   display: grid;
   place-items: center;
   max-width: 100%;
@@ -2501,6 +2502,39 @@ body.is-photo-zoom-open .topbar {
   object-fit: contain;
   image-orientation: from-image;
   user-select: none;
+}
+
+.photo-zoom-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.photo-zoom-loading::before {
+  content: "";
+  width: 34px;
+  height: 34px;
+  border: 2px solid color-mix(in srgb, var(--text) 18%, transparent);
+  border-top-color: color-mix(in srgb, var(--text) 78%, transparent);
+  border-radius: 50%;
+  animation: photoZoomLoadingSpin 760ms linear infinite;
+}
+
+.photo-zoom-overlay.is-loading .photo-zoom-loading {
+  opacity: 1;
+  visibility: visible;
+}
+
+@keyframes photoZoomLoadingSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .photo-zoom-close {

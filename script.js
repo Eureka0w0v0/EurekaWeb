@@ -43,6 +43,7 @@ const photoSlotContentMap = new Map();
 const photoZoomOverlay = document.querySelector("#photo-zoom-overlay");
 const photoZoomImage = document.querySelector("#photo-zoom-image");
 const photoZoomCloseButton = document.querySelector("#photo-zoom-close");
+const photoZoomLoading = document.querySelector("#photo-zoom-loading");
 let photoZoomActive = false;
 let photoZoomOpenToken = 0;
 const photoZoomPreloadCache = new Map();
@@ -3215,7 +3216,57 @@ function syncPhotoCardImageContent(targetCard, sourceContent) {
 }
 
 function ensurePhotoZoomViewer() {
-  return Boolean(photoZoomOverlay && photoZoomImage && photoZoomCloseButton);
+  return Boolean(photoZoomOverlay && photoZoomImage && photoZoomCloseButton && photoZoomLoading);
+}
+
+function setPhotoZoomLoading(isLoading) {
+  if (!photoZoomOverlay || !photoZoomLoading) {
+    return;
+  }
+
+  photoZoomOverlay.classList.toggle("is-loading", isLoading);
+  photoZoomOverlay.setAttribute("aria-busy", isLoading ? "true" : "false");
+  photoZoomLoading.setAttribute("aria-hidden", isLoading ? "false" : "true");
+}
+
+function applyPhotoZoomImageSource({ token, src, srcset = "", sizes = "" }) {
+  if (!photoZoomImage || !src) {
+    return Promise.resolve(false);
+  }
+
+  photoZoomImage.style.opacity = "0";
+  photoZoomImage.style.visibility = "hidden";
+
+  if (srcset) {
+    setAttributeIfChanged(photoZoomImage, "srcset", srcset);
+  } else if (photoZoomImage.hasAttribute("srcset")) {
+    photoZoomImage.removeAttribute("srcset");
+  }
+
+  if (sizes) {
+    setAttributeIfChanged(photoZoomImage, "sizes", sizes);
+  } else if (photoZoomImage.hasAttribute("sizes")) {
+    photoZoomImage.removeAttribute("sizes");
+  }
+
+  setAttributeIfChanged(photoZoomImage, "src", src);
+
+  return decodePhotoZoomElement(photoZoomImage).then(async (decoded) => {
+    if (token !== photoZoomOpenToken || !photoZoomActive || !decoded) {
+      return false;
+    }
+
+    await waitForNextAnimationFrame();
+
+    if (token !== photoZoomOpenToken || !photoZoomActive) {
+      return false;
+    }
+
+    photoZoomImage.style.visibility = "visible";
+    photoZoomImage.style.opacity = "1";
+    setPhotoZoomLoading(false);
+    return true;
+  });
 }
 
 function decodePhotoZoomElement(image) {
@@ -3486,6 +3537,7 @@ function openPhotoZoom(sourceContent) {
     photoZoomImage.removeAttribute("src");
   }
   setAttributeIfChanged(photoZoomImage, "alt", zoomAlt);
+  setPhotoZoomLoading(true);
 
   photoZoomActive = true;
   root.classList.add("is-photo-zoom-open");
@@ -3499,19 +3551,12 @@ function openPhotoZoom(sourceContent) {
   photoZoomCloseButton?.focus({ preventScroll: true });
 
   if (cachedZoom?.status === "decoded") {
-    if (cachedZoom.srcset) {
-      setAttributeIfChanged(photoZoomImage, "srcset", cachedZoom.srcset);
-    } else if (photoZoomImage.hasAttribute("srcset")) {
-      photoZoomImage.removeAttribute("srcset");
-    }
-    if (cachedZoom.sizes) {
-      setAttributeIfChanged(photoZoomImage, "sizes", cachedZoom.sizes);
-    } else if (photoZoomImage.hasAttribute("sizes")) {
-      photoZoomImage.removeAttribute("sizes");
-    }
-    setAttributeIfChanged(photoZoomImage, "src", cachedZoom.src);
-    photoZoomImage.style.visibility = "visible";
-    photoZoomImage.style.opacity = "1";
+    applyPhotoZoomImageSource({
+      token,
+      src: cachedZoom.src,
+      srcset: cachedZoom.srcset,
+      sizes: cachedZoom.sizes,
+    });
     preloadNearbyPhotoZoomImages(clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex)), isMobileViewport() ? 1 : 2);
     return;
   }
@@ -3536,19 +3581,12 @@ function openPhotoZoom(sourceContent) {
       return;
     }
 
-    if (zoomSrcset) {
-      setAttributeIfChanged(photoZoomImage, "srcset", zoomSrcset);
-    } else if (photoZoomImage.hasAttribute("srcset")) {
-      photoZoomImage.removeAttribute("srcset");
-    }
-    if (zoomSizes) {
-      setAttributeIfChanged(photoZoomImage, "sizes", zoomSizes);
-    } else if (photoZoomImage.hasAttribute("sizes")) {
-      photoZoomImage.removeAttribute("sizes");
-    }
-    setAttributeIfChanged(photoZoomImage, "src", zoomSrc);
-    photoZoomImage.style.visibility = "visible";
-    photoZoomImage.style.opacity = "1";
+    applyPhotoZoomImageSource({
+      token,
+      src: zoomSrc,
+      srcset: zoomSrcset,
+      sizes: zoomSizes,
+    });
   });
 }
 
@@ -3563,6 +3601,7 @@ function closePhotoZoom() {
     photoZoomImage.style.opacity = "0";
     photoZoomImage.style.visibility = "hidden";
   }
+  setPhotoZoomLoading(false);
   root.classList.remove("is-photo-zoom-open");
   body.classList.remove("is-photo-zoom-open");
   photoZoomOverlay.style.transition = "none";
