@@ -118,12 +118,32 @@ const PHOTO_INTRO_PHASES = {
   carouselStart: 0.9,
   carouselEnd: 1,
 };
+const PHOTO_QUEUE_REVEAL_DROP_PROGRESS = {
+  desktop: {
+    visibleStart: 0.42,
+    visibleEnd: 0.64,
+    riseStart: 0.16,
+    riseEnd: 0.7,
+    spreadStart: 0.5,
+  },
+  mobile: {
+    visibleStart: 0.46,
+    visibleEnd: 0.7,
+    riseStart: 0.18,
+    riseEnd: 0.74,
+    spreadStart: 0.56,
+  },
+};
 const PHOTO_TITLE_DURATION_RATIO = 1.02;
 const PHOTO_TITLE_FADE_OUT_PROGRESS = 0.94;
-const PHOTO_AFTER_COMPLETE_SCROLL_PX = 100;
+const PHOTO_AFTER_COMPLETE_SCROLL_PX = 50;
 const PHOTO_DROP_EXTRA_DISTANCE_PX = {
   desktop: 220,
   mobile: 280,
+};
+const PHOTO_QUEUE_VISUAL_LIFT_PX = {
+  desktop: 250,
+  mobile: 290,
 };
 const PHOTO_SECTION_EXTRA_HEIGHT_PX = {
   desktop: 520,
@@ -3032,17 +3052,23 @@ function computePhotoPhaseFrame({
   const titleY = reduceMotion
     ? 0
     : interpolateStops(titleProgress, [0, 0.12, 0.82, 0.94], [24, 0, 0, -20]);
+  const queueRevealConfig = isCompact
+    ? PHOTO_QUEUE_REVEAL_DROP_PROGRESS.mobile
+    : PHOTO_QUEUE_REVEAL_DROP_PROGRESS.desktop;
+  const dropTravelProgress = reduceMotion
+    ? 1
+    : mapScrollSegment(progress, getPhotoDropStartProgress(isCompact), PHOTO_INTRO_PHASES.dropEnd);
   const queueSpreadProgress = reduceMotion
     ? 1
-    : mapScrollSegment(progress, PHOTO_INTRO_PHASES.queueSpreadStart, PHOTO_INTRO_PHASES.queueSpreadEnd);
+    : mapScrollSegment(dropTravelProgress, queueRevealConfig.spreadStart, 1);
   const queueProgress = reduceMotion ? 1 : easeInOut(queueSpreadProgress);
   const queueVisibility = reduceMotion
     ? 1
-    : mapScrollSegment(progress, PHOTO_INTRO_PHASES.queueVisibleStart, PHOTO_INTRO_PHASES.queueVisibleEnd);
+    : smootherStep(mapScrollSegment(dropTravelProgress, queueRevealConfig.visibleStart, queueRevealConfig.visibleEnd));
   const queueEntryY = cardHeight * (isCompact ? 1.42 : 1.3) + (isCompact ? 44 : 62);
   const queueRiseProgress = reduceMotion
     ? 1
-    : mapScrollSegment(progress, PHOTO_INTRO_PHASES.queueVisibleStart, PHOTO_INTRO_PHASES.dropEnd);
+    : mapScrollSegment(dropTravelProgress, queueRevealConfig.riseStart, queueRevealConfig.riseEnd);
   const queueRiseEase = easeInOut(queueRiseProgress);
   const queueY = reduceMotion
     ? 0
@@ -3462,7 +3488,10 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   const dropDistanceExtraY = isCompact
     ? PHOTO_DROP_EXTRA_DISTANCE_PX.mobile
     : PHOTO_DROP_EXTRA_DISTANCE_PX.desktop;
-  const insertionAnchorY = queueVisualTopY + dropDistanceExtraY;
+  const queueVisualLiftY = isCompact
+    ? PHOTO_QUEUE_VISUAL_LIFT_PX.mobile
+    : PHOTO_QUEUE_VISUAL_LIFT_PX.desktop;
+  const insertionAnchorY = queueVisualTopY + dropDistanceExtraY - queueVisualLiftY;
   const queueLocalOffsetY = insertionAnchorY;
   const initialCount = photoQueueCards.length;
   const finalCount = initialCount + photoFloatingCards.length;
