@@ -94,6 +94,7 @@ const themeWaveConfig = {
   SNAPSHOT_DURATION_MS: 720,
   SNAPSHOT_EASING: "cubic-bezier(0.22, 1, 0.36, 1)",
 };
+const SNAPSHOT_REVEAL_SAFETY_PADDING = 36;
 
 let animationFrame = 0;
 let activeTheme = "light";
@@ -857,7 +858,15 @@ function isElementInViewport(element) {
 
 function syncThemeSnapshotVisuals(theme) {
   syncThemeRenderState();
-  brainSceneController?.setTheme(theme);
+
+  const brainVisible = (
+    isElementInViewport(languageUniverse) ||
+    isElementInViewport(brainMount)
+  );
+
+  if (brainVisible) {
+    brainSceneController?.setTheme(theme);
+  }
 
   if (isElementInViewport(welcomeSection)) {
     buildWelcomeCanvas();
@@ -1645,10 +1654,23 @@ async function switchLanguageWithAnimation(language) {
   }
 }
 
-function getWaveEndRadius(originX, originY) {
-  const horizontal = Math.max(originX, window.innerWidth - originX);
-  const vertical = Math.max(originY, window.innerHeight - originY);
-  return Math.hypot(horizontal, vertical);
+function getWaveEndRadius(originX, originY, safetyPadding = 0) {
+  const viewport = window.visualViewport;
+  const viewportWidth = Math.max(
+    window.innerWidth || 0,
+    document.documentElement.clientWidth || 0,
+    viewport?.width || 0,
+    1
+  );
+  const viewportHeight = Math.max(
+    window.innerHeight || 0,
+    document.documentElement.clientHeight || 0,
+    viewport?.height || 0,
+    1
+  );
+  const horizontal = Math.max(originX, viewportWidth - originX);
+  const vertical = Math.max(originY, viewportHeight - originY);
+  return Math.hypot(horizontal, vertical) + safetyPadding;
 }
 
 function supportsSnapshotThemeWave() {
@@ -1696,6 +1718,9 @@ function cancelThemeWaveAnimations() {
 
 function resetThemeWave() {
   cancelThemeWaveAnimations();
+  root.style.removeProperty("--wave-visual-x");
+  root.style.removeProperty("--wave-visual-y");
+  root.style.removeProperty("--wave-visual-diameter");
   themeWave?.classList.remove(
     "is-active",
     "is-outline",
@@ -1713,6 +1738,8 @@ function resetThemeWave() {
   if (themeWaveCore) {
     themeWaveCore.style.opacity = "";
     themeWaveCore.style.transform = "";
+    themeWaveCore.style.left = "";
+    themeWaveCore.style.top = "";
   }
 }
 
@@ -1731,11 +1758,14 @@ function prepareThemeWave(originX, originY, nextTheme) {
   themeWaveCore.style.transform = "translate3d(-50%, -50%, 0) scale(0.001)";
 }
 
-function prepareThemeWaveOutline(originX, originY, nextTheme = null) {
-  const endRadius = getWaveEndRadius(originX, originY);
+function prepareThemeWaveOutline(originX, originY, nextTheme = null, safetyPadding = 0) {
+  const endRadius = getWaveEndRadius(originX, originY, safetyPadding);
   root.style.setProperty("--wave-x", `${originX}px`);
   root.style.setProperty("--wave-y", `${originY}px`);
   root.style.setProperty("--wave-diameter", `${Math.ceil(endRadius * 2 + 12)}px`);
+  root.style.setProperty("--wave-visual-x", `${originX}px`);
+  root.style.setProperty("--wave-visual-y", `${originY}px`);
+  root.style.setProperty("--wave-visual-diameter", `${Math.ceil(endRadius * 2 + 12)}px`);
 
   themeWave.classList.remove("theme-light-wave", "theme-dark-wave");
   if (nextTheme) {
@@ -1749,12 +1779,37 @@ function prepareThemeWaveOutline(originX, originY, nextTheme = null) {
   return endRadius;
 }
 
-function prepareSnapshotWaveOrigin(originX, originY) {
-  const endRadius = getWaveEndRadius(originX, originY);
+function prepareSnapshotWaveOrigin(originX, originY, safetyPadding = 0) {
+  const endRadius = getWaveEndRadius(originX, originY, safetyPadding);
   root.style.setProperty("--wave-x", `${originX}px`);
   root.style.setProperty("--wave-y", `${originY}px`);
 
   return endRadius;
+}
+
+function supportsSnapshotMaskReveal() {
+  return Boolean(
+    window.CSS?.supports?.(
+      "mask-image",
+      "radial-gradient(circle at 10px 10px, black 0px, transparent 1px)"
+    ) ||
+    window.CSS?.supports?.(
+      "-webkit-mask-image",
+      "radial-gradient(circle at 10px 10px, black 0px, transparent 1px)"
+    )
+  );
+}
+
+function beginSnapshotMaskReveal() {
+  root.classList.add("theme-mask-reveal");
+  body.classList.add("theme-mask-reveal");
+  root.style.setProperty("--snapshot-wave-radius", "0px");
+}
+
+function endSnapshotMaskReveal() {
+  root.classList.remove("theme-mask-reveal");
+  body.classList.remove("theme-mask-reveal");
+  root.style.removeProperty("--snapshot-wave-radius");
 }
 
 async function commitThemeState(nextTheme, options = {}) {
@@ -1762,6 +1817,16 @@ async function commitThemeState(nextTheme, options = {}) {
   applyTheme(nextTheme, options);
   await waitForFrames(2);
   endThemeTransitionContext();
+}
+
+function beginViewTransitionDomLock() {
+  root.classList.add("theme-vt-lock");
+  body.classList.add("theme-vt-lock");
+}
+
+function endViewTransitionDomLock() {
+  root.classList.remove("theme-vt-lock");
+  body.classList.remove("theme-vt-lock");
 }
 
 function beginSnapshotThemeLiteMode() {
@@ -2002,17 +2067,29 @@ async function runSnapshotThemeWave(originX, originY, nextTheme) {
   }
 
   const useLiteSnapshot = beginSnapshotThemeLiteMode();
+  const useMaskReveal = !useLiteSnapshot && supportsSnapshotMaskReveal();
   resetThemeWave();
   const endRadius = useLiteSnapshot
     ? prepareSnapshotWaveOrigin(originX, originY)
-    : prepareThemeWaveOutline(originX, originY);
+    : prepareSnapshotWaveOrigin(originX, originY, SNAPSHOT_REVEAL_SAFETY_PADDING);
+  if (!useLiteSnapshot) {
+    beginViewTransitionDomLock();
+    if (useMaskReveal) {
+      beginSnapshotMaskReveal();
+    }
+  }
   beginThemeTransitionContext();
 
   let transition;
   try {
     const snapshotThemeOptions = useLiteSnapshot
       ? { deferHeavyWork: true, skipHeavyWork: true }
-      : {};
+      : {
+          deferSystemChrome: true,
+          deferHeavyWork: true,
+          skipHeavyWork: true,
+          syncSnapshotVisuals: true,
+        };
     transition = document.startViewTransition(() => {
       applyTheme(nextTheme, snapshotThemeOptions);
     });
@@ -2022,6 +2099,11 @@ async function runSnapshotThemeWave(originX, originY, nextTheme) {
     resetThemeWave();
     if (useLiteSnapshot) {
       endSnapshotThemeLiteMode(activeTheme);
+    } else {
+      if (useMaskReveal) {
+        endSnapshotMaskReveal();
+      }
+      endViewTransitionDomLock();
     }
     throw error;
   }
@@ -2035,6 +2117,7 @@ async function runSnapshotThemeWave(originX, originY, nextTheme) {
   const transitionAnimations = [transition.finished];
 
   if (!useLiteSnapshot) {
+    prepareThemeWaveOutline(originX, originY, null, 220);
     const outlineAnimation = themeWaveCore.animate(
       {
         transform: [
@@ -2052,24 +2135,41 @@ async function runSnapshotThemeWave(originX, originY, nextTheme) {
     transitionAnimations.push(outlineAnimation.finished);
   }
 
-  const revealAnimation = root.animate(
-    {
-      clipPath: [
-        `circle(0px at ${originX}px ${originY}px)`,
-        `circle(${endRadius}px at ${originX}px ${originY}px)`,
-      ],
-    },
-    {
-      duration: snapshotDuration,
-      easing: themeWaveConfig.SNAPSHOT_EASING,
-      fill: "both",
-      pseudoElement: "::view-transition-new(root)",
-    }
-  );
+  const revealAnimation = useMaskReveal
+    ? root.animate(
+        {
+          "--snapshot-wave-radius": ["0px", `${endRadius}px`],
+        },
+        {
+          duration: snapshotDuration,
+          easing: themeWaveConfig.SNAPSHOT_EASING,
+          fill: "both",
+          pseudoElement: "::view-transition-new(root)",
+        }
+      )
+    : root.animate(
+        {
+          clipPath: [
+            `circle(0px at ${originX}px ${originY}px)`,
+            `circle(${endRadius}px at ${originX}px ${originY}px)`,
+          ],
+        },
+        {
+          duration: snapshotDuration,
+          easing: themeWaveConfig.SNAPSHOT_EASING,
+          fill: "both",
+          pseudoElement: "::view-transition-new(root)",
+        }
+      );
 
   transitionAnimations.push(revealAnimation.finished);
 
   await Promise.allSettled(transitionAnimations);
+  if (!useLiteSnapshot) {
+    syncSystemChromeForTheme(nextTheme);
+    scheduleThemeRenderWork(nextTheme);
+    await waitForFrames(2);
+  }
 
   if (useLiteSnapshot) {
     endThemeTransitionContext();
@@ -2078,6 +2178,11 @@ async function runSnapshotThemeWave(originX, originY, nextTheme) {
   resetThemeWave();
   if (useLiteSnapshot) {
     endSnapshotThemeLiteMode(nextTheme);
+  } else {
+    if (useMaskReveal) {
+      endSnapshotMaskReveal();
+    }
+    endViewTransitionDomLock();
   }
 }
 

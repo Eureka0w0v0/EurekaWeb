@@ -1,8 +1,15 @@
+@property --snapshot-wave-radius {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
 :root {
   color-scheme: light dark;
   --app-height: 100dvh;
   --wave-x: calc(100% - 52px);
   --wave-y: 52px;
+  --snapshot-wave-radius: 0px;
   --bg: #f7f8fb;
   --bg-accent: #eef3f8;
   --surface: rgba(255, 255, 255, 0.68);
@@ -114,6 +121,42 @@ body.theme-syncing .language-node {
     box-shadow 320ms ease,
     text-shadow 320ms ease,
     opacity 260ms ease;
+}
+
+html.theme-vt-lock,
+body.theme-vt-lock,
+html.theme-vt-lock body,
+html.theme-vt-lock body::before,
+body.theme-vt-lock::before,
+html.theme-vt-lock main,
+body.theme-vt-lock main,
+html.theme-vt-lock section,
+body.theme-vt-lock section,
+html.theme-vt-lock .page-shell,
+body.theme-vt-lock .page-shell,
+html.theme-vt-lock .topbar,
+body.theme-vt-lock .topbar,
+html.theme-vt-lock button,
+body.theme-vt-lock button,
+html.theme-vt-lock .first-screen,
+body.theme-vt-lock .first-screen,
+html.theme-vt-lock .welcome-section,
+body.theme-vt-lock .welcome-section,
+html.theme-vt-lock .photo-section,
+body.theme-vt-lock .photo-section,
+html.theme-vt-lock .career-section,
+body.theme-vt-lock .career-section,
+html.theme-vt-lock .glass-panel,
+body.theme-vt-lock .glass-panel,
+html.theme-vt-lock .photo-card,
+body.theme-vt-lock .photo-card,
+html.theme-vt-lock .career-card-layer,
+body.theme-vt-lock .career-card-layer,
+html.theme-vt-lock .language-insight,
+body.theme-vt-lock .language-insight,
+html.theme-vt-lock .language-node,
+body.theme-vt-lock .language-node {
+  transition: none !important;
 }
 
 body {
@@ -273,10 +316,10 @@ body.theme-dark .noise {
 
 .theme-wave-core {
   position: absolute;
-  left: var(--wave-x, calc(100% - 52px));
-  top: var(--wave-y, 52px);
-  width: var(--wave-diameter, 0px);
-  height: var(--wave-diameter, 0px);
+  left: var(--wave-visual-x, var(--wave-x, calc(100% - 52px)));
+  top: var(--wave-visual-y, var(--wave-y, 52px));
+  width: var(--wave-visual-diameter, var(--wave-diameter, 0px));
+  height: var(--wave-visual-diameter, var(--wave-diameter, 0px));
   border-radius: 50%;
   transform: translate3d(-50%, -50%, 0) scale(0);
   transform-origin: center center;
@@ -343,11 +386,16 @@ body.theme-dark .noise {
 }
 
 .theme-wave.is-outline .theme-wave-core {
-  background: transparent;
+  background: transparent !important;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.22),
     0 0 42px rgba(255, 255, 255, 0.08),
     0 0 64px rgba(30, 144, 255, 0.08);
+}
+
+.theme-wave.is-outline.theme-light-wave .theme-wave-core,
+.theme-wave.is-outline.theme-dark-wave .theme-wave-core {
+  background: transparent !important;
 }
 
 .theme-wave.is-outline .theme-wave-core::after {
@@ -523,6 +571,27 @@ body.theme-dark .noise {
   contain: paint;
 }
 
+html.theme-mask-reveal::view-transition-new(root) {
+  clip-path: none !important;
+  -webkit-mask-image:
+    radial-gradient(
+      circle at var(--wave-x) var(--wave-y),
+      #000 0 var(--snapshot-wave-radius),
+      transparent calc(var(--snapshot-wave-radius) + 1px)
+    );
+  mask-image:
+    radial-gradient(
+      circle at var(--wave-x) var(--wave-y),
+      #000 0 var(--snapshot-wave-radius),
+      transparent calc(var(--snapshot-wave-radius) + 1px)
+    );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  will-change: -webkit-mask-image, mask-image;
+}
+
 @media (max-width: 680px), (hover: none) and (pointer: coarse) {
   ::view-transition-group(root),
   ::view-transition-image-pair(root),
@@ -530,6 +599,11 @@ body.theme-dark .noise {
   ::view-transition-new(root) {
     backface-visibility: hidden;
     transform: translateZ(0);
+  }
+
+  ::view-transition-new(root) {
+    will-change: clip-path;
+    contain: paint;
   }
 
   ::view-transition-group(root),
@@ -931,7 +1005,7 @@ body.theme-dark .theme-icon-moon {
   :root {
     --topbar-gap: 14px;
     --topbar-top: max(18px, calc(env(safe-area-inset-top, 0px) + 10px));
-    --topbar-right: max(24px, calc((100vw - min(1180px, calc(100vw - 32px))) / 2));
+    --topbar-right: max(16px, calc((100vw - min(1180px, calc(100vw - 32px))) / 2 - 192px));
     --topbar-button-size: 56px;
   }
 
