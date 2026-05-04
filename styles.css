@@ -2436,6 +2436,102 @@ html[lang="en"] .career-statement {
   z-index: 3;
 }
 
+.photo-zoom-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1900;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--chrome-bg) 78%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 260ms ease,
+    visibility 260ms ease;
+  overscroll-behavior: contain;
+}
+
+html.is-photo-zoom-open,
+body.is-photo-zoom-open {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.photo-zoom-overlay.is-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.photo-zoom-frame {
+  display: grid;
+  place-items: center;
+  max-width: calc(100vw - 44px);
+  max-height: calc(var(--app-height, 100dvh) - 84px);
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface-strong) 72%, transparent);
+  box-shadow:
+    0 28px 82px color-mix(in srgb, var(--text) 18%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 20%, transparent);
+  overflow: hidden;
+}
+
+.photo-zoom-image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: calc(100vw - 48px);
+  max-height: calc(var(--app-height, 100dvh) - 88px);
+  object-fit: contain;
+  image-orientation: from-image;
+  user-select: none;
+}
+
+.photo-zoom-close {
+  position: fixed;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+  z-index: 1901;
+  width: 44px;
+  height: 44px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface-strong) 86%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow:
+    0 14px 34px color-mix(in srgb, var(--text) 12%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 22%, transparent);
+}
+
+.photo-zoom-close::before,
+.photo-zoom-close::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: center;
+}
+
+.photo-zoom-close::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.photo-zoom-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.photo-zoom-close:hover {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+}
+
 html.theme-dark .photo-card,
 body.theme-dark .photo-card {
   border-color: color-mix(in srgb, white 16%, transparent);

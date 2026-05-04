@@ -40,6 +40,10 @@ const photoFloatingCards = document.querySelectorAll(".photo-floating-card");
 const photoQueueCards = document.querySelectorAll(".photo-queue-card");
 const photoCarouselCards = [...photoQueueCards, ...photoFloatingCards];
 const photoSlotContentMap = new Map();
+const photoZoomOverlay = document.querySelector("#photo-zoom-overlay");
+const photoZoomImage = document.querySelector("#photo-zoom-image");
+const photoZoomCloseButton = document.querySelector("#photo-zoom-close");
+let photoZoomActive = false;
 const themeWave = document.querySelector(".theme-wave");
 const themeWaveCore = document.querySelector(".theme-wave-core");
 const canvas = document.querySelector("#particle-canvas");
@@ -3181,6 +3185,108 @@ function syncPhotoCardImageContent(targetCard, sourceContent) {
   });
 }
 
+function ensurePhotoZoomViewer() {
+  return Boolean(photoZoomOverlay && photoZoomImage && photoZoomCloseButton);
+}
+
+function openPhotoZoom(sourceContent) {
+  if (!sourceContent?.src) {
+    return;
+  }
+
+  if (!ensurePhotoZoomViewer()) {
+    return;
+  }
+
+  setAttributeIfChanged(photoZoomImage, "src", sourceContent.src);
+  if (sourceContent.srcset) {
+    setAttributeIfChanged(photoZoomImage, "srcset", sourceContent.srcset);
+  } else if (photoZoomImage.hasAttribute("srcset")) {
+    photoZoomImage.removeAttribute("srcset");
+  }
+  if (sourceContent.sizes) {
+    setAttributeIfChanged(photoZoomImage, "sizes", sourceContent.sizes);
+  } else if (photoZoomImage.hasAttribute("sizes")) {
+    photoZoomImage.removeAttribute("sizes");
+  }
+  setAttributeIfChanged(photoZoomImage, "alt", sourceContent.label || "Expanded photo");
+
+  photoZoomActive = true;
+  root.classList.add("is-photo-zoom-open");
+  body.classList.add("is-photo-zoom-open");
+  photoZoomOverlay.classList.add("is-active");
+  photoZoomOverlay.setAttribute("aria-hidden", "false");
+  photoZoomCloseButton?.focus({ preventScroll: true });
+}
+
+function closePhotoZoom() {
+  if (!photoZoomActive || !photoZoomOverlay) {
+    return;
+  }
+
+  photoZoomActive = false;
+  root.classList.remove("is-photo-zoom-open");
+  body.classList.remove("is-photo-zoom-open");
+  photoZoomOverlay.classList.remove("is-active");
+  photoZoomOverlay.setAttribute("aria-hidden", "true");
+}
+
+function handlePhotoZoomCloseClick(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  closePhotoZoom();
+}
+
+function handlePhotoZoomOverlayClick(event) {
+  if (event.target === photoZoomOverlay) {
+    closePhotoZoom();
+  }
+}
+
+function stopPhotoZoomScroll(event) {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function getActivePhotoMainCard() {
+  if (!photoCarouselEnabled || photoAllExpandedTarget > 0 || photoAllExpandedProgress > 0.01) {
+    return null;
+  }
+
+  const activeSlot = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+  return photoCardSlotMap.get(activeSlot) || null;
+}
+
+function handlePhotoMainCardClick(event) {
+  if (photoZoomActive || !photoStage || photoShowAllButton?.contains(event.target)) {
+    return;
+  }
+
+  const activeCard = getActivePhotoMainCard();
+  if (!activeCard) {
+    return;
+  }
+
+  const rect = activeCard.getBoundingClientRect();
+  const isInsideActiveCard = (
+    event.clientX >= rect.left &&
+    event.clientX <= rect.right &&
+    event.clientY >= rect.top &&
+    event.clientY <= rect.bottom
+  );
+
+  if (!isInsideActiveCard) {
+    return;
+  }
+
+  const activeSlot = Number.parseInt(activeCard.dataset.photoSlot, 10);
+  const sourceContent = photoSlotContentMap.get(activeSlot) || readPhotoCardContent(activeCard);
+
+  event.preventDefault();
+  event.stopPropagation();
+  openPhotoZoom(sourceContent);
+}
+
 function ensurePhotoSlotContentMap({
   finalCount,
   initialCount,
@@ -5307,6 +5413,10 @@ async function initApp() {
   });
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      if (photoZoomActive) {
+        closePhotoZoom();
+        return;
+      }
       closeLanguageMenu();
     }
   });
@@ -5339,6 +5449,11 @@ async function initApp() {
   careerCardStack?.addEventListener("touchstart", handleCareerLayerTouchStart, { passive: true, capture: true });
   careerCardStack?.addEventListener("touchmove", handleCareerLayerTouchMove, { passive: false, capture: true });
   careerCardStack?.addEventListener("touchend", handleCareerLayerTouchEnd, { passive: true, capture: true });
+  photoStage?.addEventListener("click", handlePhotoMainCardClick);
+  photoZoomCloseButton?.addEventListener("click", handlePhotoZoomCloseClick);
+  photoZoomOverlay?.addEventListener("click", handlePhotoZoomOverlayClick);
+  photoZoomOverlay?.addEventListener("wheel", stopPhotoZoomScroll, { passive: false });
+  photoZoomOverlay?.addEventListener("touchmove", stopPhotoZoomScroll, { passive: false });
   photoShowAllButton?.addEventListener("click", togglePhotoAllExpanded);
   photoSection?.addEventListener("wheel", handlePhotoCarouselWheel, { passive: false, capture: true });
   photoSection?.addEventListener("touchstart", handlePhotoCarouselTouchStart, { passive: true, capture: true });
@@ -5413,6 +5528,11 @@ async function initApp() {
     careerCardStack?.removeEventListener("touchstart", handleCareerLayerTouchStart, { capture: true });
     careerCardStack?.removeEventListener("touchmove", handleCareerLayerTouchMove, { capture: true });
     careerCardStack?.removeEventListener("touchend", handleCareerLayerTouchEnd, { capture: true });
+    photoStage?.removeEventListener("click", handlePhotoMainCardClick);
+    photoZoomCloseButton?.removeEventListener("click", handlePhotoZoomCloseClick);
+    photoZoomOverlay?.removeEventListener("click", handlePhotoZoomOverlayClick);
+    photoZoomOverlay?.removeEventListener("wheel", stopPhotoZoomScroll);
+    photoZoomOverlay?.removeEventListener("touchmove", stopPhotoZoomScroll);
     photoShowAllButton?.removeEventListener("click", togglePhotoAllExpanded);
     photoSection?.removeEventListener("wheel", handlePhotoCarouselWheel, { capture: true });
     photoSection?.removeEventListener("touchstart", handlePhotoCarouselTouchStart, { capture: true });
