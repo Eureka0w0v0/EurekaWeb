@@ -3421,6 +3421,9 @@ function setPhotoZoomLoading(isLoading) {
     return;
   }
 
+  if (isLoading) {
+    photoZoomOverlay.classList.remove("is-image-ready");
+  }
   photoZoomOverlay.classList.toggle("is-loading", isLoading);
   photoZoomOverlay.setAttribute("aria-busy", isLoading ? "true" : "false");
   photoZoomLoading.setAttribute("aria-hidden", isLoading ? "false" : "true");
@@ -3458,6 +3461,8 @@ function applyPhotoZoomImageSource({ token, src, srcset = "", sizes = "" }) {
     return Promise.resolve(false);
   }
 
+  photoZoomOverlay?.classList.remove("is-image-ready");
+  setPhotoZoomLoading(true);
   photoZoomImage.style.opacity = "0";
   photoZoomImage.style.visibility = "hidden";
 
@@ -3488,6 +3493,7 @@ function applyPhotoZoomImageSource({ token, src, srcset = "", sizes = "" }) {
 
     photoZoomImage.style.visibility = "visible";
     photoZoomImage.style.opacity = "1";
+    photoZoomOverlay?.classList.add("is-image-ready");
     setPhotoZoomLoading(false);
     return true;
   });
@@ -3762,6 +3768,7 @@ function openPhotoZoom(sourceContent) {
   }
   setAttributeIfChanged(photoZoomImage, "alt", zoomAlt);
   setPhotoZoomLoadingFrame(sourceContent);
+  photoZoomOverlay.classList.remove("is-image-ready");
   setPhotoZoomLoading(true);
 
   photoZoomActive = true;
@@ -3827,6 +3834,7 @@ function closePhotoZoom() {
     photoZoomImage.style.visibility = "hidden";
   }
   setPhotoZoomLoading(false);
+  photoZoomOverlay.classList.remove("is-image-ready");
   root.classList.remove("is-photo-zoom-open");
   body.classList.remove("is-photo-zoom-open");
   photoZoomOverlay.style.transition = "none";

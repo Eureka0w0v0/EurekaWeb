@@ -2570,7 +2570,8 @@ body.is-photo-zoom-open .topbar {
   overflow: hidden;
 }
 
-.photo-zoom-overlay.is-loading .photo-zoom-frame {
+.photo-zoom-overlay.is-loading .photo-zoom-frame,
+.photo-zoom-overlay.is-active:not(.is-image-ready) .photo-zoom-frame {
   width: var(--photo-zoom-loading-width, min(72vw, 720px));
   height: var(--photo-zoom-loading-height, min(72vh, 720px));
   background: #050505;
@@ -2601,15 +2602,17 @@ body.is-photo-zoom-open .topbar {
 
 .photo-zoom-loading::before {
   content: "";
-  width: 34px;
-  height: 34px;
-  border: 2px solid color-mix(in srgb, var(--text) 18%, transparent);
-  border-top-color: color-mix(in srgb, var(--text) 78%, transparent);
+  width: 38px;
+  height: 38px;
+  border: 2.5px solid rgba(255, 255, 255, 0.28);
+  border-top-color: rgba(255, 255, 255, 0.96);
   border-radius: 50%;
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.14);
   animation: photoZoomLoadingSpin 760ms linear infinite;
 }
 
-.photo-zoom-overlay.is-loading .photo-zoom-loading {
+.photo-zoom-overlay.is-loading .photo-zoom-loading,
+.photo-zoom-overlay.is-active:not(.is-image-ready) .photo-zoom-loading {
   opacity: 1;
   visibility: visible;
 }
@@ -2679,6 +2682,34 @@ body.is-photo-zoom-open .topbar {
   outline: none;
   border-color: rgba(255, 255, 255, 0.42);
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+html:not(.theme-dark) .photo-zoom-close,
+body:not(.theme-dark) .photo-zoom-close {
+  border-color: rgba(12, 18, 28, 0.48);
+  background: rgba(255, 255, 255, 0.34);
+  color: rgba(10, 15, 24, 0.94);
+}
+
+html:not(.theme-dark) .photo-zoom-close:hover,
+body:not(.theme-dark) .photo-zoom-close:hover {
+  border-color: rgba(12, 18, 28, 0.68);
+  background: rgba(255, 255, 255, 0.52);
+  color: rgba(5, 8, 14, 1);
+}
+
+html:not(.theme-dark) .photo-zoom-close:active,
+body:not(.theme-dark) .photo-zoom-close:active {
+  background: rgba(255, 255, 255, 0.68);
+  color: rgba(5, 8, 14, 1);
+}
+
+html:not(.theme-dark) .photo-zoom-close:focus,
+html:not(.theme-dark) .photo-zoom-close:focus-visible,
+body:not(.theme-dark) .photo-zoom-close:focus,
+body:not(.theme-dark) .photo-zoom-close:focus-visible {
+  border-color: rgba(12, 18, 28, 0.58);
+  box-shadow: 0 0 0 2px rgba(12, 18, 28, 0.12);
 }
 
 @media (max-width: 680px), (hover: none) and (pointer: coarse) {
