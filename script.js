@@ -44,6 +44,7 @@ const photoZoomOverlay = document.querySelector("#photo-zoom-overlay");
 const photoZoomImage = document.querySelector("#photo-zoom-image");
 const photoZoomCloseButton = document.querySelector("#photo-zoom-close");
 let photoZoomActive = false;
+let photoZoomOpenToken = 0;
 const themeWave = document.querySelector(".theme-wave");
 const themeWaveCore = document.querySelector(".theme-wave-core");
 const canvas = document.querySelector("#particle-canvas");
@@ -3149,10 +3150,17 @@ function readPhotoCardContent(card) {
     return null;
   }
 
+  const src = sourceImage.getAttribute("data-preview-src") ||
+    sourceImage.getAttribute("src") ||
+    "";
+
   return {
-    src: sourceImage.getAttribute("src") || "",
+    src,
     srcset: sourceImage.getAttribute("srcset") || "",
     sizes: sourceImage.getAttribute("sizes") || "",
+    fullSrc: sourceImage.getAttribute("data-full-src") || src,
+    fullSrcset: sourceImage.getAttribute("data-full-srcset") || "",
+    fullSizes: sourceImage.getAttribute("data-full-sizes") || "",
     label: card.getAttribute("aria-label") || "",
     sourceId: card.dataset.photoBase || card.dataset.photoInsert || card.dataset.photoCloneSource || "",
   };
@@ -3168,15 +3176,31 @@ function syncPhotoCardImageContent(targetCard, sourceContent) {
     targetImage = document.createElement("img");
     targetImage.className = "photo-card-image";
     targetImage.alt = "";
-    targetImage.loading = "lazy";
+    targetImage.loading = "eager";
     targetImage.decoding = "async";
     targetImage.draggable = false;
     const shine = targetCard.querySelector(".photo-card-shine");
     targetCard.insertBefore(targetImage, shine || targetCard.firstChild);
   }
 
+  setAttributeIfChanged(targetImage, "loading", "eager");
+  setAttributeIfChanged(targetImage, "decoding", "async");
+
   ["src", "srcset", "sizes"].forEach((attribute) => {
     const value = sourceContent[attribute];
+    if (value) {
+      setAttributeIfChanged(targetImage, attribute, value);
+    } else if (targetImage.hasAttribute(attribute)) {
+      targetImage.removeAttribute(attribute);
+    }
+  });
+
+  [
+    ["data-preview-src", sourceContent.src],
+    ["data-full-src", sourceContent.fullSrc],
+    ["data-full-srcset", sourceContent.fullSrcset],
+    ["data-full-sizes", sourceContent.fullSizes],
+  ].forEach(([attribute, value]) => {
     if (value) {
       setAttributeIfChanged(targetImage, attribute, value);
     } else if (targetImage.hasAttribute(attribute)) {
@@ -3189,6 +3213,25 @@ function ensurePhotoZoomViewer() {
   return Boolean(photoZoomOverlay && photoZoomImage && photoZoomCloseButton);
 }
 
+function decodePhotoZoomElement(image) {
+  if (!image) {
+    return Promise.resolve(false);
+  }
+
+  if (typeof image.decode === "function") {
+    return image.decode().then(() => true).catch(() => false);
+  }
+
+  if (image.complete) {
+    return Promise.resolve(image.naturalWidth > 0);
+  }
+
+  return new Promise((resolve) => {
+    image.addEventListener("load", () => resolve(true), { once: true });
+    image.addEventListener("error", () => resolve(false), { once: true });
+  });
+}
+
 function openPhotoZoom(sourceContent) {
   if (!sourceContent?.src) {
     return;
@@ -3198,18 +3241,24 @@ function openPhotoZoom(sourceContent) {
     return;
   }
 
-  setAttributeIfChanged(photoZoomImage, "src", sourceContent.src);
-  if (sourceContent.srcset) {
-    setAttributeIfChanged(photoZoomImage, "srcset", sourceContent.srcset);
-  } else if (photoZoomImage.hasAttribute("srcset")) {
+  const token = ++photoZoomOpenToken;
+  const zoomSrc = sourceContent.fullSrc || sourceContent.src;
+  const zoomSrcset = sourceContent.fullSrcset || "";
+  const zoomSizes = sourceContent.fullSizes || "";
+  const zoomAlt = sourceContent.label || "Expanded photo";
+
+  photoZoomImage.style.opacity = "0";
+  photoZoomImage.style.visibility = "hidden";
+  if (photoZoomImage.hasAttribute("srcset")) {
     photoZoomImage.removeAttribute("srcset");
   }
-  if (sourceContent.sizes) {
-    setAttributeIfChanged(photoZoomImage, "sizes", sourceContent.sizes);
-  } else if (photoZoomImage.hasAttribute("sizes")) {
+  if (photoZoomImage.hasAttribute("sizes")) {
     photoZoomImage.removeAttribute("sizes");
   }
-  setAttributeIfChanged(photoZoomImage, "alt", sourceContent.label || "Expanded photo");
+  if (photoZoomImage.hasAttribute("src")) {
+    photoZoomImage.removeAttribute("src");
+  }
+  setAttributeIfChanged(photoZoomImage, "alt", zoomAlt);
 
   photoZoomActive = true;
   root.classList.add("is-photo-zoom-open");
@@ -3221,6 +3270,41 @@ function openPhotoZoom(sourceContent) {
   photoZoomOverlay.classList.add("is-active");
   photoZoomOverlay.setAttribute("aria-hidden", "false");
   photoZoomCloseButton?.focus({ preventScroll: true });
+
+  const nextImage = new Image();
+  nextImage.decoding = "async";
+  nextImage.alt = zoomAlt;
+  if (zoomSrcset) {
+    nextImage.srcset = zoomSrcset;
+  }
+  if (zoomSizes) {
+    nextImage.sizes = zoomSizes;
+  }
+  nextImage.src = zoomSrc;
+
+  decodePhotoZoomElement(nextImage).then((decoded) => {
+    if (token !== photoZoomOpenToken || !photoZoomActive) {
+      return;
+    }
+
+    if (!decoded) {
+      return;
+    }
+
+    if (zoomSrcset) {
+      setAttributeIfChanged(photoZoomImage, "srcset", zoomSrcset);
+    } else if (photoZoomImage.hasAttribute("srcset")) {
+      photoZoomImage.removeAttribute("srcset");
+    }
+    if (zoomSizes) {
+      setAttributeIfChanged(photoZoomImage, "sizes", zoomSizes);
+    } else if (photoZoomImage.hasAttribute("sizes")) {
+      photoZoomImage.removeAttribute("sizes");
+    }
+    setAttributeIfChanged(photoZoomImage, "src", zoomSrc);
+    photoZoomImage.style.visibility = "visible";
+    photoZoomImage.style.opacity = "1";
+  });
 }
 
 function closePhotoZoom() {
@@ -3228,7 +3312,12 @@ function closePhotoZoom() {
     return;
   }
 
+  photoZoomOpenToken += 1;
   photoZoomActive = false;
+  if (photoZoomImage) {
+    photoZoomImage.style.opacity = "0";
+    photoZoomImage.style.visibility = "hidden";
+  }
   root.classList.remove("is-photo-zoom-open");
   body.classList.remove("is-photo-zoom-open");
   photoZoomOverlay.style.transition = "none";
