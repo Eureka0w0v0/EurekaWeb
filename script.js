@@ -506,6 +506,39 @@ function lockElementToViewportRect(element, { zIndex = null, contain = "" } = {}
   element.style.willChange = "auto";
 }
 
+function lockCareerSceneToViewportForTheme() {
+  if (!careerScene || !isMobileViewport()) {
+    return false;
+  }
+
+  const rect = careerScene.getBoundingClientRect();
+  if (!rect.width || !rect.height) {
+    return false;
+  }
+
+  cacheInlineStyleSnapshot(careerScene);
+  careerGeometryLockTargets.push(careerScene);
+
+  const computed = getComputedStyle(careerScene);
+  const resolvedZIndex = computed.zIndex === "auto" ? "3" : computed.zIndex;
+
+  careerScene.style.position = "fixed";
+  careerScene.style.left = `${rect.left.toFixed(2)}px`;
+  careerScene.style.top = `${rect.top.toFixed(2)}px`;
+  careerScene.style.width = `${rect.width.toFixed(2)}px`;
+  careerScene.style.height = `${rect.height.toFixed(2)}px`;
+  careerScene.style.minHeight = `${rect.height.toFixed(2)}px`;
+  careerScene.style.margin = "0";
+  careerScene.style.transformOrigin = "top left";
+  careerScene.style.transform = "none";
+  careerScene.style.opacity = computed.opacity;
+  careerScene.style.zIndex = resolvedZIndex;
+  careerScene.style.pointerEvents = "none";
+  careerScene.style.willChange = "auto";
+
+  return true;
+}
+
 function lockCareerCardStackForTheme() {
   if (!careerCardStack || !isMobileViewport()) {
     return;
@@ -552,6 +585,10 @@ function lockCareerGeometryForTheme() {
   }
 
   careerGeometryLockTargets.length = 0;
+  if (lockCareerSceneToViewportForTheme()) {
+    return;
+  }
+
   lockElementToViewportRect(careerUfo);
   lockCareerCardStackForTheme();
   lockElementToViewportRect(careerAlien);
