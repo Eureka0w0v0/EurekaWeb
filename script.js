@@ -226,6 +226,7 @@ let languageNetworkFrame = 0;
 let activeCareerLayer = 1;
 let careerLayerTimer = 0;
 let careerWheelUnlockTimer = 0;
+let careerTouchStartX = 0;
 let careerTouchStartY = 0;
 let careerTouchSwitchLocked = false;
 
@@ -266,6 +267,8 @@ const pageTranslations = {
     languageNodePyTags: ["解释型", "数据分析", "自动化"],
     photoEyebrow: "Gallery",
     photoTitle: "照片",
+    photoShowAllLabel: "显示全部",
+    photoCollapseLabel: "收起",
     careerLayer1Kicker: "第 01 页",
     careerLayer2Kicker: "第 02 页",
     careerLayer3Kicker: "第 03 页",
@@ -307,6 +310,8 @@ const pageTranslations = {
     languageNodePyTags: ["Interpreted", "Data", "Automation"],
     photoEyebrow: "Gallery",
     photoTitle: "Photos",
+    photoShowAllLabel: "Show All",
+    photoCollapseLabel: "Collapse",
     careerLayer1Kicker: "LAYER 01",
     careerLayer2Kicker: "LAYER 02",
     careerLayer3Kicker: "LAYER 03",
@@ -348,6 +353,8 @@ const pageTranslations = {
     languageNodePyTags: ["インタプリタ型", "データ分析", "自動化"],
     photoEyebrow: "Gallery",
     photoTitle: "写真",
+    photoShowAllLabel: "すべて表示",
+    photoCollapseLabel: "閉じる",
     careerLayer1Kicker: "レイヤー 01",
     careerLayer2Kicker: "レイヤー 02",
     careerLayer3Kicker: "レイヤー 03",
@@ -1104,6 +1111,7 @@ function applyLanguage(language) {
     node.textContent = copy[key];
   });
 
+  syncPhotoShowAllButtonCopy();
   setActiveLanguageNode(activeLanguageNode);
   buildWelcomeCanvas();
   requestWelcomeRender();
@@ -1624,6 +1632,7 @@ async function switchLanguageWithAnimation(language) {
     staticNodes.forEach(({ node, toText }) => {
       node.textContent = toText;
     });
+    syncPhotoShowAllButtonCopy();
     setActiveLanguageNode(activeLanguageNode);
     buildWelcomeCanvas(copy.welcomeWord);
     requestWelcomeRender();
@@ -2771,6 +2780,11 @@ function canScrollCareerLayer(scrollArea, deltaY) {
     return false;
   }
 
+  const overflowY = window.getComputedStyle(scrollArea).overflowY;
+  if (overflowY !== "auto" && overflowY !== "scroll") {
+    return false;
+  }
+
   if (!isMobileViewport() && activeCareerLayer === 3) {
     scrollArea.scrollTop = 0;
     return false;
@@ -2829,6 +2843,7 @@ function handleCareerLayerWheel(event) {
 
 function handleCareerLayerTouchStart(event) {
   event.stopPropagation();
+  careerTouchStartX = event.touches?.[0]?.clientX ?? 0;
   careerTouchStartY = event.touches?.[0]?.clientY ?? 0;
   careerTouchSwitchLocked = false;
 }
@@ -2838,10 +2853,24 @@ function handleCareerLayerTouchMove(event) {
     return;
   }
 
-  const currentY = event.touches?.[0]?.clientY ?? careerTouchStartY;
+  const touch = event.touches?.[0];
+  const currentX = touch?.clientX ?? careerTouchStartX;
+  const currentY = touch?.clientY ?? careerTouchStartY;
+  const deltaX = currentX - careerTouchStartX;
   const deltaY = careerTouchStartY - currentY;
+  const absX = Math.abs(deltaX);
+  const absY = Math.abs(deltaY);
 
-  if (Math.abs(deltaY) < 34) {
+  if (absX > 8 && absX > absY * 0.35) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (absY < 34) {
+      return;
+    }
+  }
+
+  if (absY < 34) {
     return;
   }
 
@@ -3129,6 +3158,26 @@ function applyPhotoQueueAnchorFrame({ cardHeight, queueBleed, queueProgress }) {
   setStylePropertyIfChanged(photoSection, "--photo-insert-progress", queueProgress.toFixed(3));
 }
 
+function getPhotoShowAllLabel(expanded) {
+  const copy = getActiveCopy();
+  if (expanded) {
+    return copy.photoCollapseLabel || pageTranslations.en.photoCollapseLabel || "Collapse";
+  }
+
+  return copy.photoShowAllLabel || pageTranslations.en.photoShowAllLabel || "Show All";
+}
+
+function syncPhotoShowAllButtonCopy() {
+  if (!photoShowAllButton) {
+    return;
+  }
+
+  const showAllText = getPhotoShowAllLabel(photoAllExpandedTarget > 0.5);
+  if (photoShowAllButton.textContent !== showAllText) {
+    photoShowAllButton.textContent = showAllText;
+  }
+}
+
 function applyPhotoShowAllFrame({
   visible,
   expanded,
@@ -3141,7 +3190,7 @@ function applyPhotoShowAllFrame({
 
   photoShowAllButton.classList.toggle("is-visible", visible);
   setAttributeIfChanged(photoShowAllButton, "aria-expanded", String(expanded));
-  const showAllText = expanded ? "Collapse" : "Show All";
+  const showAllText = getPhotoShowAllLabel(expanded);
   if (photoShowAllButton.textContent !== showAllText) {
     photoShowAllButton.textContent = showAllText;
   }
@@ -5029,6 +5078,7 @@ function togglePhotoAllExpanded() {
   photoAllExpandedAnimationStart = window.performance.now();
   photoAllExpandedAnimationDirection = photoAllExpanded ? 1 : -1;
   photoAllExpandedDuration = photoAllExpanded ? 920 : 780;
+  syncPhotoShowAllButtonCopy();
   photoCarouselWheelDelta = 0;
   photoCarouselWheelDirection = 0;
   photoCarouselBoundaryDelta = 0;

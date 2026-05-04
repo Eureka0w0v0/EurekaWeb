@@ -1966,11 +1966,14 @@ body.theme-dark .career-card-stack[data-active-layer="3"]::before {
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .layer-card-scroll::-webkit-scrollbar {
   width: 0;
   height: 0;
+  display: none;
 }
 
 .career-card-layer::before {
@@ -3249,6 +3252,7 @@ body.pulse-active::after {
   .career-card-stack {
     top: 48%;
     --career-card-height: 190px;
+    max-width: calc(100% - 34px);
   }
 
   .career-card-layer {
@@ -3610,7 +3614,8 @@ body.pulse-active::after {
   }
 
   .career-card-stack {
-    width: calc(100vw - 34px);
+    width: min(calc(100% - 34px), calc(100vw - 34px));
+    max-width: calc(100% - 34px);
     --career-card-height: 184px;
   }
 
@@ -3802,6 +3807,12 @@ body.pulse-active::after {
     transition-property: transform, opacity;
     transition-duration: 360ms, 360ms;
     transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1), cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .career-card-stack .layer-card-scroll {
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
   }
 
   .career-card-stack .career-card-layer.is-active,
