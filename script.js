@@ -3703,43 +3703,81 @@ function getActivePhotoMainCard() {
   return photoCardSlotMap.get(activeSlot) || null;
 }
 
-function getActivePhotoMainCardContentAtPoint(x, y) {
-  const activeCard = getActivePhotoMainCard();
-  if (!activeCard) {
+function getPhotoCardZoomContent(card, slot) {
+  if (!card) {
     return null;
   }
 
-  const rect = activeCard.getBoundingClientRect();
-  const isInsideActiveCard = (
-    x >= rect.left &&
-    x <= rect.right &&
-    y >= rect.top &&
-    y <= rect.bottom
-  );
-
-  if (!isInsideActiveCard) {
-    return null;
-  }
-
-  const activeSlot = Number.parseInt(activeCard.dataset.photoSlot, 10);
-  const mappedContent = photoSlotContentMap.get(activeSlot);
-  const liveContent = readPhotoCardContent(activeCard);
-  const sourceContent = mappedContent && liveContent
+  const safeSlot = Number.isFinite(slot)
+    ? slot
+    : Number.parseInt(card.dataset.photoSlot, 10);
+  const mappedContent = Number.isFinite(safeSlot)
+    ? photoSlotContentMap.get(safeSlot)
+    : null;
+  const liveContent = readPhotoCardContent(card);
+  return mappedContent && liveContent
     ? {
         ...mappedContent,
         aspectRatio: liveContent.aspectRatio || mappedContent.aspectRatio || 0,
       }
     : (mappedContent || liveContent);
+}
+
+function isPointInsidePhotoCard(card, x, y) {
+  if (!card) {
+    return false;
+  }
+
+  const rect = card.getBoundingClientRect();
+  return (
+    x >= rect.left &&
+    x <= rect.right &&
+    y >= rect.top &&
+    y <= rect.bottom
+  );
+}
+
+function getExpandedPhotoCardContentAtPoint(x, y, target) {
+  if (photoAllExpandedTarget <= 0.5 && photoAllExpandedProgress <= 0.5) {
+    return null;
+  }
+
+  const card = target?.closest?.(".photo-card");
+  if (!card || !photoStage?.contains(card) || !isPointInsidePhotoCard(card, x, y)) {
+    return null;
+  }
+
+  const slot = Number.parseInt(card.dataset.photoSlot, 10);
+  const sourceContent = getPhotoCardZoomContent(card, slot);
 
   return {
-    activeCard,
-    activeSlot,
+    activeCard: card,
+    activeSlot: slot,
     sourceContent,
   };
 }
 
-function handlePhotoMainCardPreloadAtPoint(x, y) {
-  const hitContent = getActivePhotoMainCardContentAtPoint(x, y);
+function getActivePhotoMainCardContentAtPoint(x, y) {
+  const activeCard = getActivePhotoMainCard();
+  if (!activeCard || !isPointInsidePhotoCard(activeCard, x, y)) {
+    return null;
+  }
+
+  const activeSlot = Number.parseInt(activeCard.dataset.photoSlot, 10);
+  return {
+    activeCard,
+    activeSlot,
+    sourceContent: getPhotoCardZoomContent(activeCard, activeSlot),
+  };
+}
+
+function getPhotoZoomHitContentAtPoint(x, y, target) {
+  return getExpandedPhotoCardContentAtPoint(x, y, target) ||
+    getActivePhotoMainCardContentAtPoint(x, y);
+}
+
+function handlePhotoMainCardPreloadAtPoint(x, y, target) {
+  const hitContent = getPhotoZoomHitContentAtPoint(x, y, target);
   if (!hitContent?.sourceContent) {
     return;
   }
@@ -3752,7 +3790,7 @@ function handlePhotoMainCardPointerPreload(event) {
     return;
   }
 
-  handlePhotoMainCardPreloadAtPoint(event.clientX, event.clientY);
+  handlePhotoMainCardPreloadAtPoint(event.clientX, event.clientY, event.target);
 }
 
 function handlePhotoMainCardTouchPreload(event) {
@@ -3761,7 +3799,7 @@ function handlePhotoMainCardTouchPreload(event) {
   }
 
   const touch = event.touches[0];
-  handlePhotoMainCardPreloadAtPoint(touch.clientX, touch.clientY);
+  handlePhotoMainCardPreloadAtPoint(touch.clientX, touch.clientY, event.target);
 }
 
 function handlePhotoMainCardClick(event) {
@@ -3769,7 +3807,7 @@ function handlePhotoMainCardClick(event) {
     return;
   }
 
-  const hitContent = getActivePhotoMainCardContentAtPoint(event.clientX, event.clientY);
+  const hitContent = getPhotoZoomHitContentAtPoint(event.clientX, event.clientY, event.target);
   if (!hitContent?.sourceContent) {
     return;
   }
