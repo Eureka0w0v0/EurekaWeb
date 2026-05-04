@@ -3159,6 +3159,11 @@ function readPhotoCardContent(card) {
   const src = sourceImage.getAttribute("data-preview-src") ||
     sourceImage.getAttribute("src") ||
     "";
+  const naturalWidth = sourceImage.naturalWidth || 0;
+  const naturalHeight = sourceImage.naturalHeight || 0;
+  const aspectRatio = naturalWidth > 0 && naturalHeight > 0
+    ? naturalWidth / naturalHeight
+    : 0;
 
   return {
     src,
@@ -3169,6 +3174,7 @@ function readPhotoCardContent(card) {
     fullSizes: sourceImage.getAttribute("data-full-sizes") || "",
     label: card.getAttribute("aria-label") || "",
     sourceId: card.dataset.photoBase || card.dataset.photoInsert || card.dataset.photoCloneSource || "",
+    aspectRatio,
   };
 }
 
@@ -3227,6 +3233,33 @@ function setPhotoZoomLoading(isLoading) {
   photoZoomOverlay.classList.toggle("is-loading", isLoading);
   photoZoomOverlay.setAttribute("aria-busy", isLoading ? "true" : "false");
   photoZoomLoading.setAttribute("aria-hidden", isLoading ? "false" : "true");
+}
+
+function setPhotoZoomLoadingFrame(sourceContent) {
+  if (!photoZoomOverlay) {
+    return;
+  }
+
+  const viewportWidth = Math.max(window.innerWidth || document.documentElement.clientWidth || 1, 1);
+  const viewportHeight = Math.max(
+    stableMobileAppHeight || window.innerHeight || document.documentElement.clientHeight || 1,
+    1
+  );
+  const maxWidth = Math.max(240, viewportWidth - 44);
+  const maxHeight = Math.max(240, viewportHeight - 104);
+  const aspectRatio = Number.isFinite(sourceContent?.aspectRatio) && sourceContent.aspectRatio > 0
+    ? sourceContent.aspectRatio
+    : 0.72;
+  let loadingWidth = maxHeight * aspectRatio;
+  let loadingHeight = maxHeight;
+
+  if (loadingWidth > maxWidth) {
+    loadingWidth = maxWidth;
+    loadingHeight = loadingWidth / aspectRatio;
+  }
+
+  photoZoomOverlay.style.setProperty("--photo-zoom-loading-width", `${loadingWidth.toFixed(2)}px`);
+  photoZoomOverlay.style.setProperty("--photo-zoom-loading-height", `${loadingHeight.toFixed(2)}px`);
 }
 
 function applyPhotoZoomImageSource({ token, src, srcset = "", sizes = "" }) {
@@ -3537,6 +3570,7 @@ function openPhotoZoom(sourceContent) {
     photoZoomImage.removeAttribute("src");
   }
   setAttributeIfChanged(photoZoomImage, "alt", zoomAlt);
+  setPhotoZoomLoadingFrame(sourceContent);
   setPhotoZoomLoading(true);
 
   photoZoomActive = true;
@@ -3610,6 +3644,8 @@ function closePhotoZoom() {
   photoZoomOverlay.style.visibility = "hidden";
   photoZoomOverlay.classList.remove("is-active");
   photoZoomOverlay.setAttribute("aria-hidden", "true");
+  photoZoomOverlay.style.removeProperty("--photo-zoom-loading-width");
+  photoZoomOverlay.style.removeProperty("--photo-zoom-loading-height");
   photoZoomCloseButton?.blur();
   requestPhotoSceneUpdate();
   window.requestAnimationFrame(() => {
@@ -3686,10 +3722,19 @@ function getActivePhotoMainCardContentAtPoint(x, y) {
   }
 
   const activeSlot = Number.parseInt(activeCard.dataset.photoSlot, 10);
+  const mappedContent = photoSlotContentMap.get(activeSlot);
+  const liveContent = readPhotoCardContent(activeCard);
+  const sourceContent = mappedContent && liveContent
+    ? {
+        ...mappedContent,
+        aspectRatio: liveContent.aspectRatio || mappedContent.aspectRatio || 0,
+      }
+    : (mappedContent || liveContent);
+
   return {
     activeCard,
     activeSlot,
-    sourceContent: photoSlotContentMap.get(activeSlot) || readPhotoCardContent(activeCard),
+    sourceContent,
   };
 }
 
