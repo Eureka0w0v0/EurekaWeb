@@ -185,6 +185,7 @@ let photoAllExpandedAnimationStart = 0;
 let photoAllExpandedAnimationDirection = 0;
 let photoAllExpandedDuration = 880;
 const photoAllExpandedLayouts = new Map();
+let photoExpandedScrollExtraPx = 0;
 const photoCardStyleCache = new WeakMap();
 const photoElementStyleCache = new WeakMap();
 let photoLayoutMetricsCache = null;
@@ -3033,10 +3034,11 @@ function applyPhotoSectionScrollHeight(viewportHeight, isCompact) {
   const extraHeight = isCompact
     ? PHOTO_SECTION_EXTRA_HEIGHT_PX.mobile
     : PHOTO_SECTION_EXTRA_HEIGHT_PX.desktop;
+  const expandedExtraHeight = Math.max(0, photoExpandedScrollExtraPx);
   const height = viewportHeight * (durationVh + 0.28) + PHOTO_AFTER_COMPLETE_SCROLL_PX;
 
   setStyleFieldIfChanged(photoSection, "minHeight", `${height.toFixed(2)}px`);
-  setStyleFieldIfChanged(photoSection, "paddingBottom", `${extraHeight.toFixed(2)}px`);
+  setStyleFieldIfChanged(photoSection, "paddingBottom", `${(extraHeight + expandedExtraHeight).toFixed(2)}px`);
 }
 
 function computePhotoPhaseFrame({
@@ -3892,6 +3894,13 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     queueBottomY + (isCompact ? 28 : 40),
     activeCardBottomY + (isCompact ? 34 : 48)
   );
+  const expandedRows = Math.max(1, Math.ceil(finalCount / expandedColumns));
+  const expandedGridBottomY = expandedStartY + (expandedRows - 1) * expandedStepY + expandedCardHeight;
+  const expandedScrollPadding = isCompact ? 96 : 120;
+  const expandedScrollNeeded = Math.max(0, expandedGridBottomY - viewportHeight + expandedScrollPadding);
+  const expandedScrollMix = photoAllExpandedTarget > 0.5 ? 1 : photoAllExpandedProgress;
+  photoExpandedScrollExtraPx = expandedScrollNeeded * expandedScrollMix;
+  applyPhotoSectionScrollHeight(viewportHeight, isCompact);
   const getExpandedMetrics = (slot) => {
     const column = slot % expandedColumns;
     const row = Math.floor(slot / expandedColumns);
