@@ -2375,6 +2375,11 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
   textureCtx.fillStyle = textColor;
   textureCtx.fillText(text, width / 2, height / 2 + fontSize * 0.05);
 
+  const dustCanvas = document.createElement("canvas");
+  dustCanvas.width = width;
+  dustCanvas.height = height;
+  const dustCtx = dustCanvas.getContext("2d");
+
   return {
     canvas: canvasElement,
     context,
@@ -2390,6 +2395,8 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
     secondaryColor,
     points,
     texture: textureCanvas,
+    dustCanvas,
+    dustCtx,
   };
 }
 
@@ -2470,6 +2477,10 @@ function drawWelcome() {
       return;
     }
 
+    const { dustCanvas, dustCtx } = layer;
+    dustCtx.clearRect(0, 0, width, height);
+    dustCtx.fillStyle = textColor;
+
     points.forEach((point) => {
       const localProgress = Math.max(
         0,
@@ -2479,26 +2490,27 @@ function drawWelcome() {
         return;
       }
 
-      const particleEase = 1 - (1 - localProgress) * (1 - localProgress);
-      const t = particleEase;
+      const t = 1 - (1 - localProgress) * (1 - localProgress);
       const gravityPull = point.gravity * t * t * 40;
       const sway = Math.sin(t * Math.PI * 1.6 + point.shimmer) * point.wave * (1 - t * 0.5);
       const x = point.x + point.driftX * t * point.windResistance + sway;
       const y = point.y + point.driftY * t * point.windResistance + gravityPull;
-      const radius =
-        point.size * (type === "primary" ? 0.72 + t * 0.88 : 0.62 + t * 0.72);
-      const alpha = Math.max(0, (1 - t * 0.92) * 0.85 - eased * 0.08);
+      const radius = point.size * (0.6 + t * 0.8);
+      const alpha = Math.max(0, (1 - t * 0.88) * 0.9 - eased * 0.06);
 
-      const grainW = radius * (0.8 + Math.sin(point.shimmer) * 0.6);
-      const grainH = radius * (0.8 + Math.cos(point.shimmer) * 0.6);
-      context.save();
-      context.globalAlpha = alpha;
-      context.fillStyle = textColor;
-      context.translate(x, y);
-      context.rotate(point.shimmer + t * 2);
-      context.fillRect(-grainW / 2, -grainH / 2, grainW, grainH);
-      context.restore();
+      dustCtx.globalAlpha = alpha;
+      dustCtx.fillRect(x - radius * 0.5, y - radius * 0.5, radius, radius);
     });
+
+    const blurRadius = Math.min(3, 0.5 + eased * 2.5);
+    context.save();
+    context.filter = `blur(${blurRadius.toFixed(1)}px)`;
+    context.globalAlpha = 0.85;
+    context.drawImage(dustCanvas, 0, 0);
+    context.filter = "none";
+    context.globalAlpha = 0.55;
+    context.drawImage(dustCanvas, 0, 0);
+    context.restore();
   });
 }
 
