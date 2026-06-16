@@ -2345,7 +2345,7 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
           points.push({
             x: x + (Math.random() - 0.5) * gap,
             y: y + (Math.random() - 0.5) * gap,
-            size: 0.15 + Math.random() * 0.55,
+            size: 0.6 + Math.random() * 1.4,
             driftX: Math.cos(angle) * force + (Math.random() - 0.5) * 50,
             driftY: Math.sin(angle) * force + (Math.random() - 0.5) * 50 + Math.random() * 20,
             wave: (Math.random() - 0.5) * 5,
@@ -2495,20 +2495,20 @@ function drawWelcome() {
       const sway = Math.sin(t * Math.PI * 1.6 + point.shimmer) * point.wave * (1 - t * 0.5);
       const x = point.x + point.driftX * t * point.windResistance + sway;
       const y = point.y + point.driftY * t * point.windResistance + gravityPull;
-      const radius = point.size * (0.6 + t * 0.8);
-      const alpha = Math.max(0, (1 - t * 0.88) * 0.9 - eased * 0.06);
+      const radius = point.size * (0.8 + t * 1.2);
+      const alpha = Math.max(0, (1 - t * 0.7) * 1.0 - eased * 0.04);
 
       dustCtx.globalAlpha = alpha;
       dustCtx.fillRect(x - radius * 0.5, y - radius * 0.5, radius, radius);
     });
 
-    const blurRadius = Math.min(3, 0.5 + eased * 2.5);
+    const blurRadius = Math.min(4, 0.8 + eased * 3.2);
     context.save();
     context.filter = `blur(${blurRadius.toFixed(1)}px)`;
-    context.globalAlpha = 0.85;
+    context.globalAlpha = 1.0;
     context.drawImage(dustCanvas, 0, 0);
     context.filter = "none";
-    context.globalAlpha = 0.55;
+    context.globalAlpha = 0.75;
     context.drawImage(dustCanvas, 0, 0);
     context.restore();
   });
