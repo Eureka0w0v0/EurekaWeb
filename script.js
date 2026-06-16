@@ -6083,12 +6083,105 @@ async function createBrainWireframeScene(mount) {
   }
 }
 
+function runIntroAnimation() {
+  const overlay = document.querySelector("#intro-overlay");
+  const textContainer = document.querySelector("#intro-text");
+  const topContainer = document.querySelector("#intro-top");
+  const bottomContainer = document.querySelector("#intro-bottom");
+
+  if (!overlay) {
+    return Promise.resolve();
+  }
+
+  if (shouldReduceMotion()) {
+    overlay.remove();
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const rng = createSeededRandom(7788);
+
+    const letters = "FOR YOU";
+    for (let i = 0; i < letters.length; i++) {
+      const char = letters[i];
+      if (char === " ") {
+        const spacer = document.createElement("span");
+        spacer.style.width = "0.35em";
+        spacer.style.display = "inline-block";
+        textContainer.appendChild(spacer);
+        continue;
+      }
+      const span = document.createElement("span");
+      span.className = "intro-letter";
+      span.textContent = char;
+      span.style.setProperty("--from-x", ((rng() - 0.5) * 50) + "px");
+      span.style.setProperty("--from-y", ((rng() - 0.5) * 35) + "px");
+      span.style.setProperty("--from-r", ((rng() - 0.5) * 25) + "deg");
+      span.style.setProperty("--to-x", ((rng() - 0.5) * 280) + "px");
+      span.style.setProperty("--to-y", ((rng() - 0.5) * 200) + "px");
+      span.style.setProperty("--to-r", ((rng() - 0.5) * 50) + "deg");
+      span.style.setProperty("--delay", (i * 45) + "ms");
+      span.style.setProperty("--scatter-delay", (i * 20) + "ms");
+      textContainer.appendChild(span);
+    }
+
+    const barCount = 20;
+    const barDelays = [];
+    for (let i = 0; i < barCount; i++) {
+      barDelays.push(Math.abs(i - 9.5) / 9.5 * 350 + rng() * 80);
+    }
+
+    for (let i = 0; i < barCount; i++) {
+      const topBar = document.createElement("div");
+      topBar.className = "intro-bar";
+      topBar.style.setProperty("--bar-delay", barDelays[i] + "ms");
+      topContainer.appendChild(topBar);
+
+      const bottomBar = document.createElement("div");
+      bottomBar.className = "intro-bar";
+      bottomBar.style.setProperty("--bar-delay", barDelays[i] + "ms");
+      bottomContainer.appendChild(bottomBar);
+    }
+
+    root.classList.add("intro-active");
+    body.classList.add("intro-active");
+
+    requestAnimationFrame(() => {
+      textContainer.classList.add("is-gathering");
+    });
+
+    setTimeout(() => {
+      textContainer.classList.remove("is-gathering");
+      textContainer.classList.add("is-scattering");
+
+      setTimeout(() => {
+        textContainer.style.display = "none";
+        topContainer.classList.add("is-revealing");
+        bottomContainer.classList.add("is-revealing");
+
+        setTimeout(() => {
+          overlay.classList.add("is-done");
+
+          setTimeout(() => {
+            overlay.remove();
+            root.classList.remove("intro-active");
+            body.classList.remove("intro-active");
+            resolve();
+          }, 400);
+        }, 1200);
+      }, 500);
+    }, 1400);
+  });
+}
+
 async function initApp() {
   const siteConfig = await loadSiteConfig();
   if (siteConfig.maintenance) {
     window.location.replace("./maintenance/index.html");
     return;
   }
+
+  const introPromise = runIntroAnimation();
 
   languageToggle?.addEventListener("click", () => {
     toggleLanguageMenu();
@@ -6222,6 +6315,8 @@ async function initApp() {
   updateCareerScene();
   updatePhotoScene();
   requestLanguageNetworkSync();
+
+  await introPromise;
 
   mediaQuery.addEventListener("change", (event) => {
     if (getStoredTheme()) {

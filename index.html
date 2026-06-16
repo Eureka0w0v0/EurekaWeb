@@ -12,9 +12,14 @@
       name="description"
       content="一个具有动态背景、交互卡片、鼠标跟随光效和粒子画布的网页示例。"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260505-129" />
+    <link rel="stylesheet" href="./styles.css?v=20260616-100" />
   </head>
   <body>
+    <div class="intro-overlay" id="intro-overlay" aria-hidden="true">
+      <div class="intro-text" id="intro-text"></div>
+      <div class="intro-top" id="intro-top"></div>
+      <div class="intro-bottom" id="intro-bottom"></div>
+    </div>
     <canvas id="particle-canvas" aria-hidden="true"></canvas>
     <div class="noise"></div>
     <div class="cursor-glow"></div>
@@ -397,6 +402,6 @@
       </div>
     </div>
 
-    <script src="./script.js?v=20260504-059"></script>
+    <script src="./script.js?v=20260616-100"></script>
   </body>
 </html>
