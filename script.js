@@ -5775,6 +5775,20 @@ async function createBrainWireframeScene(mount) {
     });
     scene.add(new THREE.Points(dustGeometry, dustMaterial));
 
+    /* ── Effect 4: Decorative 3D Ring (TorusKnot) ── */
+    const isDarkInit = activeTheme === "dark";
+    const ringGeometry = new THREE.TorusKnotGeometry(2.2, 0.35, 128, 16, 2, 3);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: isDarkInit ? 0xffffff : 0x050505,
+      wireframe: true,
+      transparent: true,
+      opacity: isDarkInit ? 0.06 : 0.04,
+    });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.position.set(0, 0.2, -3);
+    ring.scale.setScalar(isCompact ? 0.5 : 0.7);
+    group.add(ring);
+
     function setBrainTheme(theme) {
       const isDark = theme === "dark";
       const color = isDark ? 0xffffff : 0x050505;
@@ -5794,6 +5808,11 @@ async function createBrainWireframeScene(mount) {
       glowMaterial.opacity = isDark ? 0.05 : 0.025;
       lineMaterial.opacity = isDark ? 0.55 : 0.64;
       dustMaterial.opacity = isDark ? 0.14 : 0.08;
+
+      /* Update ring for theme */
+      ringMaterial.color.setHex(color);
+      ringMaterial.opacity = isDark ? 0.06 : 0.04;
+      ringMaterial.needsUpdate = true;
 
       nodeMaterial.needsUpdate = true;
       glowMaterial.needsUpdate = true;
@@ -5852,6 +5871,9 @@ async function createBrainWireframeScene(mount) {
         nodeMaterial.size = 0.045 + Math.sin(time * 2.0) * 0.004;
         glowMaterial.opacity = (isDark ? 0.045 : 0.018) + Math.sin(time * 1.65) * (isDark ? 0.018 : 0.008);
         lineMaterial.opacity = isDark ? 0.55 : 0.64;
+        /* Effect 4: Rotate decorative ring */
+        ring.rotation.x += 0.002;
+        ring.rotation.z += 0.001;
       }
 
       render();
@@ -5879,10 +5901,12 @@ async function createBrainWireframeScene(mount) {
       pointGeometry.dispose();
       lineGeometry.dispose();
       dustGeometry.dispose();
+      ringGeometry.dispose();
       nodeMaterial.dispose();
       glowMaterial.dispose();
       lineMaterial.dispose();
       dustMaterial.dispose();
+      ringMaterial.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement);
@@ -5997,6 +6021,191 @@ function runIntroAnimation() {
         }, 1200);
       }, 500);
     }, 1400);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Effect 5: Cinematic Scroll Parallax
+   ═══════════════════════════════════════════════════════════════ */
+
+function initCinematicParallax() {
+  const sections = document.querySelectorAll("[data-theme-section]");
+  if (!sections.length) return;
+
+  /* Skip the career section – it has its own complex scroll system */
+  const parallaxSections = Array.from(sections).filter(
+    (s) => s.getAttribute("data-theme-section") !== "career"
+  );
+
+  let cinematicFrame = 0;
+
+  function updateCinematicParallax() {
+    const vh = window.innerHeight;
+    const center = vh / 2;
+    const mobile = isMobileViewport();
+    const strength = mobile ? 0.5 : 1.0;
+
+    for (let i = 0; i < parallaxSections.length; i++) {
+      const sec = parallaxSections[i];
+      const rect = sec.getBoundingClientRect();
+      const secCenter = rect.top + rect.height / 2;
+      const dist = Math.abs(secCenter - center);
+      const maxDist = vh;
+      const proximity = 1 - Math.min(dist / maxDist, 1);
+
+      const s = 1 + proximity * 0.02 * strength;
+      const o = 0.92 + proximity * 0.08;
+
+      sec.style.transform = "scale(" + s + ")";
+      sec.style.opacity = o;
+
+      /* Eyebrow & heading get a slightly faster parallax rate */
+      const eyebrow = sec.querySelector(".eyebrow");
+      const heading = sec.querySelector("h1, h2");
+      if (eyebrow) {
+        const shift = (secCenter - center) * -0.015 * strength;
+        eyebrow.style.transform = "translate3d(0," + shift + "px,0)";
+      }
+      if (heading && heading !== eyebrow) {
+        const shift = (secCenter - center) * -0.01 * strength;
+        heading.style.transform = "translate3d(0," + shift + "px,0)";
+      }
+    }
+  }
+
+  function requestCinematicUpdate() {
+    if (cinematicFrame) return;
+    cinematicFrame = requestAnimationFrame(() => {
+      cinematicFrame = 0;
+      updateCinematicParallax();
+    });
+  }
+
+  window.addEventListener("scroll", requestCinematicUpdate, { passive: true });
+  updateCinematicParallax();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Effect 2: Scroll Velocity Grain / Distortion
+   ═══════════════════════════════════════════════════════════════ */
+
+function initGrainCanvas() {
+  const canvas = document.getElementById("grain-canvas");
+  if (!canvas) return;
+
+  /* Skip on mobile & reduced-motion */
+  if (isMobileViewport() || shouldReduceMotion()) {
+    canvas.style.display = "none";
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const GRAIN_W = 128;
+  const GRAIN_H = 128;
+  canvas.width = GRAIN_W;
+  canvas.height = GRAIN_H;
+  /* Scale up via CSS for pixelated grain */
+  canvas.style.imageRendering = "pixelated";
+
+  let lastScrollY = window.scrollY;
+  let scrollVelocity = 0;
+  let currentOpacity = 0.03;
+  const BASE_OPACITY = 0.03;
+  const MAX_OPACITY = 0.12;
+  const DECAY = 0.92;
+  let grainRunning = false;
+  let grainFrame = 0;
+  let lastGrainTime = 0;
+  const GRAIN_INTERVAL = 50; /* ~20fps */
+
+  function renderGrain(timestamp) {
+    if (!grainRunning) return;
+    grainFrame = requestAnimationFrame(renderGrain);
+
+    if (timestamp - lastGrainTime < GRAIN_INTERVAL) return;
+    lastGrainTime = timestamp;
+
+    const isDark = activeTheme === "dark";
+    const imgData = ctx.createImageData(GRAIN_W, GRAIN_H);
+    const data = imgData.data;
+    const base = isDark ? 200 : 40;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const v = base + ((Math.random() * 55) | 0);
+      data[i] = v;
+      data[i + 1] = v;
+      data[i + 2] = v;
+      data[i + 3] = 255;
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    /* Decay velocity toward base */
+    currentOpacity = currentOpacity * DECAY + BASE_OPACITY * (1 - DECAY);
+    if (currentOpacity < BASE_OPACITY + 0.001) currentOpacity = BASE_OPACITY;
+    canvas.style.opacity = currentOpacity;
+  }
+
+  function onScroll() {
+    const nowY = window.scrollY;
+    scrollVelocity = Math.abs(nowY - lastScrollY);
+    lastScrollY = nowY;
+    currentOpacity = Math.min(MAX_OPACITY, BASE_OPACITY + scrollVelocity * 0.003);
+    canvas.style.opacity = currentOpacity;
+  }
+
+  function start() {
+    if (grainRunning) return;
+    grainRunning = true;
+    grainFrame = requestAnimationFrame(renderGrain);
+  }
+
+  function stop() {
+    grainRunning = false;
+    if (grainFrame) {
+      cancelAnimationFrame(grainFrame);
+      grainFrame = 0;
+    }
+  }
+
+  window.addEventListener("scroll", onScroll, { passive: true });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stop(); else start();
+  });
+
+  start();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Effect 3: Photo Card Hover Glow (JS portion)
+   ═══════════════════════════════════════════════════════════════ */
+
+function initPhotoCardHoverGlow() {
+  if (isMobileViewport()) return; /* No cursor tracking on touch devices */
+  const stage = document.querySelector(".photo-stage");
+  if (!stage) return;
+
+  /* Inject glow overlay divs into every photo card that doesn't already have one */
+  const cards = stage.querySelectorAll(".photo-card");
+  cards.forEach((card) => {
+    if (card.querySelector(".photo-card-hover-glow")) return;
+    const glow = document.createElement("div");
+    glow.className = "photo-card-hover-glow";
+    glow.setAttribute("aria-hidden", "true");
+    card.appendChild(glow);
+  });
+
+  /* Track mouse position to update CSS vars on the hovered card */
+  stage.addEventListener("mousemove", (e) => {
+    const card = e.target.closest(".photo-card");
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    card.style.setProperty("--hover-x", x + "%");
+    card.style.setProperty("--hover-y", y + "%");
   });
 }
 
@@ -6133,6 +6342,11 @@ async function initApp() {
   updateCareerScene();
   updatePhotoScene();
   requestLanguageNetworkSync();
+
+  /* Initialize visual effects */
+  initCinematicParallax();
+  initGrainCanvas();
+  initPhotoCardHoverGlow();
 
   await introPromise;
 
