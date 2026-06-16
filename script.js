@@ -2298,7 +2298,7 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
   const imageData = sampleCtx.getImageData(0, 0, width, height);
   const area = width * height;
   const densityScale = area > 220000 ? 1.3 : 1;
-  const gap = Math.max(5, Math.round((fontSize / 24) * densityScale));
+  const gap = Math.max(3, Math.round((fontSize / 36) * densityScale));
   const points = [];
   const maxDistance = Math.hypot(width / 2, height / 2);
 
@@ -2339,17 +2339,19 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
         points.push({
           x,
           y,
-          size: 0.7 + Math.random() * 1.9,
+          size: 0.3 + Math.random() * 0.9,
           driftX:
-            centerBias * (74 + Math.random() * 110) +
-            (Math.random() - 0.5) * 160,
-          driftY: (Math.random() - 0.5) * 170 + (Math.random() - 0.65) * 34,
-          wave: (Math.random() - 0.5) * 24,
-          delay: Math.max(0, shardness * 0.34 - 0.08 + Math.random() * 0.04),
+            centerBias * (50 + Math.random() * 80) +
+            30 + Math.random() * 120,
+          driftY: 40 + Math.random() * 180,
+          wave: (Math.random() - 0.5) * 8,
+          delay: Math.max(0, (1 - edgeFactor) * 0.48 + radialFactor * 0.22 + Math.random() * 0.08),
           edgeFactor,
           shimmer: Math.random() * Math.PI * 2,
           orbit: Math.random() * Math.PI * 2,
-          spread: 10 + Math.random() * 26,
+          spread: 4 + Math.random() * 12,
+          gravity: 0.6 + Math.random() * 0.8,
+          windResistance: 0.3 + Math.random() * 0.7,
         });
       }
     }
@@ -2448,11 +2450,12 @@ function drawWelcome() {
       const cutSize = point.size * (1.1 + localProgress * 2.4);
       const smearX = point.driftX * localProgress * 0.16;
       const smearY = point.driftY * localProgress * 0.12;
+      const cutW = cutSize * (0.6 + Math.sin(point.shimmer * 3) * 0.4);
+      const cutH = cutSize * (0.6 + Math.cos(point.shimmer * 2) * 0.4);
       context.save();
       context.translate(point.x + smearX, point.y + smearY);
-      context.beginPath();
-      context.arc(0, 0, cutSize * 0.68, 0, Math.PI * 2);
-      context.fill();
+      context.rotate(point.shimmer);
+      context.fillRect(-cutW / 2, -cutH / 2, cutW, cutH);
       context.restore();
     });
     context.globalCompositeOperation = "source-over";
@@ -2462,7 +2465,7 @@ function drawWelcome() {
       return;
     }
 
-    points.forEach((point, index) => {
+    points.forEach((point) => {
       const localProgress = Math.max(
         0,
         Math.min(1, (crumble - point.delay) / Math.max(1 - point.delay, 0.001))
@@ -2472,32 +2475,24 @@ function drawWelcome() {
       }
 
       const particleEase = 1 - (1 - localProgress) * (1 - localProgress);
-      const sway =
-        Math.sin(particleEase * Math.PI * 2.8 + point.shimmer + index * 0.07) * point.wave;
-      const orbitX =
-        Math.cos(point.orbit + particleEase * 4.2) * point.spread * particleEase * 0.24;
-      const orbitY =
-        Math.sin(point.orbit + particleEase * 3.6) * point.spread * particleEase * 0.24;
-      const x = point.x + point.driftX * particleEase + orbitX;
-      const y = point.y + point.driftY * particleEase + sway + orbitY;
+      const t = particleEase;
+      const gravityPull = point.gravity * t * t * 120;
+      const windPush = point.driftX * t * point.windResistance;
+      const sway = Math.sin(t * Math.PI * 1.6 + point.shimmer) * point.wave * (1 - t * 0.5);
+      const x = point.x + windPush + sway;
+      const y = point.y + point.driftY * t * 0.4 + gravityPull;
       const radius =
-        point.size * (type === "primary" ? 0.72 + particleEase * 0.88 : 0.62 + particleEase * 0.72);
-      const alpha =
-        Math.max(0, particleEase * (type === "primary" ? 0.72 : 0.58) - eased * 0.05);
-      const shimmerAlpha = 0.2 + Math.sin(point.shimmer + crumble * 12) * 0.08;
+        point.size * (type === "primary" ? 0.72 + t * 0.88 : 0.62 + t * 0.72);
+      const alpha = Math.max(0, (1 - t * 0.92) * 0.85 - eased * 0.08);
 
+      const grainW = radius * (0.8 + Math.sin(point.shimmer) * 0.6);
+      const grainH = radius * (0.8 + Math.cos(point.shimmer) * 0.6);
       context.save();
       context.globalAlpha = alpha;
       context.fillStyle = textColor;
-      context.beginPath();
-      context.arc(x, y, radius, 0, Math.PI * 2);
-      context.fill();
-
-      context.globalAlpha = Math.max(0, alpha * shimmerAlpha);
-      context.fillStyle = secondaryColor;
-      context.beginPath();
-      context.arc(x - radius * 0.14, y - radius * 0.14, radius * 0.22, 0, Math.PI * 2);
-      context.fill();
+      context.translate(x, y);
+      context.rotate(point.shimmer + t * 2);
+      context.fillRect(-grainW / 2, -grainH / 2, grainW, grainH);
       context.restore();
     });
   });
