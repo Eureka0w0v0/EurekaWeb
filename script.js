@@ -2336,23 +2336,28 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
         const radialFactor =
           Math.hypot(x - width / 2, y - height / 2) / Math.max(maxDistance, 1);
         const shardness = Math.min(1, edgeFactor * 0.78 + radialFactor * 0.42 + Math.random() * 0.12);
-        const angle = Math.atan2(y - height / 2, x - width / 2) + (Math.random() - 0.5) * 1.2;
-        const force = 80 + Math.random() * 200;
-        points.push({
-          x,
-          y,
-          size: 0.2 + Math.random() * 0.7,
-          driftX: Math.cos(angle) * force + (Math.random() - 0.5) * 60,
-          driftY: Math.sin(angle) * force + (Math.random() - 0.5) * 60 + Math.random() * 30,
-          wave: (Math.random() - 0.5) * 6,
-          delay: Math.max(0, (1 - edgeFactor) * 0.48 + radialFactor * 0.22 + Math.random() * 0.08),
-          edgeFactor,
-          shimmer: Math.random() * Math.PI * 2,
-          orbit: Math.random() * Math.PI * 2,
-          spread: 4 + Math.random() * 12,
-          gravity: 0.15 + Math.random() * 0.35,
-          windResistance: 0.5 + Math.random() * 0.5,
-        });
+        const baseAngle = Math.atan2(y - height / 2, x - width / 2);
+        const baseDelay = Math.max(0, (1 - edgeFactor) * 0.48 + radialFactor * 0.22);
+        const spawnCount = 2 + Math.floor(Math.random() * 2);
+        for (let s = 0; s < spawnCount; s += 1) {
+          const angle = baseAngle + (Math.random() - 0.5) * 1.6;
+          const force = 60 + Math.random() * 220;
+          points.push({
+            x: x + (Math.random() - 0.5) * gap,
+            y: y + (Math.random() - 0.5) * gap,
+            size: 0.15 + Math.random() * 0.55,
+            driftX: Math.cos(angle) * force + (Math.random() - 0.5) * 50,
+            driftY: Math.sin(angle) * force + (Math.random() - 0.5) * 50 + Math.random() * 20,
+            wave: (Math.random() - 0.5) * 5,
+            delay: baseDelay + Math.random() * 0.1,
+            edgeFactor,
+            shimmer: Math.random() * Math.PI * 2,
+            orbit: Math.random() * Math.PI * 2,
+            spread: 3 + Math.random() * 10,
+            gravity: 0.1 + Math.random() * 0.3,
+            windResistance: 0.4 + Math.random() * 0.6,
+          });
+        }
       }
     }
   }
