@@ -6,7 +6,6 @@ const languageToggle = document.querySelector("#language-toggle");
 const languageMenu = document.querySelector("#language-menu");
 const languageOptions = document.querySelectorAll("[data-language]");
 const tiltCard = document.querySelector("#feature-card");
-const statNumbers = document.querySelectorAll(".stat-number");
 const welcomeSection = document.querySelector("#welcome-section");
 const welcomeWord = document.querySelector("#welcome-word");
 const welcomeCanvas = document.querySelector("#welcome-canvas");
@@ -53,11 +52,8 @@ let photoZoomPreloadActiveCount = 0;
 let photoZoomPreloadLastActiveSlot = 0;
 const themeWave = document.querySelector(".theme-wave");
 const themeWaveCore = document.querySelector(".theme-wave-core");
-const canvas = document.querySelector("#particle-canvas");
-const ctx = canvas.getContext("2d");
 const i18nNodes = document.querySelectorAll("[data-i18n]");
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-const PARTICLE_BACKGROUND_ENABLED = false;
 const DESKTOP_BRAIN_WRAP_WIDTH = 660;
 const DESKTOP_BRAIN_RENDER_WIDTH = Math.round(DESKTOP_BRAIN_WRAP_WIDTH * 1.16);
 const DESKTOP_BRAIN_RENDER_HEIGHT = Math.round((DESKTOP_BRAIN_WRAP_WIDTH / 2) * 1.22);
@@ -84,8 +80,6 @@ function initPhotoQueueCards() {
 
 initPhotoQueueCards();
 
-const particles = [];
-const particleCount = PARTICLE_BACKGROUND_ENABLED ? 64 : 0;
 const themeWaveConfig = {
   EXPAND_DURATION_MS: 560,
   FADE_DURATION_MS: 180,
@@ -96,14 +90,9 @@ const themeWaveConfig = {
 };
 const SNAPSHOT_REVEAL_SAFETY_PADDING = 36;
 
-let animationFrame = 0;
 let activeTheme = "light";
 let activeLanguage = "zh";
 let isThemeTransitioning = false;
-let particleDotColor = "rgba(19, 32, 51, 0.42)";
-let particleLineRgb = "19, 32, 51";
-let particleLineOpacity = 0.11;
-let scrollFrame = 0;
 let heroParallaxFrame = 0;
 let careerFrame = 0;
 let careerThemeResumeFrame = 0;
@@ -218,8 +207,6 @@ let photoCarouselTouchReleasedToPage = false;
 let photoCarouselTouchUnlockTimer = 0;
 let welcomeRenderFrame = 0;
 let welcomeLayers = [];
-let lastCanvasWidth = 0;
-let lastCanvasHeight = 0;
 let brainSceneController = null;
 let themeRenderFrame = 0;
 let themeTransitionLiteActive = false;
@@ -830,12 +817,7 @@ async function loadSiteConfig() {
   }
 }
 
-function syncThemeRenderState() {
-  const styles = getComputedStyle(body);
-  particleDotColor = styles.getPropertyValue("--particle-dot").trim();
-  particleLineRgb = styles.getPropertyValue("--particle-line-rgb").trim();
-  particleLineOpacity = Number(styles.getPropertyValue("--particle-line").trim());
-}
+function syncThemeRenderState() {}
 
 function syncViewportHeightVar() {
   if (isMobileViewport()) {
@@ -875,13 +857,7 @@ function handleVisualViewportResize() {
   syncViewportHeightVar();
 }
 
-function requestParticleFrame() {
-  if (!PARTICLE_BACKGROUND_ENABLED || animationFrame || activeTheme !== "dark" || document.hidden) {
-    return;
-  }
-
-  animationFrame = window.requestAnimationFrame(drawParticles);
-}
+function requestParticleFrame() {}
 
 function isElementInViewport(element) {
   if (!element) {
@@ -909,10 +885,6 @@ function syncThemeSnapshotVisuals(theme) {
     buildWelcomeCanvas();
     drawWelcome();
   }
-
-  if ((!PARTICLE_BACKGROUND_ENABLED || theme !== "dark") && ctx) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
 }
 
 function runThemeRenderWork(theme) {
@@ -921,24 +893,9 @@ function runThemeRenderWork(theme) {
   buildWelcomeCanvas();
   drawWelcome();
   requestWelcomeRender();
-
-  if (PARTICLE_BACKGROUND_ENABLED && theme === "dark") {
-    requestParticleFrame();
-  } else {
-    if (animationFrame) {
-      window.cancelAnimationFrame(animationFrame);
-      animationFrame = 0;
-    }
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
 }
 
 function scheduleThemeRenderWork(theme) {
-  if (animationFrame) {
-    window.cancelAnimationFrame(animationFrame);
-    animationFrame = 0;
-  }
-
   if (themeRenderFrame) {
     window.cancelAnimationFrame(themeRenderFrame);
   }
@@ -954,16 +911,6 @@ function scheduleThemeRenderWork(theme) {
     } else {
       requestWelcomeRender();
     }
-
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        if (PARTICLE_BACKGROUND_ENABLED && theme === "dark") {
-          requestParticleFrame();
-        } else {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-      });
-    });
   });
 }
 
@@ -1898,11 +1845,6 @@ async function runMobileThemeWave(originX, originY, nextTheme) {
     return;
   }
 
-  if (animationFrame) {
-    window.cancelAnimationFrame(animationFrame);
-    animationFrame = 0;
-  }
-
   resetThemeWave();
   const endRadius = getWaveEndRadius(originX, originY);
   root.style.setProperty("--wave-x", `${originX}px`);
@@ -2308,146 +2250,6 @@ async function triggerThemeWave(originX, originY, nextTheme) {
   }
 }
 
-function getParticleCanvasSize() {
-  if (!PARTICLE_BACKGROUND_ENABLED) {
-    return { width: 0, height: 0 };
-  }
-
-  return {
-    width: Math.max(window.innerWidth, document.documentElement.clientWidth),
-    height: Math.max(window.innerHeight, document.documentElement.clientHeight),
-  };
-}
-
-function resizeCanvas({ preserveParticles = true } = {}) {
-  if (!PARTICLE_BACKGROUND_ENABLED || !canvas) {
-    if (canvas) {
-      canvas.width = 0;
-      canvas.height = 0;
-    }
-    particles.length = 0;
-    lastCanvasWidth = 0;
-    lastCanvasHeight = 0;
-    return false;
-  }
-
-  const { width, height } = getParticleCanvasSize();
-  const previousWidth = canvas.width || width;
-  const previousHeight = canvas.height || height;
-
-  if (canvas.width === width && canvas.height === height) {
-    return false;
-  }
-
-  canvas.width = width;
-  canvas.height = height;
-
-  if (preserveParticles && particles.length > 0 && previousWidth > 0 && previousHeight > 0) {
-    const scaleX = width / previousWidth;
-    const scaleY = height / previousHeight;
-
-    particles.forEach((particle) => {
-      particle.x *= scaleX;
-      particle.y *= scaleY;
-      particle.x = Math.min(Math.max(particle.x, 0), width);
-      particle.y = Math.min(Math.max(particle.y, 0), height);
-    });
-  }
-
-  lastCanvasWidth = width;
-  lastCanvasHeight = height;
-  return true;
-}
-
-function createParticles() {
-  if (!PARTICLE_BACKGROUND_ENABLED || !canvas) {
-    particles.length = 0;
-    return;
-  }
-
-  for (let index = 0; index < particleCount; index += 1) {
-    if (particles[index]) {
-      continue;
-    }
-
-    particles[index] = {
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      vx: (Math.random() - 0.5) * 0.45,
-      vy: (Math.random() - 0.5) * 0.45,
-      radius: Math.random() * 2.2 + 1,
-    };
-  }
-
-  particles.length = particleCount;
-}
-
-function shouldReflowParticles() {
-  if (!PARTICLE_BACKGROUND_ENABLED) {
-    return false;
-  }
-
-  const { width, height } = getParticleCanvasSize();
-  const widthDelta = Math.abs(width - lastCanvasWidth);
-  const heightDelta = Math.abs(height - lastCanvasHeight);
-
-  if (lastCanvasWidth === 0 || lastCanvasHeight === 0) {
-    return true;
-  }
-
-  return widthDelta >= 24 || heightDelta >= 140;
-}
-
-function drawParticles() {
-  animationFrame = 0;
-  if (!PARTICLE_BACKGROUND_ENABLED || !ctx || !canvas) {
-    return;
-  }
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (activeTheme !== "dark" || document.hidden) {
-    return;
-  }
-
-  for (let i = 0; i < particles.length; i += 1) {
-    const particle = particles[i];
-    particle.x += particle.vx;
-    particle.y += particle.vy;
-
-    if (particle.x <= 0 || particle.x >= canvas.width) {
-      particle.vx *= -1;
-    }
-
-    if (particle.y <= 0 || particle.y >= canvas.height) {
-      particle.vy *= -1;
-    }
-
-    ctx.beginPath();
-    ctx.fillStyle = particleDotColor;
-    ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    for (let j = i + 1; j < particles.length; j += 1) {
-      const peer = particles[j];
-      const dx = particle.x - peer.x;
-      const dy = particle.y - peer.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      if (distance < 120) {
-        ctx.beginPath();
-        ctx.strokeStyle = `rgba(${particleLineRgb},${particleLineOpacity - distance / 1200})`;
-        ctx.lineWidth = 1;
-        ctx.moveTo(particle.x, particle.y);
-        ctx.lineTo(peer.x, peer.y);
-        ctx.stroke();
-      }
-    }
-  }
-
-  requestParticleFrame();
-}
-
 function buildWelcomeLayer(wordElement, canvasElement, context, text) {
   if (!wordElement || !canvasElement || !context) {
     return null;
@@ -2705,14 +2507,7 @@ function requestWelcomeRender() {
 }
 
 function requestWelcomeScatterUpdate() {
-  if (scrollFrame) {
-    return;
-  }
-
-  scrollFrame = window.requestAnimationFrame(() => {
-    requestWelcomeRender();
-    scrollFrame = 0;
-  });
+  requestWelcomeRender();
 }
 
 function updateHeroParallax() {
@@ -2745,28 +2540,6 @@ function requestHeroParallaxUpdate() {
   heroParallaxFrame = window.requestAnimationFrame(() => {
     updateHeroParallax();
     heroParallaxFrame = 0;
-  });
-}
-
-function animateNumbers() {
-  statNumbers.forEach((element) => {
-    const target = Number(element.dataset.target);
-    let current = 0;
-    const step = Math.max(1, Math.ceil(target / 36));
-
-    const tick = () => {
-      current += step;
-
-      if (current >= target) {
-        element.textContent = `${target}${target === 100 ? "%" : "+"}`;
-        return;
-      }
-
-      element.textContent = current;
-      window.requestAnimationFrame(tick);
-    };
-
-    tick();
   });
 }
 
@@ -3858,22 +3631,10 @@ function closePhotoZoom() {
   });
 }
 
-function handlePhotoZoomCloseClick(event) {
-  event.preventDefault();
-  event.stopPropagation();
-  closePhotoZoom();
-}
-
 function handlePhotoZoomClosePointerDown(event) {
   event.preventDefault();
   event.stopPropagation();
   closePhotoZoom();
-}
-
-function handlePhotoZoomOverlayClick(event) {
-  if (event.target === photoZoomOverlay) {
-    closePhotoZoom();
-  }
 }
 
 function handlePhotoZoomOverlayPointerDown(event) {
@@ -6125,10 +5886,13 @@ function runIntroAnimation() {
       textContainer.appendChild(span);
     }
 
-    const barCount = 20;
+    const isCompact = window.innerWidth <= 680;
+    const barCount = isCompact ? 10 : 20;
     const barDelays = [];
     for (let i = 0; i < barCount; i++) {
-      barDelays.push(Math.abs(i - 9.5) / 9.5 * 350 + rng() * 80);
+      const center = (barCount - 1) / 2;
+      const maxDelay = isCompact ? 260 : 350;
+      barDelays.push(Math.abs(i - center) / center * maxDelay + rng() * (isCompact ? 50 : 80));
     }
 
     for (let i = 0; i < barCount; i++) {
@@ -6251,10 +6015,6 @@ async function initApp() {
     syncInputDeviceClass();
     invalidatePhotoLayoutCaches();
     syncViewportHeightVar();
-    if (shouldReflowParticles()) {
-      resizeCanvas({ preserveParticles: true });
-      createParticles();
-    }
     buildWelcomeCanvas();
     requestWelcomeRender();
     updateHeroParallax();
@@ -6281,11 +6041,11 @@ async function initApp() {
   photoZoomCloseButton?.addEventListener("pointerdown", handlePhotoZoomClosePointerDown);
   photoZoomCloseButton?.addEventListener("mousedown", handlePhotoZoomClosePointerDown);
   photoZoomCloseButton?.addEventListener("touchstart", handlePhotoZoomClosePointerDown, { passive: false });
-  photoZoomCloseButton?.addEventListener("click", handlePhotoZoomCloseClick);
+  photoZoomCloseButton?.addEventListener("click", handlePhotoZoomClosePointerDown);
   photoZoomOverlay?.addEventListener("pointerdown", handlePhotoZoomOverlayPointerDown);
   photoZoomOverlay?.addEventListener("mousedown", handlePhotoZoomOverlayPointerDown);
   photoZoomOverlay?.addEventListener("touchstart", handlePhotoZoomOverlayPointerDown, { passive: false });
-  photoZoomOverlay?.addEventListener("click", handlePhotoZoomOverlayClick);
+  photoZoomOverlay?.addEventListener("click", handlePhotoZoomOverlayPointerDown);
   photoZoomOverlay?.addEventListener("wheel", stopPhotoZoomScroll, { passive: false });
   photoZoomOverlay?.addEventListener("touchmove", stopPhotoZoomScroll, { passive: false });
   photoShowAllButton?.addEventListener("click", togglePhotoAllExpanded);
@@ -6301,15 +6061,11 @@ async function initApp() {
   document.fonts?.ready?.then(requestLanguageNetworkSync);
 
   syncViewportHeightVar();
-  resizeCanvas({ preserveParticles: false });
-  createParticles();
   applyLanguage(resolveLanguage());
   setActiveLanguageNode(activeLanguageNode);
   updateCareerLayerClasses();
   await commitThemeState(resolveTheme());
   brainSceneController = await createBrainWireframeScene(brainMount);
-  requestParticleFrame();
-  animateNumbers();
   drawWelcome();
   updateHeroParallax();
   updateCareerScene();
@@ -6330,65 +6086,17 @@ async function initApp() {
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
-      if (animationFrame) {
-        window.cancelAnimationFrame(animationFrame);
-        animationFrame = 0;
-      }
       if (photoFrame) {
         window.cancelAnimationFrame(photoFrame);
         photoFrame = 0;
       }
       brainSceneController?.stop();
     } else {
-      requestParticleFrame();
       brainSceneController?.start();
       requestPhotoSceneUpdate();
     }
   });
 
-  window.addEventListener("beforeunload", () => {
-    window.cancelAnimationFrame(animationFrame);
-    window.cancelAnimationFrame(scrollFrame);
-    window.cancelAnimationFrame(heroParallaxFrame);
-    window.cancelAnimationFrame(careerFrame);
-    window.cancelAnimationFrame(photoFrame);
-    window.cancelAnimationFrame(welcomeRenderFrame);
-    window.cancelAnimationFrame(languageNetworkFrame);
-    brainSceneController?.dispose();
-    window.removeEventListener("scroll", requestCareerSceneUpdate);
-  window.removeEventListener("scroll", requestPhotoSceneUpdate);
-  window.removeEventListener("scroll", requestLanguageNetworkSync);
-    window.removeEventListener("hashchange", requestCareerSceneUpdate);
-    window.removeEventListener("load", requestLanguageNetworkSync);
-    careerCardStack?.removeEventListener("wheel", handleCareerLayerWheel, { capture: true });
-    careerCardStack?.removeEventListener("touchstart", handleCareerLayerTouchStart, { capture: true });
-    careerCardStack?.removeEventListener("touchmove", handleCareerLayerTouchMove, { capture: true });
-    careerCardStack?.removeEventListener("touchend", handleCareerLayerTouchEnd, { capture: true });
-    photoStage?.removeEventListener("pointerover", handlePhotoMainCardPointerPreload);
-    photoStage?.removeEventListener("touchstart", handlePhotoMainCardTouchPreload);
-    photoStage?.removeEventListener("click", handlePhotoMainCardClick);
-    photoZoomCloseButton?.removeEventListener("pointerdown", handlePhotoZoomClosePointerDown);
-    photoZoomCloseButton?.removeEventListener("mousedown", handlePhotoZoomClosePointerDown);
-    photoZoomCloseButton?.removeEventListener("touchstart", handlePhotoZoomClosePointerDown);
-    photoZoomCloseButton?.removeEventListener("click", handlePhotoZoomCloseClick);
-    photoZoomOverlay?.removeEventListener("pointerdown", handlePhotoZoomOverlayPointerDown);
-    photoZoomOverlay?.removeEventListener("mousedown", handlePhotoZoomOverlayPointerDown);
-    photoZoomOverlay?.removeEventListener("touchstart", handlePhotoZoomOverlayPointerDown);
-    photoZoomOverlay?.removeEventListener("click", handlePhotoZoomOverlayClick);
-    photoZoomOverlay?.removeEventListener("wheel", stopPhotoZoomScroll);
-    photoZoomOverlay?.removeEventListener("touchmove", stopPhotoZoomScroll);
-    photoShowAllButton?.removeEventListener("click", togglePhotoAllExpanded);
-    photoSection?.removeEventListener("wheel", handlePhotoCarouselWheel, { capture: true });
-    photoSection?.removeEventListener("touchstart", handlePhotoCarouselTouchStart, { capture: true });
-    photoSection?.removeEventListener("touchmove", handlePhotoCarouselTouchMove, { capture: true });
-    photoSection?.removeEventListener("touchend", handlePhotoCarouselTouchEnd, { capture: true });
-    photoSection?.removeEventListener("touchcancel", handlePhotoCarouselTouchEnd, { capture: true });
-    careerLayerScrollAreas.forEach((scrollArea) => {
-      scrollArea.removeEventListener("wheel", stopCareerScrollPropagation);
-      scrollArea.removeEventListener("touchmove", stopCareerScrollPropagation);
-    });
-    window.visualViewport?.removeEventListener("resize", handleVisualViewportResize);
-  });
 }
 
 initApp();
