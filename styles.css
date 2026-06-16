@@ -2513,6 +2513,7 @@ html[lang="en"] .career-statement {
   aspect-ratio: 8 / 11;
   border: 1px solid color-mix(in srgb, var(--line) 92%, transparent);
   border-radius: 20px;
+  cursor: pointer;
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--surface-strong) 86%, transparent), color-mix(in srgb, var(--surface) 66%, transparent)),
     radial-gradient(circle at 28% 18%, color-mix(in srgb, white 24%, transparent), transparent 38%);

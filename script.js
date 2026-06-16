@@ -3770,8 +3770,65 @@ function handlePhotoMainCardTouchPreload(event) {
   handlePhotoMainCardPreloadAtPoint(touch.clientX, touch.clientY, event.target);
 }
 
+function navigatePhotoCarouselToSlot(slot) {
+  if (!photoCarouselEnabled || photoAllExpandedTarget > 0 || photoAllExpandedProgress > 0.01) {
+    return false;
+  }
+
+  const targetSlot = clampPhotoCarouselIndex(slot);
+  const currentSlot = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+  if (targetSlot === currentSlot) {
+    return false;
+  }
+
+  photoCarouselBoundaryDelta = 0;
+  photoCarouselBoundaryDirection = 0;
+  photoCarouselPreviousIndex = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+  photoCarouselTargetIndex = targetSlot;
+  photoCarouselIndex = targetSlot;
+  setPhotoSelectedSlot(targetSlot);
+  preloadNearbyPhotoZoomImages(targetSlot, isMobileViewport() ? 1 : 2);
+  photoCarouselTransitionDirection = Math.sign(targetSlot - currentSlot);
+  photoCarouselHasInteracted = true;
+  photoCarouselSettling = false;
+  requestPhotoSceneUpdate();
+  return true;
+}
+
+function getClickedPhotoCardSlot(x, y, target) {
+  if (!photoCarouselEnabled || photoAllExpandedTarget > 0 || photoAllExpandedProgress > 0.01) {
+    return null;
+  }
+
+  const card = target?.closest?.(".photo-card");
+  if (!card || !photoStage?.contains(card)) {
+    return null;
+  }
+
+  if (!isPointInsidePhotoCard(card, x, y)) {
+    return null;
+  }
+
+  const slot = Number.parseInt(card.dataset.photoSlot, 10);
+  return Number.isFinite(slot) ? slot : null;
+}
+
 function handlePhotoMainCardClick(event) {
   if (photoZoomActive || !photoStage || photoShowAllButton?.contains(event.target)) {
+    return;
+  }
+
+  const clickedSlot = getClickedPhotoCardSlot(event.clientX, event.clientY, event.target);
+  if (clickedSlot === null) {
+    return;
+  }
+
+  const activeSlot = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+
+  if (clickedSlot !== activeSlot && photoCarouselEnabled && photoAllExpandedTarget <= 0) {
+    event.preventDefault();
+    event.stopPropagation();
+    navigatePhotoCarouselToSlot(clickedSlot);
     return;
   }
 
