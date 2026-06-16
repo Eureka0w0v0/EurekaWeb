@@ -2298,7 +2298,7 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
   const imageData = sampleCtx.getImageData(0, 0, width, height);
   const area = width * height;
   const densityScale = area > 220000 ? 1.3 : 1;
-  const gap = Math.max(3, Math.round((fontSize / 36) * densityScale));
+  const gap = Math.max(2, Math.round((fontSize / 48) * densityScale));
   const points = [];
   const maxDistance = Math.hypot(width / 2, height / 2);
 
@@ -2336,22 +2336,22 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
         const radialFactor =
           Math.hypot(x - width / 2, y - height / 2) / Math.max(maxDistance, 1);
         const shardness = Math.min(1, edgeFactor * 0.78 + radialFactor * 0.42 + Math.random() * 0.12);
+        const angle = Math.atan2(y - height / 2, x - width / 2) + (Math.random() - 0.5) * 1.2;
+        const force = 80 + Math.random() * 200;
         points.push({
           x,
           y,
-          size: 0.3 + Math.random() * 0.9,
-          driftX:
-            centerBias * (50 + Math.random() * 80) +
-            30 + Math.random() * 120,
-          driftY: 40 + Math.random() * 180,
-          wave: (Math.random() - 0.5) * 8,
+          size: 0.2 + Math.random() * 0.7,
+          driftX: Math.cos(angle) * force + (Math.random() - 0.5) * 60,
+          driftY: Math.sin(angle) * force + (Math.random() - 0.5) * 60 + Math.random() * 30,
+          wave: (Math.random() - 0.5) * 6,
           delay: Math.max(0, (1 - edgeFactor) * 0.48 + radialFactor * 0.22 + Math.random() * 0.08),
           edgeFactor,
           shimmer: Math.random() * Math.PI * 2,
           orbit: Math.random() * Math.PI * 2,
           spread: 4 + Math.random() * 12,
-          gravity: 0.6 + Math.random() * 0.8,
-          windResistance: 0.3 + Math.random() * 0.7,
+          gravity: 0.15 + Math.random() * 0.35,
+          windResistance: 0.5 + Math.random() * 0.5,
         });
       }
     }
@@ -2476,11 +2476,10 @@ function drawWelcome() {
 
       const particleEase = 1 - (1 - localProgress) * (1 - localProgress);
       const t = particleEase;
-      const gravityPull = point.gravity * t * t * 120;
-      const windPush = point.driftX * t * point.windResistance;
+      const gravityPull = point.gravity * t * t * 40;
       const sway = Math.sin(t * Math.PI * 1.6 + point.shimmer) * point.wave * (1 - t * 0.5);
-      const x = point.x + windPush + sway;
-      const y = point.y + point.driftY * t * 0.4 + gravityPull;
+      const x = point.x + point.driftX * t * point.windResistance + sway;
+      const y = point.y + point.driftY * t * point.windResistance + gravityPull;
       const radius =
         point.size * (type === "primary" ? 0.72 + t * 0.88 : 0.62 + t * 0.72);
       const alpha = Math.max(0, (1 - t * 0.92) * 0.85 - eased * 0.08);
