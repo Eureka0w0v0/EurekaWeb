@@ -3819,17 +3819,14 @@ function handlePhotoMainCardClick(event) {
   }
 
   const clickedSlot = getClickedPhotoCardSlot(event.clientX, event.clientY, event.target);
-  if (clickedSlot === null) {
-    return;
-  }
-
-  const activeSlot = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
-
-  if (clickedSlot !== activeSlot && photoCarouselEnabled && photoAllExpandedTarget <= 0) {
-    event.preventDefault();
-    event.stopPropagation();
-    navigatePhotoCarouselToSlot(clickedSlot);
-    return;
+  if (clickedSlot !== null) {
+    const activeSlot = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+    if (clickedSlot !== activeSlot) {
+      event.preventDefault();
+      event.stopPropagation();
+      navigatePhotoCarouselToSlot(clickedSlot);
+      return;
+    }
   }
 
   const hitContent = getPhotoZoomHitContentAtPoint(event.clientX, event.clientY, event.target);
