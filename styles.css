@@ -616,7 +616,7 @@ body.theme-dark .noise {
 [data-i18n].is-kinetic-language-text {
   display: inline-block;
   vertical-align: inherit;
-  overflow: visible;
+  overflow: hidden;
   contain: layout paint;
 }
 

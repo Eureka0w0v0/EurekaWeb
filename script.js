@@ -1035,19 +1035,27 @@ function lockLanguageNodeSize(node, targetText) {
   const originalText = node.textContent;
   const originalMinWidth = node.style.minWidth;
   const originalMinHeight = node.style.minHeight;
+  const originalMaxWidth = node.style.maxWidth;
+  const originalMaxHeight = node.style.maxHeight;
   const rect = node.getBoundingClientRect();
 
   node.textContent = targetText;
   const targetRect = node.getBoundingClientRect();
   node.textContent = originalText;
 
-  node.style.minWidth = `${Math.ceil(Math.max(rect.width, targetRect.width))}px`;
-  node.style.minHeight = `${Math.ceil(Math.max(rect.height, targetRect.height))}px`;
+  const lockWidth = Math.ceil(Math.max(rect.width, targetRect.width));
+  const lockHeight = Math.ceil(Math.max(rect.height, targetRect.height));
+  node.style.minWidth = `${lockWidth}px`;
+  node.style.minHeight = `${lockHeight}px`;
+  node.style.maxWidth = `${lockWidth}px`;
+  node.style.maxHeight = `${lockHeight}px`;
   node.classList.add("is-kinetic-language-text");
 
   return () => {
     node.style.minWidth = originalMinWidth;
     node.style.minHeight = originalMinHeight;
+    node.style.maxWidth = originalMaxWidth;
+    node.style.maxHeight = originalMaxHeight;
     node.classList.remove("is-kinetic-language-text");
   };
 }
