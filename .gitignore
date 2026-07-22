@@ -1,2 +1,5 @@
 .DS_Store
 webkey/
+images/_originals/
+*.log
+.netlify/

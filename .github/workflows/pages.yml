@@ -24,6 +24,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Strip non-deploy assets
+        run: |
+          rm -rf images/_originals .vscode .DS_Store
+          find . -name ".DS_Store" -delete || true
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

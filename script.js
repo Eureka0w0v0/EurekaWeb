@@ -45,9 +45,9 @@ const photoZoomCloseButton = document.querySelector("#photo-zoom-close");
 const photoZoomLoading = document.querySelector("#photo-zoom-loading");
 let photoZoomActive = false;
 let photoZoomOpenToken = 0;
+let photoZoomTriggerCard = null;
 const photoZoomPreloadCache = new Map();
 const photoZoomPreloadQueue = [];
-let photoZoomPreloadRunning = false;
 let photoZoomPreloadActiveCount = 0;
 let photoZoomPreloadLastActiveSlot = 0;
 const themeWave = document.querySelector(".theme-wave");
@@ -109,11 +109,6 @@ let photoLastFrameTime = 0;
 const PHOTO_INTRO_PHASES = {
   rawDurationVh: 2.5,
   mobileRawDurationVh: 2.5,
-  queueVisibleStart: 0,
-  queueVisibleEnd: 0.18,
-  queueSpreadStart: 0.54,
-  queueSpreadEnd: 0.995,
-  dropStart: 0.26,
   dropEnd: 0.995,
   insertHoldEnd: 0.995,
   carouselStart: 0.9,
@@ -163,7 +158,6 @@ const getPhotoDropStartProgress = (isCompact) => {
   );
 };
 let photoCarouselEnabled = false;
-let photoCarouselIndex = 0;
 let photoCarouselTargetIndex = 0;
 let photoCarouselVisualIndex = 0;
 let photoCarouselPreviousIndex = 0;
@@ -173,11 +167,9 @@ let photoCarouselMaxIndex = 0;
 let photoCarouselSettling = false;
 let photoCarouselHasInteracted = false;
 let photoSelectedSlot = null;
-let photoDropSlot = null;
 const photoCardSlotMap = new Map();
 let photoSelectedSourceCard = null;
 let photoReinsertActive = false;
-let photoReinsertProgress = 0;
 let photoAllExpanded = false;
 let photoAllExpandedTarget = 0;
 let photoAllExpandedProgress = 0;
@@ -198,8 +190,6 @@ let photoCarouselBoundaryDelta = 0;
 let photoCarouselBoundaryDirection = 0;
 let photoCarouselTouchStartX = 0;
 let photoCarouselTouchStartY = 0;
-let photoCarouselTouchLastX = 0;
-let photoCarouselTouchLastY = 0;
 let photoCarouselTouchActive = false;
 let photoCarouselTouchStartedInside = false;
 let photoCarouselTouchLocked = false;
@@ -805,19 +795,21 @@ async function finishThemeTransitionContext() {
 
 async function loadSiteConfig() {
   try {
-    const response = await fetch("./site-config.json", { cache: "no-store" });
+    const response = await fetch("./site-config.json", {
+      cache: "no-store",
+      signal: AbortSignal.timeout?.(4000),
+    });
     if (!response.ok) {
       return { maintenance: false };
     }
 
-    return await response.json();
+    const config = await response.json();
+    return config && typeof config === "object" ? config : { maintenance: false };
   } catch (error) {
     console.error("Failed to load site config.", error);
     return { maintenance: false };
   }
 }
-
-function syncThemeRenderState() {}
 
 function syncViewportHeightVar() {
   if (isMobileViewport()) {
@@ -857,8 +849,6 @@ function handleVisualViewportResize() {
   syncViewportHeightVar();
 }
 
-function requestParticleFrame() {}
-
 function isElementInViewport(element) {
   if (!element) {
     return false;
@@ -870,8 +860,6 @@ function isElementInViewport(element) {
 }
 
 function syncThemeSnapshotVisuals(theme) {
-  syncThemeRenderState();
-
   const brainVisible = (
     isElementInViewport(languageUniverse) ||
     isElementInViewport(brainMount)
@@ -888,7 +876,6 @@ function syncThemeSnapshotVisuals(theme) {
 }
 
 function runThemeRenderWork(theme) {
-  syncThemeRenderState();
   brainSceneController?.setTheme(theme);
   buildWelcomeCanvas();
   drawWelcome();
@@ -902,7 +889,6 @@ function scheduleThemeRenderWork(theme) {
 
   themeRenderFrame = window.requestAnimationFrame(() => {
     themeRenderFrame = 0;
-    syncThemeRenderState();
     brainSceneController?.setTheme(theme);
     const welcomeVisible = isElementInViewport(welcomeSection);
     buildWelcomeCanvas();
@@ -953,8 +939,6 @@ function applyTheme(theme, options = {}) {
 
   brainSceneController?.setTheme(theme);
 
-  syncThemeRenderState();
-
   if (deferHeavyWork) {
     scheduleThemeRenderWork(theme);
   } else {
@@ -962,12 +946,28 @@ function applyTheme(theme, options = {}) {
   }
 }
 
+function safeStorageGet(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch (error) {
+    return null;
+  }
+}
+
+function safeStorageSet(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch (error) {
+    /* Storage is unavailable in private/restricted contexts; preference lives for this session only. */
+  }
+}
+
 function getStoredTheme() {
-  return window.localStorage.getItem(storageKey);
+  return safeStorageGet(storageKey);
 }
 
 function getStoredLanguage() {
-  return window.localStorage.getItem(languageStorageKey);
+  return safeStorageGet(languageStorageKey);
 }
 
 function getSystemTheme() {
@@ -1130,7 +1130,7 @@ function getLanguageNodeTags(nodeInfo, copy) {
 }
 
 function setActiveLanguageNode(nodeKey) {
-  const nodeInfo = languageNodeInfo[nodeKey] || languageNodeInfo.cpp;
+  const nodeInfo = languageNodeInfo[nodeKey] || languageNodeInfo.js;
   const copy = getActiveCopy();
 
   activeLanguageNode = nodeKey in languageNodeInfo ? nodeKey : "js";
@@ -1426,7 +1426,7 @@ function buildKineticCharacterSpans(fromText, toText, pool) {
   return { fragment, spans };
 }
 
-function animateKineticNode({ node, fromText, toText }, pool, nodeIndex) {
+function animateKineticNode({ node, key, fromText, toText }, pool, nodeIndex) {
   const unlockSize = lockLanguageNodeSize(node, toText);
   const { fragment, spans } = buildKineticCharacterSpans(fromText, toText, pool);
   const animations = [];
@@ -1485,7 +1485,7 @@ function animateKineticNode({ node, fromText, toText }, pool, nodeIndex) {
 
   return Promise.allSettled(animations.map((animation) => animation.finished)).finally(() => {
     contentTimers.forEach((timer) => window.clearTimeout(timer));
-    node.textContent = toText;
+    commitKineticText(node, key, toText);
     unlockSize();
   });
 }
@@ -1510,7 +1510,18 @@ function buildScrambledText(fromText, toText, pool, seed = 0) {
   return output.join("");
 }
 
-function animateKineticLiteNode({ node, fromText, toText }, pool, nodeIndex) {
+/* Guard against stale write-backs: hovering a language node mid-animation
+   swaps the insight text's data-i18n key, and the old animation must not
+   overwrite the newer copy when it settles. */
+function commitKineticText(node, key, text) {
+  if (key && node.dataset.i18n !== key) {
+    return;
+  }
+
+  node.textContent = text;
+}
+
+function animateKineticLiteNode({ node, key, fromText, toText }, pool, nodeIndex) {
   const unlockSize = lockLanguageNodeSize(node, toText);
   const timers = [];
   const duration = isMobileViewport() ? 360 : 420;
@@ -1519,13 +1530,13 @@ function animateKineticLiteNode({ node, fromText, toText }, pool, nodeIndex) {
 
   node.textContent = fromText;
   timers.push(window.setTimeout(() => {
-    node.textContent = buildScrambledText(fromText, toText, pool, nodeIndex * 3);
+    commitKineticText(node, key, buildScrambledText(fromText, toText, pool, nodeIndex * 3));
   }, duration * 0.34));
   timers.push(window.setTimeout(() => {
-    node.textContent = buildScrambledText(fromText, toText, pool, nodeIndex * 7);
+    commitKineticText(node, key, buildScrambledText(fromText, toText, pool, nodeIndex * 7));
   }, duration * 0.5));
   timers.push(window.setTimeout(() => {
-    node.textContent = toText;
+    commitKineticText(node, key, toText);
   }, duration * 0.68));
 
   const animation = node.animate(
@@ -1561,7 +1572,7 @@ function animateKineticLiteNode({ node, fromText, toText }, pool, nodeIndex) {
 
   return animation.finished.finally(() => {
     timers.forEach((timer) => window.clearTimeout(timer));
-    node.textContent = toText;
+    commitKineticText(node, key, toText);
     unlockSize();
   });
 }
@@ -1616,7 +1627,7 @@ async function switchLanguageWithAnimation(language) {
   }
 
   isLanguageTransitioning = true;
-  window.localStorage.setItem(languageStorageKey, nextLanguage);
+  safeStorageSet(languageStorageKey, nextLanguage);
   closeLanguageMenu();
 
   if (shouldReduceMotion()) {
@@ -2265,8 +2276,15 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
 
   const rect = wordElement.getBoundingClientRect();
   const dpr = 1;
-  const width = Math.max(320, Math.round(rect.width));
-  const height = Math.max(160, Math.round(rect.height));
+  const contentWidth = Math.max(320, Math.round(rect.width));
+  const contentHeight = Math.max(160, Math.round(rect.height));
+  /* Extra room so crumble particles can fly out without hitting a hard box edge. */
+  const padX = Math.round(Math.max(160, contentWidth * 0.55));
+  const padY = Math.round(Math.max(140, contentHeight * 0.85));
+  const width = contentWidth + padX * 2;
+  const height = contentHeight + padY * 2;
+  const originX = padX;
+  const originY = padY;
   const sampleCanvas = document.createElement("canvas");
   const sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
   const style = getComputedStyle(wordElement);
@@ -2275,9 +2293,7 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
   const fontWeight = style.fontWeight;
   const letterSpacing = parseFloat(style.letterSpacing);
   const font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-  const primaryColor = getComputedStyle(body).getPropertyValue("--primary").trim();
   const textColor = getComputedStyle(body).getPropertyValue("--welcome-text").trim();
-  const secondaryColor = getComputedStyle(body).getPropertyValue("--welcome-grain").trim();
 
   canvasElement.width = Math.round(width * dpr);
   canvasElement.height = Math.round(height * dpr);
@@ -2285,26 +2301,26 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
   canvasElement.style.height = `${height}px`;
   context.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  sampleCanvas.width = width;
-  sampleCanvas.height = height;
-  sampleCtx.clearRect(0, 0, width, height);
+  sampleCanvas.width = contentWidth;
+  sampleCanvas.height = contentHeight;
+  sampleCtx.clearRect(0, 0, contentWidth, contentHeight);
   sampleCtx.font = font;
   sampleCtx.textAlign = "center";
   sampleCtx.textBaseline = "middle";
   sampleCtx.fillStyle = "#000";
   sampleCtx.letterSpacing = `${letterSpacing}px`;
-  sampleCtx.fillText(text, width / 2, height / 2 + fontSize * 0.05);
+  sampleCtx.fillText(text, contentWidth / 2, contentHeight / 2 + fontSize * 0.05);
 
-  const imageData = sampleCtx.getImageData(0, 0, width, height);
-  const area = width * height;
+  const imageData = sampleCtx.getImageData(0, 0, contentWidth, contentHeight);
+  const area = contentWidth * contentHeight;
   const densityScale = area > 220000 ? 1.3 : 1;
   const gap = Math.max(2, Math.round((fontSize / 48) * densityScale));
   const points = [];
-  const maxDistance = Math.hypot(width / 2, height / 2);
+  const maxDistance = Math.hypot(contentWidth / 2, contentHeight / 2);
 
-  for (let y = 0; y < height; y += gap) {
-    for (let x = 0; x < width; x += gap) {
-      const alpha = imageData.data[(y * width + x) * 4 + 3];
+  for (let y = 0; y < contentHeight; y += gap) {
+    for (let x = 0; x < contentWidth; x += gap) {
+      const alpha = imageData.data[(y * contentWidth + x) * 4 + 3];
       if (alpha > 96) {
         let neighbors = 0;
         const offsets = [
@@ -2321,30 +2337,28 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
         offsets.forEach(([offsetX, offsetY]) => {
           const nextX = x + offsetX;
           const nextY = y + offsetY;
-          if (nextX < 0 || nextX >= width || nextY < 0 || nextY >= height) {
+          if (nextX < 0 || nextX >= contentWidth || nextY < 0 || nextY >= contentHeight) {
             return;
           }
 
-          const neighborAlpha = imageData.data[(nextY * width + nextX) * 4 + 3];
+          const neighborAlpha = imageData.data[(nextY * contentWidth + nextX) * 4 + 3];
           if (neighborAlpha > 96) {
             neighbors += 1;
           }
         });
 
-        const centerBias = (x - width / 2) / width;
         const edgeFactor = 1 - neighbors / 8;
         const radialFactor =
-          Math.hypot(x - width / 2, y - height / 2) / Math.max(maxDistance, 1);
-        const shardness = Math.min(1, edgeFactor * 0.78 + radialFactor * 0.42 + Math.random() * 0.12);
-        const baseAngle = Math.atan2(y - height / 2, x - width / 2);
+          Math.hypot(x - contentWidth / 2, y - contentHeight / 2) / Math.max(maxDistance, 1);
+        const baseAngle = Math.atan2(y - contentHeight / 2, x - contentWidth / 2);
         const baseDelay = Math.max(0, (1 - edgeFactor) * 0.48 + radialFactor * 0.22);
         const spawnCount = 2 + Math.floor(Math.random() * 2);
         for (let s = 0; s < spawnCount; s += 1) {
           const angle = baseAngle + (Math.random() - 0.5) * 1.6;
           const force = 60 + Math.random() * 220;
           points.push({
-            x: x + (Math.random() - 0.5) * gap,
-            y: y + (Math.random() - 0.5) * gap,
+            x: originX + x + (Math.random() - 0.5) * gap,
+            y: originY + y + (Math.random() - 0.5) * gap,
             size: 0.6 + Math.random() * 1.4,
             driftX: Math.cos(angle) * force + (Math.random() - 0.5) * 50,
             driftY: Math.sin(angle) * force + (Math.random() - 0.5) * 50 + Math.random() * 20,
@@ -2373,7 +2387,11 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
   textureCtx.letterSpacing = `${letterSpacing}px`;
 
   textureCtx.fillStyle = textColor;
-  textureCtx.fillText(text, width / 2, height / 2 + fontSize * 0.05);
+  textureCtx.fillText(
+    text,
+    originX + contentWidth / 2,
+    originY + contentHeight / 2 + fontSize * 0.05
+  );
 
   const dustCanvas = document.createElement("canvas");
   dustCanvas.width = width;
@@ -2389,10 +2407,7 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
     fontSize,
     letterSpacing,
     text,
-    baselineY: height / 2 + fontSize * 0.05,
-    glowColor: primaryColor,
     textColor,
-    secondaryColor,
     points,
     texture: textureCanvas,
     dustCanvas,
@@ -2437,7 +2452,7 @@ function drawWelcome() {
   body.style.setProperty("--welcome-progress", `${eased}`);
 
   welcomeLayers.forEach((layer) => {
-    const { context, width, height, texture, points, textColor, secondaryColor, type } = layer;
+    const { context, width, height, texture, points, textColor, type } = layer;
     context.clearRect(0, 0, width, height);
 
     const textOpacity = Math.max(0, 1 - eased * (type === "primary" ? 1.08 : 1.18));
@@ -2589,29 +2604,6 @@ function interpolate(start, end, progress) {
   return start + (end - start) * progress;
 }
 
-function interpolateThreePoint(start, middle, end, progress, middleAt = 0.55) {
-  const t = clamp01(progress);
-
-  if (t <= middleAt) {
-    return interpolate(start, middle, easeInOut(t / middleAt));
-  }
-
-  return interpolate(middle, end, easeInOut((t - middleAt) / (1 - middleAt)));
-}
-
-function interpolateFourPoint(start, firstMiddle, secondMiddle, end, progress) {
-  const t = clamp01(progress);
-
-  if (t <= 0.3) {
-    return interpolate(start, firstMiddle, smootherStep(t / 0.3));
-  }
-
-  if (t <= 0.68) {
-    return interpolate(firstMiddle, secondMiddle, smootherStep((t - 0.3) / 0.38));
-  }
-
-  return interpolate(secondMiddle, end, smootherStep((t - 0.68) / 0.32));
-}
 
 function cubicBezierValue(start, controlA, controlB, end, progress) {
   const t = clamp01(progress);
@@ -3291,6 +3283,24 @@ function applyPhotoZoomImageSource({ token, src, srcset = "", sizes = "" }) {
   });
 }
 
+async function recoverFromPhotoZoomFailure(token, sourceContent, failedSrc) {
+  if (token !== photoZoomOpenToken || !photoZoomActive) {
+    return;
+  }
+
+  /* The full-size image failed to load/decode. Fall back to the preview
+     that already lives in the browser cache so the spinner never runs
+     forever; if even that fails, close the viewer instead of hanging. */
+  const previewSrc = sourceContent?.src || "";
+  const shown = previewSrc && previewSrc !== failedSrc
+    ? await applyPhotoZoomImageSource({ token, src: previewSrc })
+    : false;
+
+  if (!shown && token === photoZoomOpenToken && photoZoomActive) {
+    closePhotoZoom();
+  }
+}
+
 function decodePhotoZoomElement(image) {
   if (!image) {
     return Promise.resolve(false);
@@ -3318,7 +3328,7 @@ function getPhotoZoomSourceDescriptor(sourceContent) {
   return {
     src: sourceContent.fullSrc || sourceContent.src,
     srcset: sourceContent.fullSrcset || "",
-    sizes: sourceContent.fullSizes || "",
+    sizes: sourceContent.fullSizes || "(max-width: 900px) 92vw, min(88vw, 1200px)",
   };
 }
 
@@ -3377,7 +3387,6 @@ function pumpPhotoZoomPreloadQueue() {
 
     entry.status = "loading";
     photoZoomPreloadActiveCount += 1;
-    photoZoomPreloadRunning = true;
 
     const image = new Image();
     image.decoding = "async";
@@ -3411,15 +3420,8 @@ function pumpPhotoZoomPreloadQueue() {
       return null;
     }).finally(() => {
       photoZoomPreloadActiveCount = Math.max(0, photoZoomPreloadActiveCount - 1);
-      if (photoZoomPreloadActiveCount === 0 && photoZoomPreloadQueue.length === 0) {
-        photoZoomPreloadRunning = false;
-      }
       pumpPhotoZoomPreloadQueue();
     });
-  }
-
-  if (photoZoomPreloadActiveCount === 0 && photoZoomPreloadQueue.length === 0) {
-    photoZoomPreloadRunning = false;
   }
 }
 
@@ -3580,6 +3582,10 @@ function openPhotoZoom(sourceContent) {
       src: cachedZoom.src,
       srcset: cachedZoom.srcset,
       sizes: cachedZoom.sizes,
+    }).then((shown) => {
+      if (!shown) {
+        recoverFromPhotoZoomFailure(token, sourceContent, cachedZoom.src);
+      }
     });
     preloadNearbyPhotoZoomImages(clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex)), isMobileViewport() ? 1 : 2);
     return;
@@ -3602,6 +3608,7 @@ function openPhotoZoom(sourceContent) {
     }
 
     if (!decoded) {
+      recoverFromPhotoZoomFailure(token, sourceContent, zoomSrc);
       return;
     }
 
@@ -3610,6 +3617,10 @@ function openPhotoZoom(sourceContent) {
       src: zoomSrc,
       srcset: zoomSrcset,
       sizes: zoomSizes,
+    }).then((shown) => {
+      if (!shown) {
+        recoverFromPhotoZoomFailure(token, sourceContent, zoomSrc);
+      }
     });
   });
 }
@@ -3637,7 +3648,12 @@ function closePhotoZoom() {
   photoZoomOverlay.setAttribute("aria-hidden", "true");
   photoZoomOverlay.style.removeProperty("--photo-zoom-loading-width");
   photoZoomOverlay.style.removeProperty("--photo-zoom-loading-height");
-  photoZoomCloseButton?.blur();
+  if (photoZoomTriggerCard?.isConnected) {
+    photoZoomTriggerCard.focus({ preventScroll: true });
+  } else {
+    photoZoomCloseButton?.blur();
+  }
+  photoZoomTriggerCard = null;
   requestPhotoSceneUpdate();
   window.requestAnimationFrame(() => {
     if (photoZoomActive || !photoZoomOverlay) {
@@ -3796,9 +3812,7 @@ function navigatePhotoCarouselToSlot(slot) {
   photoCarouselBoundaryDirection = 0;
   photoCarouselPreviousIndex = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
   photoCarouselTargetIndex = targetSlot;
-  photoCarouselIndex = targetSlot;
   setPhotoSelectedSlot(targetSlot);
-  preloadNearbyPhotoZoomImages(targetSlot, isMobileViewport() ? 1 : 2);
   photoCarouselTransitionDirection = Math.sign(targetSlot - currentSlot);
   photoCarouselHasInteracted = true;
   photoCarouselSettling = false;
@@ -3847,7 +3861,47 @@ function handlePhotoMainCardClick(event) {
 
   event.preventDefault();
   event.stopPropagation();
+  photoZoomTriggerCard = hitContent.activeCard || null;
   openPhotoZoom(hitContent.sourceContent);
+}
+
+function handlePhotoCardKeydown(event) {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  if (photoZoomActive || !photoStage || photoShowAllButton?.contains(event.target)) {
+    return;
+  }
+
+  const card = event.target?.closest?.(".photo-card");
+  if (!card || !photoStage.contains(card)) {
+    return;
+  }
+
+  const slot = Number.parseInt(card.dataset.photoSlot, 10);
+  if (!Number.isFinite(slot)) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (photoCarouselEnabled && photoAllExpandedTarget <= 0 && photoAllExpandedProgress <= 0.01) {
+    const activeSlot = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+    if (slot !== activeSlot) {
+      navigatePhotoCarouselToSlot(slot);
+      return;
+    }
+  }
+
+  const sourceContent = getPhotoCardZoomContent(card, slot);
+  if (!sourceContent?.src) {
+    return;
+  }
+
+  photoZoomTriggerCard = card;
+  openPhotoZoom(sourceContent);
 }
 
 function ensurePhotoSlotContentMap({
@@ -4188,7 +4242,6 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   const layoutAnchorSlot = hasSingleFloatingCard
     ? contentSlot
     : centerInsertSlot;
-  photoDropSlot = contentSlot;
   const insertGapSlots = (() => {
     if (hasSingleFloatingCard) {
       return [contentSlot];
@@ -4251,16 +4304,13 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     if (!photoCarouselEnabled) {
       photoCarouselEnabled = true;
       photoReinsertActive = false;
-      photoReinsertProgress = 0;
       if (!photoCarouselHasInteracted && !photoCarouselSettling) {
-        photoCarouselIndex = initialCarouselIndex;
         photoCarouselTargetIndex = initialCarouselIndex;
         photoCarouselVisualIndex = initialCarouselIndex;
         photoCarouselPreviousIndex = initialCarouselIndex;
         photoCarouselTransitionDirection = 0;
       } else {
         photoCarouselTargetIndex = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
-        photoCarouselIndex = photoCarouselTargetIndex;
       }
       photoCarouselSettling = false;
       photoCarouselWheelDelta = 0;
@@ -4289,12 +4339,10 @@ function updatePhotoScene(timestamp = window.performance.now()) {
       photoCarouselTargetIndex = isCompact && hasValidSelectedSlot
         ? clampPhotoCarouselIndex(contentSlot)
         : clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
-      photoCarouselIndex = photoCarouselTargetIndex;
       if (isCompact && hasValidSelectedSlot) {
         photoCarouselVisualIndex = photoCarouselTargetIndex;
       }
       photoReinsertActive = true;
-      photoReinsertProgress = photoReinsertActive ? progress : 0;
     } else {
       photoCarouselSettling = false;
       photoCarouselHasInteracted = false;
@@ -4306,8 +4354,6 @@ function updatePhotoScene(timestamp = window.performance.now()) {
       photoAllExpandedAnimationDirection = 0;
       photoAllExpandedLayouts.clear();
       photoReinsertActive = false;
-      photoReinsertProgress = 0;
-      photoCarouselIndex = initialCarouselIndex;
       photoCarouselTargetIndex = initialCarouselIndex;
       photoCarouselVisualIndex = initialCarouselIndex;
       photoCarouselPreviousIndex = initialCarouselIndex;
@@ -4869,6 +4915,10 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   const photoHitCollector = createPhotoHitRectCollector(stageRect, cardWidth, cardHeight);
   const queueCardBaseX = stageRect.width / 2;
   const cardFrames = [];
+  const photoExpandedFocus = photoAllExpandedTarget > 0.5 || photoAllExpandedProgress > 0.5;
+  const keyboardFocusSlot = photoCarouselEnabled && !photoExpandedFocus
+    ? clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex))
+    : -1;
 
   photoQueueCards.forEach((card, index) => {
     const slot = baseFinalSlots[index];
@@ -4889,6 +4939,10 @@ function updatePhotoScene(timestamp = window.performance.now()) {
       card,
       layout,
       data: [["photoSlot", String(slot)]],
+      attributes: [
+        ["role", "button"],
+        ["tabindex", photoExpandedFocus || slot === keyboardFocusSlot ? "0" : "-1"],
+      ],
       options: {
         filter: "",
         shadowStrength: queueLayout.carouselMetrics.shadowStrength,
@@ -4916,7 +4970,10 @@ function updatePhotoScene(timestamp = window.performance.now()) {
       ["photoSlot", String(slot)],
       ["photoGapSlot", String(gapSlot)],
     ];
-    const cardAttributes = [];
+    const cardAttributes = [
+      ["role", "button"],
+      ["tabindex", photoExpandedFocus || slot === keyboardFocusSlot ? "0" : "-1"],
+    ];
     if (hasSingleFloatingCard) {
       cardData.push(["photoContentSlot", String(contentSlot)]);
       const sourceId = selectedContent?.sourceId ||
@@ -4987,7 +5044,6 @@ function clampPhotoCarouselIndex(index) {
 function setPhotoSelectedSlot(slot) {
   const nextSlot = clampPhotoCarouselIndex(Math.round(slot));
   photoSelectedSlot = nextSlot;
-  photoDropSlot = nextSlot;
   photoSelectedSourceCard = photoCardSlotMap.get(nextSlot) || photoSelectedSourceCard;
   preloadNearbyPhotoZoomImages(nextSlot, isMobileViewport() ? 1 : 2);
 }
@@ -5002,7 +5058,6 @@ function beginPhotoCarouselSettle(preferTarget = false) {
   photoCarouselPreviousIndex = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
   photoCarouselTransitionDirection = Math.sign(nearestIndex - photoCarouselVisualIndex);
   photoCarouselTargetIndex = nearestIndex;
-  photoCarouselIndex = nearestIndex;
   setPhotoSelectedSlot(nearestIndex);
   photoCarouselSettling = true;
   photoCarouselHasInteracted = true;
@@ -5089,9 +5144,7 @@ function stepPhotoCarousel(direction) {
   photoCarouselBoundaryDirection = 0;
   photoCarouselPreviousIndex = photoCarouselTargetIndex;
   photoCarouselTargetIndex = clampPhotoCarouselIndex(photoCarouselTargetIndex + direction);
-  photoCarouselIndex = photoCarouselTargetIndex;
   setPhotoSelectedSlot(photoCarouselTargetIndex);
-  preloadNearbyPhotoZoomImages(photoCarouselTargetIndex, isMobileViewport() ? 1 : 2);
   photoCarouselTransitionDirection = direction;
   photoCarouselHasInteracted = true;
   photoCarouselSettling = false;
@@ -5104,8 +5157,6 @@ function resetPhotoCarouselTouchState() {
   photoCarouselTouchStartedInside = false;
   photoCarouselTouchLocked = false;
   photoCarouselTouchReleasedToPage = false;
-  photoCarouselTouchLastX = photoCarouselTouchStartX;
-  photoCarouselTouchLastY = photoCarouselTouchStartY;
   if (photoCarouselTouchUnlockTimer) {
     window.clearTimeout(photoCarouselTouchUnlockTimer);
     photoCarouselTouchUnlockTimer = 0;
@@ -5242,8 +5293,6 @@ function handlePhotoCarouselTouchStart(event) {
 
   photoCarouselTouchStartX = touch.clientX;
   photoCarouselTouchStartY = touch.clientY;
-  photoCarouselTouchLastX = touch.clientX;
-  photoCarouselTouchLastY = touch.clientY;
   photoCarouselTouchActive = true;
   photoCarouselTouchStartedInside = true;
   photoCarouselTouchLocked = false;
@@ -5266,9 +5315,6 @@ function handlePhotoCarouselTouchMove(event) {
   const touch = event.touches[0];
   const deltaX = touch.clientX - photoCarouselTouchStartX;
   const deltaY = touch.clientY - photoCarouselTouchStartY;
-
-  photoCarouselTouchLastX = touch.clientX;
-  photoCarouselTouchLastY = touch.clientY;
 
   const absX = Math.abs(deltaX);
   const absY = Math.abs(deltaY);
@@ -5359,12 +5405,22 @@ function handlePhotoCarouselTouchEnd(event) {
   resetPhotoCarouselTouchState();
 }
 
-function handlePointerMove(event) {
-  const x = `${(event.clientX / window.innerWidth) * 100}%`;
-  const y = `${(event.clientY / window.innerHeight) * 100}%`;
-  body.style.setProperty("--cursor-x", x);
-  body.style.setProperty("--cursor-y", y);
+let pointerMoveFrame = 0;
+let lastPointerMoveEvent = null;
 
+function handlePointerMove(event) {
+  lastPointerMoveEvent = event;
+  if (pointerMoveFrame) {
+    return;
+  }
+
+  pointerMoveFrame = window.requestAnimationFrame(() => {
+    pointerMoveFrame = 0;
+    applyPointerMove(lastPointerMoveEvent);
+  });
+}
+
+function applyPointerMove(event) {
   if (!tiltCard || !isDesktopViewport() || event.pointerType !== "mouse") {
     updateLanguageUniverseParallax(event);
     return;
@@ -5416,7 +5472,14 @@ async function createBrainWireframeScene(mount) {
   }
 
   try {
-    const THREE = await import("https://unpkg.com/three@0.160.0/build/three.module.js");
+    /* Race the CDN import against a timeout so a hanging connection cannot
+       stall initApp — the brain scene simply stays absent on failure. */
+    const THREE = await Promise.race([
+      import("https://unpkg.com/three@0.160.0/build/three.module.js"),
+      new Promise((_, reject) => {
+        window.setTimeout(() => reject(new Error("three.js CDN import timed out")), 8000);
+      }),
+    ]);
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 1000);
     camera.position.set(0, 0.15, window.innerWidth < 720 ? 15.8 : 16.6);
@@ -6043,10 +6106,19 @@ function initCinematicParallax() {
   const sections = document.querySelectorAll("[data-theme-section]");
   if (!sections.length) return;
 
-  /* Skip the career section – it has its own complex scroll system */
-  const parallaxSections = Array.from(sections).filter(
-    (s) => s.getAttribute("data-theme-section") !== "career"
-  );
+  /* Skip career and photo – they run their own scroll-driven systems and
+     measure themselves with getBoundingClientRect, so an external scale()
+     would skew their coordinates. */
+  const parallaxSections = Array.from(sections)
+    .filter((s) => {
+      const key = s.getAttribute("data-theme-section");
+      return key !== "career" && key !== "photo";
+    })
+    .map((sec) => ({
+      sec,
+      eyebrow: sec.querySelector(".eyebrow"),
+      heading: sec.querySelector("h1, h2"),
+    }));
 
   let cinematicFrame = 0;
 
@@ -6057,7 +6129,7 @@ function initCinematicParallax() {
     const strength = mobile ? 0.5 : 1.0;
 
     for (let i = 0; i < parallaxSections.length; i++) {
-      const sec = parallaxSections[i];
+      const { sec, eyebrow, heading } = parallaxSections[i];
       const rect = sec.getBoundingClientRect();
       const secCenter = rect.top + rect.height / 2;
       const dist = Math.abs(secCenter - center);
@@ -6071,8 +6143,6 @@ function initCinematicParallax() {
       sec.style.opacity = o;
 
       /* Eyebrow & heading get a slightly faster parallax rate */
-      const eyebrow = sec.querySelector(".eyebrow");
-      const heading = sec.querySelector("h1, h2");
       if (eyebrow) {
         const shift = (secCenter - center) * -0.015 * strength;
         eyebrow.style.transform = "translate3d(0," + shift + "px,0)";
@@ -6220,6 +6290,58 @@ function initPhotoCardHoverGlow() {
   });
 }
 
+function scheduleBrainSceneLoad() {
+  if (!brainMount || brainSceneController || shouldReduceMotion()) {
+    return;
+  }
+
+  let loading = false;
+
+  const loadBrain = async () => {
+    if (loading || brainSceneController || shouldReduceMotion()) {
+      return;
+    }
+
+    loading = true;
+    try {
+      brainSceneController = await createBrainWireframeScene(brainMount);
+      if (brainSceneController && activeTheme) {
+        brainSceneController.setTheme?.(activeTheme);
+      }
+    } finally {
+      loading = false;
+    }
+  };
+
+  const target = languageUniverse || brainMount;
+
+  if (typeof IntersectionObserver === "function" && target) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) {
+          return;
+        }
+
+        observer.disconnect();
+        loadBrain();
+      },
+      {
+        root: null,
+        rootMargin: "220px 0px",
+        threshold: 0.01,
+      }
+    );
+
+    observer.observe(target);
+    return;
+  }
+
+  const idle = window.requestIdleCallback || ((cb) => window.setTimeout(cb, 900));
+  idle(() => {
+    loadBrain();
+  });
+}
+
 async function initApp() {
   const siteConfig = await loadSiteConfig();
   if (siteConfig.maintenance) {
@@ -6264,7 +6386,9 @@ async function initApp() {
   revealLanguageUniverse();
 
   themeToggle?.addEventListener("click", async (event) => {
-    if (isThemeTransitioning) {
+    /* Mirror the guard inside triggerThemeWave so the stored preference
+       never flips while the wave silently refuses to run. */
+    if (isThemeTransitioning || careerThemeRestorePending) {
       return;
     }
 
@@ -6273,7 +6397,7 @@ async function initApp() {
     const originX = rect.left + rect.width / 2;
     const originY = rect.top + rect.height / 2;
 
-    window.localStorage.setItem(storageKey, nextTheme);
+    safeStorageSet(storageKey, nextTheme);
     await triggerThemeWave(originX, originY, nextTheme);
   });
 
@@ -6301,7 +6425,7 @@ async function initApp() {
     requestWelcomeRender();
     updateHeroParallax();
     requestCareerSceneUpdate();
-    updatePhotoScene();
+    requestPhotoSceneUpdate();
     brainSceneController?.resize();
     requestLanguageNetworkSync();
   });
@@ -6320,6 +6444,7 @@ async function initApp() {
   photoStage?.addEventListener("pointerover", handlePhotoMainCardPointerPreload);
   photoStage?.addEventListener("touchstart", handlePhotoMainCardTouchPreload, { passive: true });
   photoStage?.addEventListener("click", handlePhotoMainCardClick);
+  photoStage?.addEventListener("keydown", handlePhotoCardKeydown);
   photoZoomCloseButton?.addEventListener("pointerdown", handlePhotoZoomClosePointerDown);
   photoZoomCloseButton?.addEventListener("mousedown", handlePhotoZoomClosePointerDown);
   photoZoomCloseButton?.addEventListener("touchstart", handlePhotoZoomClosePointerDown, { passive: false });
@@ -6347,7 +6472,7 @@ async function initApp() {
   setActiveLanguageNode(activeLanguageNode);
   updateCareerLayerClasses();
   await commitThemeState(resolveTheme());
-  brainSceneController = await createBrainWireframeScene(brainMount);
+  scheduleBrainSceneLoad();
   drawWelcome();
   updateHeroParallax();
   updateCareerScene();
