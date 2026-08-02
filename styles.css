@@ -1115,6 +1115,33 @@ body.theme-dark .theme-icon-moon {
   max-width: 660px;
 }
 
+/* system-ui leads only on this heading. PingFang is a static family — measured
+   across 17 weight steps it renders just 5 distinct widths and nothing at all
+   above 600 — so the sweep needs a variable face for Latin. CJK still falls
+   through to PingFang, where weight is inert and the scale carries the effect. */
+.hero-copy h1.has-magnet {
+  font-family: system-ui, "PingFang SC", "PingFang TC", "Hiragino Sans GB", sans-serif;
+}
+
+.hero-copy h1.has-magnet .magnet-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.hero-copy h1.has-magnet .magnet-char {
+  display: inline-block;
+  -webkit-text-stroke-color: currentColor;
+  transition:
+    font-weight 240ms ease-out,
+    -webkit-text-stroke-width 240ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-copy h1.has-magnet .magnet-char {
+    transition: none;
+  }
+}
+
 @media (min-width: 1024px) {
   :root {
     --topbar-gap: 14px;

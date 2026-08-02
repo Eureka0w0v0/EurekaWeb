@@ -1114,6 +1114,7 @@ function applyLanguage(language) {
 
   syncPhotoShowAllButtonCopy();
   setActiveLanguageNode(activeLanguageNode);
+  buildMagneticHeading();
   buildWelcomeCanvas();
   requestWelcomeRender();
   window.requestAnimationFrame(() => {
@@ -1636,6 +1637,11 @@ async function switchLanguageWithAnimation(language) {
     return;
   }
 
+  /* The kinetic pass rewrites each node's children, detaching the per-character
+     spans. Drop the references now so the pointer loop is not writing styles
+     into orphaned nodes for the length of the animation. */
+  magnetChars.length = 0;
+
   try {
     const { copy, animated, liteNodes, staticNodes } = getKineticTextPlan(nextLanguage);
     const pool = getScramblePool(nextLanguage);
@@ -1654,6 +1660,7 @@ async function switchLanguageWithAnimation(language) {
     applyLanguage(nextLanguage);
   } finally {
     isLanguageTransitioning = false;
+    buildMagneticHeading();
   }
 }
 
@@ -6130,6 +6137,159 @@ function runIntroAnimation() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   Magnetic hero heading
+   ═══════════════════════════════════════════════════════════════ */
+
+const MAGNET_RADIUS = 280;
+const magnetChars = [];
+let magnetFrame = 0;
+let magnetPointerX = -99999;
+let magnetPointerY = -99999;
+let magnetActive = false;
+
+function supportsMagneticHeading() {
+  return (
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches &&
+    !shouldReduceMotion()
+  );
+}
+
+/* Positions are captured once, with every glyph at rest, and kept in page
+   coordinates. Re-reading them per frame would feed back on itself: a heavier
+   glyph is a wider glyph, which shifts its neighbours, which changes their
+   distance to the pointer, which changes their weight. Rest positions break
+   that loop, and subtracting scroll each frame keeps them correct without
+   another layout read. */
+function measureMagnetChars() {
+  for (let i = 0; i < magnetChars.length; i += 1) {
+    magnetChars[i].el.style.fontWeight = "";
+    magnetChars[i].el.style.webkitTextStrokeWidth = "";
+  }
+
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+
+  for (let i = 0; i < magnetChars.length; i += 1) {
+    const rect = magnetChars[i].el.getBoundingClientRect();
+    magnetChars[i].pageX = rect.left + rect.width / 2 + scrollX;
+    magnetChars[i].pageY = rect.top + rect.height / 2 + scrollY;
+  }
+}
+
+function renderMagnetFrame() {
+  magnetFrame = 0;
+
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+
+  for (let i = 0; i < magnetChars.length; i += 1) {
+    const char = magnetChars[i];
+    const dx = char.pageX - scrollX - magnetPointerX;
+    const dy = char.pageY - scrollY - magnetPointerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const linear = Math.max(0, 1 - distance / MAGNET_RADIUS);
+    const influence = linear * linear * (3 - 2 * linear);
+
+    /* Two properties, because neither covers every script alone. Weight only
+       resolves on a variable face, so Latin gets the full 300..900 sweep while
+       CJK — falling back to static PingFang — ignores it entirely; the stroke
+       thickens any glyph regardless. Both were chosen over a scale because
+       neither disturbs the line box: the heading runs 96px on a ~0.92
+       line-height, where the two lines already touch at rest, so any vertical
+       growth drives the first line's glyphs into the second. Weight still
+       nudges Latin glyphs sideways, which reads as the magnetic push. */
+    char.el.style.fontWeight = String(Math.round(300 + influence * 600));
+    char.el.style.webkitTextStrokeWidth = `${(influence * 1.7).toFixed(2)}px`;
+  }
+}
+
+function requestMagnetFrame() {
+  if (magnetFrame || !magnetChars.length) {
+    return;
+  }
+
+  magnetFrame = window.requestAnimationFrame(renderMagnetFrame);
+}
+
+function handleMagnetPointerMove(event) {
+  magnetPointerX = event.clientX;
+  magnetPointerY = event.clientY;
+  requestMagnetFrame();
+}
+
+function releaseMagnet() {
+  magnetPointerX = -99999;
+  magnetPointerY = -99999;
+  requestMagnetFrame();
+}
+
+/* Called after every language switch: applyLanguage writes textContent, which
+   destroys the per-character spans. */
+function buildMagneticHeading() {
+  const heading = document.querySelector(".hero-copy h1");
+
+  magnetChars.length = 0;
+
+  if (!heading) {
+    return;
+  }
+
+  if (!supportsMagneticHeading()) {
+    heading.classList.remove("has-magnet");
+    return;
+  }
+
+  const text = heading.textContent;
+  const fragment = document.createDocumentFragment();
+
+  /* Characters are grouped into word wrappers before being made inline-block.
+     Without the wrapper every glyph becomes its own break opportunity and the
+     browser happily wraps mid-word — "Hello I'm" split after the apostrophe. */
+  let word = null;
+
+  const closeWord = () => {
+    word = null;
+  };
+
+  for (const character of text) {
+    if (character === "\n") {
+      closeWord();
+      fragment.appendChild(document.createElement("br"));
+      continue;
+    }
+
+    if (character === " ") {
+      closeWord();
+      fragment.appendChild(document.createTextNode(" "));
+      continue;
+    }
+
+    if (!word) {
+      word = document.createElement("span");
+      word.className = "magnet-word";
+      fragment.appendChild(word);
+    }
+
+    const span = document.createElement("span");
+    span.className = "magnet-char";
+    span.textContent = character;
+    word.appendChild(span);
+    magnetChars.push({ el: span, pageX: 0, pageY: 0 });
+  }
+
+  heading.textContent = "";
+  heading.appendChild(fragment);
+  heading.classList.add("has-magnet");
+  measureMagnetChars();
+
+  if (!magnetActive) {
+    magnetActive = true;
+    window.addEventListener("pointermove", handleMagnetPointerMove, { passive: true });
+    document.addEventListener("pointerleave", releaseMagnet, { passive: true });
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
    Effect 5: Cinematic Scroll Parallax
    ═══════════════════════════════════════════════════════════════ */
 
@@ -6507,6 +6667,7 @@ async function initApp() {
     scrollArea.addEventListener("touchmove", stopCareerScrollPropagation, { passive: false });
   });
   careerCardStack?.addEventListener("keydown", handleCareerLayerKeydown);
+  window.addEventListener("resize", measureMagnetChars, { passive: true });
   document.fonts?.ready?.then(requestLanguageNetworkSync);
 
   syncViewportHeightVar();
