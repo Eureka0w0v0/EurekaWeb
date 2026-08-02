@@ -18,6 +18,9 @@
   --muted: #607084;
   --line: rgba(74, 89, 111, 0.14);
   --primary: #4f8ff7;
+  /* Small text needs 4.5:1 to pass AA. --primary only reaches 2.99:1 on
+     --bg, so anything set at label size uses this darker step instead. */
+  --primary-text: #2c6ed5;
   --secondary: #c47b6a;
   --shadow: 0 28px 60px rgba(45, 58, 78, 0.12);
   --bg-radial-a: rgba(92, 142, 210, 0.1);
@@ -43,6 +46,7 @@ body.theme-dark {
   --muted: rgba(255, 255, 255, 0.65);
   --line: rgba(255, 255, 255, 0.14);
   --primary: #f5f5f5;
+  --primary-text: #f5f5f5;
   --secondary: #b8b8b8;
   --shadow: 0 30px 60px rgba(0, 0, 0, 0.42);
   --bg-radial-a: rgba(255, 255, 255, 0.055);
@@ -928,7 +932,7 @@ body.theme-syncing .welcome-stage {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 #language-switcher .language-option-name {
@@ -1148,7 +1152,7 @@ body.theme-dark .theme-icon-moon {
   text-transform: uppercase;
   letter-spacing: 0.34em;
   font-size: 0.84rem;
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .welcome-word {
@@ -1195,7 +1199,7 @@ h3 {
   margin: 0;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--primary);
+  color: var(--primary-text);
   font-size: 0.82rem;
 }
 
@@ -2015,6 +2019,14 @@ html[lang="ja"] .language-section-title {
   transform:
     translate3d(-50%, calc(-50% + var(--career-card-y) * 1px), 0)
     scale(var(--career-card-scale));
+}
+
+/* The stack takes focus so arrows can step through the cards. Offset the
+   ring outward so it clears the rounded card edge instead of sitting on it. */
+.career-card-stack:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 6px;
+  border-radius: 28px;
 }
 
 .career-card-stack::before {

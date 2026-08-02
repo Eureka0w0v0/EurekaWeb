@@ -2644,6 +2644,12 @@ function updateCareerLayerClasses() {
     layer.classList.toggle("is-active", layerIndex === activeCareerLayer);
     layer.classList.toggle("is-before", layerIndex < activeCareerLayer);
     layer.classList.toggle("is-after", layerIndex > activeCareerLayer);
+
+    if (layerIndex === activeCareerLayer) {
+      layer.setAttribute("aria-current", "true");
+    } else {
+      layer.removeAttribute("aria-current");
+    }
   });
 }
 
@@ -2694,6 +2700,55 @@ function stepCareerLayer(direction) {
   const nextLayer = direction === "back"
     ? ((activeCareerLayer + layerCount - 2) % layerCount) + 1
     : (activeCareerLayer % layerCount) + 1;
+  setCareerLayer(nextLayer, direction);
+}
+
+/* The stack is otherwise reachable only by wheel and touch drag, which left
+   the second and third cards unreachable without a pointer. Arrows step one
+   card, Home/End jump to the ends; at either end we fall through so the key
+   still scrolls the page instead of trapping focus. */
+function handleCareerLayerKeydown(event) {
+  if (!careerCardStack || isCareerSceneThemeLocked()) {
+    return;
+  }
+
+  const layerCount = careerCardLayers.length;
+
+  if (!layerCount || event.altKey || event.ctrlKey || event.metaKey) {
+    return;
+  }
+
+  let nextLayer;
+  let direction = "forward";
+
+  switch (event.key) {
+    case "ArrowDown":
+    case "ArrowRight":
+    case "PageDown":
+      nextLayer = activeCareerLayer + 1;
+      break;
+    case "ArrowUp":
+    case "ArrowLeft":
+    case "PageUp":
+      nextLayer = activeCareerLayer - 1;
+      direction = "back";
+      break;
+    case "Home":
+      nextLayer = 1;
+      direction = "back";
+      break;
+    case "End":
+      nextLayer = layerCount;
+      break;
+    default:
+      return;
+  }
+
+  if (nextLayer < 1 || nextLayer > layerCount) {
+    return;
+  }
+
+  event.preventDefault();
   setCareerLayer(nextLayer, direction);
 }
 
@@ -6449,6 +6504,7 @@ async function initApp() {
     scrollArea.addEventListener("wheel", stopCareerScrollPropagation, { passive: false });
     scrollArea.addEventListener("touchmove", stopCareerScrollPropagation, { passive: false });
   });
+  careerCardStack?.addEventListener("keydown", handleCareerLayerKeydown);
   document.fonts?.ready?.then(requestLanguageNetworkSync);
 
   syncViewportHeightVar();

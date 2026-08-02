@@ -21,9 +21,17 @@
     <meta property="og:image" content="https://eureka0w0v0.github.io/EurekaWeb/images/icons/assets-myicon.webp" />
     <meta property="og:url" content="https://eureka0w0v0.github.io/EurekaWeb/" />
     <meta name="twitter:card" content="summary" />
-    <link rel="stylesheet" href="./styles.css?v=20260722-7" />
+    <link rel="stylesheet" href="./styles.css?v=20260803-1" />
   </head>
   <body>
+    <noscript>
+      <style>
+        /* The intro overlay is fixed at z-index 99999 with pointer-events on,
+           and only script.js ever takes it down. Without JS it would cover a
+           page whose content is otherwise perfectly readable. */
+        .intro-overlay { display: none !important; }
+      </style>
+    </noscript>
     <div class="intro-overlay" id="intro-overlay" aria-hidden="true">
       <div class="intro-text" id="intro-text"></div>
       <div class="intro-top" id="intro-top"></div>
@@ -169,7 +177,7 @@
             <div class="orb orb-b"></div>
             <div class="glass-panel tilt-card" id="feature-card">
               <div class="panel-top">
-                <div class="panel-avatar" aria-label="头像占位">
+                <div class="panel-avatar" role="img" aria-label="头像占位">
                   <img
                     class="panel-avatar-image"
                     src="./images/icons/assets-myicon.webp?v=20260722-7"
@@ -226,7 +234,7 @@
                 <div class="brain-three-mount" id="brain-three-mount"></div>
               </div>
 
-              <div class="language-node-field" aria-label="Programming languages">
+              <div class="language-node-field" role="group" aria-label="Programming languages">
                 <button class="language-node node-cpp" type="button" data-language-node="cpp">
                   <span class="node-index">05</span>
                   <span class="node-label">C++</span>
@@ -268,7 +276,7 @@
 
       <section class="career-section" id="career-section" data-theme-section="career">
         <div class="career-sticky">
-          <div class="career-scene" aria-label="职业">
+          <div class="career-scene" role="group" aria-label="职业">
             <div class="career-orbit career-orbit-a"></div>
             <div class="career-orbit career-orbit-b"></div>
 
@@ -276,7 +284,7 @@
               <img class="career-ufo-img" src="./images/icons/ufo.webp?v=20260722-7" loading="lazy" decoding="async" alt="" />
             </div>
 
-            <div class="career-card-stack" data-active-layer="1" data-direction="forward" aria-label="职业卡片">
+            <div class="career-card-stack" data-active-layer="1" data-direction="forward" role="group" tabindex="0" aria-label="职业卡片，用方向键切换">
               <article class="career-card-layer layer-card-scroll career-card-layer-1" data-career-layer="1">
                 <p class="career-kicker" data-i18n="careerLayer1Kicker">第 01 页</p>
                 <h2 class="career-title-primary" data-i18n="careerLayer1Title">职业</h2>
@@ -308,7 +316,7 @@
               <h2 class="photo-title" data-i18n="photoTitle">照片</h2>
             </header>
 
-            <div class="photo-stage" aria-label="照片卡片掉落动画">
+            <div class="photo-stage" role="group" aria-label="照片卡片掉落动画">
               <article class="photo-card photo-floating-card" data-photo-insert="1" aria-label="即将插入的照片 1">
                 <img
                   class="photo-card-image"
@@ -325,7 +333,7 @@
                 <span class="photo-card-shine" aria-hidden="true"></span>
               </article>
 
-              <div class="photo-queue" aria-label="照片卡片队列">
+              <div class="photo-queue" role="group" aria-label="照片卡片队列">
                 <article class="photo-card photo-queue-card" data-photo-base="1" aria-label="照片 1">
                   <img
                   class="photo-card-image"
@@ -627,11 +635,11 @@
         <button class="photo-zoom-close" id="photo-zoom-close" type="button" aria-label="Close enlarged photo"></button>
         <div class="photo-zoom-frame">
           <img class="photo-zoom-image" id="photo-zoom-image" alt="" decoding="async" draggable="false" />
-          <div class="photo-zoom-loading" id="photo-zoom-loading" aria-hidden="true" role="status" aria-label="Loading image"></div>
+          <div class="photo-zoom-loading" id="photo-zoom-loading" role="status" aria-label="Loading image"></div>
         </div>
       </div>
     </div>
 
-    <script src="./script.js?v=20260803-1"></script>
+    <script src="./script.js?v=20260803-2"></script>
   </body>
 </html>
