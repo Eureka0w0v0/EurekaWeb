@@ -5546,7 +5546,7 @@ async function createBrainWireframeScene(mount) {
     const lonBase = 44;
     const brainRows = [];
 
-    pts.push(p(0, 4.5, 0, "brain", 0, 0));
+    pts.push(p(0, 4.62, 0, "brain", 0, 0));
     brainRows.push([0]);
 
     for (let i = 1; i < latCount; i += 1) {
@@ -5562,16 +5562,16 @@ async function createBrainWireframeScene(mount) {
 
       for (let j = 0; j < localLon; j += 1) {
         const theta = (Math.PI * 2 * j) / localLon + (i % 2) * 0.055;
-        let x = s * Math.cos(theta) * 6.05;
-        let y = c * 4.28 + 0.32;
-        let z = s * Math.sin(theta) * 3.78;
+        let x = s * Math.cos(theta) * 5.8;
+        let y = c * 4.5 + 0.32;
+        let z = s * Math.sin(theta) * 4.2;
         const upper = Math.max(0, y - 0.15);
 
         x *= 1 + upper * 0.007;
         z *= 1 + upper * 0.01;
-        if (y < -2.15 && x < -2.35) y += 0.46;
-        if (y < -2.55 && x > 2.05) y += 0.2;
-        if (x > 4.15) y -= 0.1;
+        if (y < -2.2 && x < -2.25) y += 0.48;
+        if (y < -2.6 && x > 1.95) y += 0.22;
+        if (x > 4.0) y -= 0.1;
 
         const nearPole = i <= 3 || i >= latCount - 3;
         const jitter = nearPole ? 0.014 : 0.065;
@@ -5588,7 +5588,7 @@ async function createBrainWireframeScene(mount) {
     }
 
     const bottomPole = pts.length;
-    pts.push(p(0, -3.76, 0, "brain", latCount, 0));
+    pts.push(p(0, -3.9, 0, "brain", latCount, 0));
     brainRows.push([bottomPole]);
     connectRows(brainRows, 36, 4);
 
@@ -5599,10 +5599,10 @@ async function createBrainWireframeScene(mount) {
       let z = 0;
       let ok = false;
       for (let k = 0; k < 20 && !ok; k += 1) {
-        x = (random() - 0.5) * 12.1;
-        y = (random() - 0.5) * 6.8 + 0.35;
-        z = (random() - 0.5) * 5.3;
-        ok = (x / 5.7) ** 2 + ((y - 0.32) / 3.85) ** 2 + (z / 3.35) ** 2 < 0.78 && y > -2.75;
+        x = (random() - 0.5) * 11.4;
+        y = (random() - 0.5) * 7.2 + 0.35;
+        z = (random() - 0.5) * 6.1;
+        ok = (x / 5.45) ** 2 + ((y - 0.32) / 4.05) ** 2 + (z / 3.72) ** 2 < 0.78 && y > -2.85;
       }
       if (ok) pts.push(p(x, y, z, "inner"));
     }
@@ -5611,8 +5611,8 @@ async function createBrainWireframeScene(mount) {
     const cLat = 12;
     const cLonBase = 24;
     const cereRows = [];
-    const cereCenterX = 3.55;
-    const cereCenterY = -2.72;
+    const cereCenterX = 3.45;
+    const cereCenterY = -2.75;
     const cereCenterZ = 0.35;
 
     for (let i = 0; i <= cLat; i += 1) {
@@ -5664,7 +5664,7 @@ async function createBrainWireframeScene(mount) {
       const row = [];
       const t = i / (stemRingCount - 1);
       const cx = 1.28 + t * 0.92;
-      const cy = -2.72 - t * 2.45;
+      const cy = -2.75 - t * 2.4;
       const cz = 0.18 - t * 0.1;
       const rx = 0.68 * (1 - t * 0.38);
       const rz = 0.78 * (1 - t * 0.42);
@@ -5826,7 +5826,7 @@ async function createBrainWireframeScene(mount) {
     });
 
     group.add(new THREE.LineSegments(lineGeometry, lineMaterial));
-    group.rotation.set(0.02, -0.18, 0);
+    group.rotation.set(0.08, -0.22, 0);
     group.scale.setScalar(isCompact ? 0.68 : 0.78);
     group.position.y = -0.18;
 
@@ -5849,20 +5849,6 @@ async function createBrainWireframeScene(mount) {
     });
     scene.add(new THREE.Points(dustGeometry, dustMaterial));
 
-    /* ── Effect 4: Decorative 3D Ring (TorusKnot) ── */
-    const isDarkInit = activeTheme === "dark";
-    const ringGeometry = new THREE.TorusKnotGeometry(2.2, 0.35, 128, 16, 2, 3);
-    const ringMaterial = new THREE.MeshBasicMaterial({
-      color: isDarkInit ? 0xffffff : 0x050505,
-      wireframe: true,
-      transparent: true,
-      opacity: isDarkInit ? 0.06 : 0.04,
-    });
-    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    ring.position.set(0, 0.2, -3);
-    ring.scale.setScalar(isCompact ? 0.5 : 0.7);
-    group.add(ring);
-
     function setBrainTheme(theme) {
       const isDark = theme === "dark";
       const color = isDark ? 0xffffff : 0x050505;
@@ -5882,11 +5868,6 @@ async function createBrainWireframeScene(mount) {
       glowMaterial.opacity = isDark ? 0.05 : 0.025;
       lineMaterial.opacity = isDark ? 0.55 : 0.64;
       dustMaterial.opacity = isDark ? 0.14 : 0.08;
-
-      /* Update ring for theme */
-      ringMaterial.color.setHex(color);
-      ringMaterial.opacity = isDark ? 0.06 : 0.04;
-      ringMaterial.needsUpdate = true;
 
       nodeMaterial.needsUpdate = true;
       glowMaterial.needsUpdate = true;
@@ -5945,9 +5926,6 @@ async function createBrainWireframeScene(mount) {
         nodeMaterial.size = 0.045 + Math.sin(time * 2.0) * 0.004;
         glowMaterial.opacity = (isDark ? 0.045 : 0.018) + Math.sin(time * 1.65) * (isDark ? 0.018 : 0.008);
         lineMaterial.opacity = isDark ? 0.55 : 0.64;
-        /* Effect 4: Rotate decorative ring */
-        ring.rotation.x += 0.002;
-        ring.rotation.z += 0.001;
       }
 
       render();
@@ -5975,12 +5953,10 @@ async function createBrainWireframeScene(mount) {
       pointGeometry.dispose();
       lineGeometry.dispose();
       dustGeometry.dispose();
-      ringGeometry.dispose();
       nodeMaterial.dispose();
       glowMaterial.dispose();
       lineMaterial.dispose();
       dustMaterial.dispose();
-      ringMaterial.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement);
