@@ -6104,13 +6104,18 @@ function initCinematicParallax() {
     const mobile = isMobileViewport();
     const strength = mobile ? 0.5 : 1.0;
 
+    /* Measure everything first, then write. Interleaving the two forced a
+       synchronous layout per section on every scroll frame. */
     for (let i = 0; i < parallaxSections.length; i++) {
-      const { sec, eyebrow, heading } = parallaxSections[i];
-      const rect = sec.getBoundingClientRect();
-      const secCenter = rect.top + rect.height / 2;
+      const entry = parallaxSections[i];
+      const rect = entry.sec.getBoundingClientRect();
+      entry.secCenter = rect.top + rect.height / 2;
+    }
+
+    for (let i = 0; i < parallaxSections.length; i++) {
+      const { sec, eyebrow, heading, secCenter } = parallaxSections[i];
       const dist = Math.abs(secCenter - center);
-      const maxDist = vh;
-      const proximity = 1 - Math.min(dist / maxDist, 1);
+      const proximity = 1 - Math.min(dist / vh, 1);
 
       const s = 1 + proximity * 0.02 * strength;
       const o = 0.92 + proximity * 0.08;
@@ -6177,6 +6182,11 @@ function initGrainCanvas() {
   let lastGrainTime = 0;
   const GRAIN_INTERVAL = 50; /* ~20fps */
 
+  /* Allocated once. Re-creating this buffer every frame churned roughly
+     1.3 MB/s of garbage for as long as the page stayed visible. */
+  const grainImageData = ctx.createImageData(GRAIN_W, GRAIN_H);
+  const grainPixels = grainImageData.data;
+
   function renderGrain(timestamp) {
     if (!grainRunning) return;
     grainFrame = requestAnimationFrame(renderGrain);
@@ -6185,18 +6195,16 @@ function initGrainCanvas() {
     lastGrainTime = timestamp;
 
     const isDark = activeTheme === "dark";
-    const imgData = ctx.createImageData(GRAIN_W, GRAIN_H);
-    const data = imgData.data;
     const base = isDark ? 200 : 40;
 
-    for (let i = 0; i < data.length; i += 4) {
+    for (let i = 0; i < grainPixels.length; i += 4) {
       const v = base + ((Math.random() * 55) | 0);
-      data[i] = v;
-      data[i + 1] = v;
-      data[i + 2] = v;
-      data[i + 3] = 255;
+      grainPixels[i] = v;
+      grainPixels[i + 1] = v;
+      grainPixels[i + 2] = v;
+      grainPixels[i + 3] = 255;
     }
-    ctx.putImageData(imgData, 0, 0);
+    ctx.putImageData(grainImageData, 0, 0);
 
     /* Decay velocity toward base */
     currentOpacity = currentOpacity * DECAY + BASE_OPACITY * (1 - DECAY);
@@ -6460,8 +6468,9 @@ async function initApp() {
   initGrainCanvas();
   initPhotoCardHoverGlow();
 
-  await introPromise;
-
+  /* Bound before the intro is awaited. The intro runs ~3.5s, and until these
+     exist a backgrounded tab keeps the photo rAF and the brain scene running;
+     anything throwing above would have skipped them entirely. */
   mediaQuery.addEventListener("change", (event) => {
     if (getStoredTheme()) {
       return;
@@ -6485,6 +6494,9 @@ async function initApp() {
     }
   });
 
+  await introPromise;
 }
 
-initApp();
+initApp().catch((error) => {
+  console.error("[EurekaWeb] initApp failed:", error);
+});
