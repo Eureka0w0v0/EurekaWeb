@@ -21,6 +21,10 @@
     <meta property="og:image" content="https://eureka0w0v0.github.io/EurekaWeb/images/icons/assets-myicon.webp" />
     <meta property="og:url" content="https://eureka0w0v0.github.io/EurekaWeb/" />
     <meta name="twitter:card" content="summary" />
+    <!-- three.js is imported lazily from here once the language section comes
+         into view; warming the connection saves a DNS + TLS round trip at the
+         moment the brain scene is actually needed. -->
+    <link rel="preconnect" href="https://unpkg.com" crossorigin />
     <link rel="stylesheet" href="./styles.css?v=20260803-1" />
   </head>
   <body>
