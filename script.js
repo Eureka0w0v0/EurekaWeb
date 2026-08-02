@@ -5475,7 +5475,7 @@ async function createBrainWireframeScene(mount) {
     /* Race the CDN import against a timeout so a hanging connection cannot
        stall initApp — the brain scene simply stays absent on failure. */
     const THREE = await Promise.race([
-      import("https://unpkg.com/three@0.160.0/build/three.module.js"),
+      import("https://unpkg.com/three@0.185.1/build/three.module.min.js"),
       new Promise((_, reject) => {
         window.setTimeout(() => reject(new Error("three.js CDN import timed out")), 8000);
       }),
