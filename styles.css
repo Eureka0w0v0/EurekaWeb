@@ -35,6 +35,21 @@
   --topbar-right: clamp(10px, 2vw, 24px);
   --topbar-button-size: 56px;
   --focus-ring: var(--primary-text);
+
+  /* UI type scale. Only the fixed sizes live here — every display-level size
+     on this site is a per-language clamp() (the en/ja hero and title variants
+     are tuned separately because the two scripts set at different widths), so
+     those stay hand-calibrated rather than being forced onto these steps.
+     1px increments through the middle, which is the useful resolution for
+     small UI text. --fs-2xs is 12px because that is the floor for readable
+     body-adjacent text; the old 0.66/0.7/0.72rem labels sat below it. */
+  --fs-2xs: 0.75rem;    /* 12px */
+  --fs-xs: 0.8125rem;   /* 13px */
+  --fs-sm: 0.875rem;    /* 14px */
+  --fs-md: 0.9375rem;   /* 15px */
+  --fs-base: 1rem;      /* 16px */
+  --fs-lg: 1.0625rem;   /* 17px */
+  --fs-xl: 1.375rem;    /* 22px */
 }
 
 /* Keyboard focus fallback. Uses :where() so it stays at zero specificity and
@@ -64,7 +79,7 @@
   border-radius: 0 0 12px 12px;
   background: var(--surface-strong);
   color: var(--primary-text);
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   font-weight: 600;
   text-decoration: none;
   box-shadow: var(--shadow);
@@ -982,14 +997,14 @@ body.theme-syncing .welcome-stage {
 }
 
 #language-switcher .language-option-code {
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   letter-spacing: 0.18em;
   color: var(--primary-text);
 }
 
 #language-switcher .language-option-name {
-  font-size: 0.98rem;
+  font-size: var(--fs-base);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -1232,7 +1247,7 @@ body.theme-dark .theme-icon-moon {
   font-family: inherit;
   text-transform: uppercase;
   letter-spacing: 0.34em;
-  font-size: 0.84rem;
+  font-size: var(--fs-sm);
   color: var(--primary-text);
 }
 
@@ -1281,7 +1296,7 @@ h3 {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--primary-text);
-  font-size: 0.82rem;
+  font-size: var(--fs-xs);
 }
 
 h1 {
@@ -1436,7 +1451,7 @@ html[lang="zh-CN"] .hero-text {
 
 .panel-copy p {
   margin: 0;
-  font-size: 1.08rem;
+  font-size: var(--fs-lg);
   line-height: 1.75;
   color: var(--muted);
 }
@@ -1584,7 +1599,7 @@ body.theme-dark .language-universe::after {
   color: color-mix(in srgb, var(--muted) 78%, transparent);
   cursor: pointer;
   font-weight: 800;
-  font-size: 0.86rem;
+  font-size: var(--fs-sm);
   letter-spacing: 0.16em;
   transition:
     color 200ms ease,
@@ -1836,7 +1851,7 @@ html[lang="ja"] .language-section-title {
   position: relative;
   z-index: 1;
   color: color-mix(in srgb, var(--muted) 82%, transparent);
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   letter-spacing: 0.12em;
   opacity: 0.82;
@@ -1953,7 +1968,7 @@ html[lang="ja"] .language-section-title {
 .language-insight-kicker {
   margin: 0 0 8px;
   color: color-mix(in srgb, var(--text) 72%, transparent);
-  font-size: 0.74rem;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -1961,7 +1976,7 @@ html[lang="ja"] .language-section-title {
 
 .language-insight h3 {
   margin: 0;
-  font-size: 1.34rem;
+  font-size: var(--fs-xl);
   line-height: 1.1;
   color: var(--text);
 }
@@ -1969,7 +1984,7 @@ html[lang="ja"] .language-section-title {
 [data-language-insight-text] {
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 0.94rem;
+  font-size: var(--fs-md);
   line-height: 1.65;
 }
 
@@ -1989,7 +2004,7 @@ html[lang="ja"] .language-section-title {
   border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
   background: color-mix(in srgb, var(--surface-strong) 44%, transparent);
   color: color-mix(in srgb, var(--text) 78%, transparent);
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
 }
@@ -2317,7 +2332,7 @@ body.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.i
 .career-kicker {
   margin: 0 0 12px;
   color: color-mix(in srgb, var(--muted) 82%, transparent);
-  font-size: 0.74rem;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   letter-spacing: 0.18em;
 }
@@ -2518,7 +2533,7 @@ html[lang="en"] .career-statement {
   background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
   color: var(--text);
   font: inherit;
-  font-size: 0.74rem;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -3025,7 +3040,7 @@ body.theme-dark .photo-queue::before {
   }
 
   #language-switcher .language-option-name {
-    font-size: 0.94rem;
+    font-size: var(--fs-md);
   }
 
   .welcome-word {
@@ -3100,7 +3115,7 @@ body.theme-dark .photo-queue::before {
 
   .language-index-item {
     min-width: 36px;
-    font-size: 0.78rem;
+    font-size: var(--fs-xs);
   }
 
   .brain-wrap {
@@ -3296,7 +3311,7 @@ body.theme-dark .photo-queue::before {
   }
 
   .panel-copy p {
-    font-size: 1rem;
+    font-size: var(--fs-base);
     line-height: 1.6;
   }
 
@@ -3346,11 +3361,11 @@ body.theme-dark .photo-queue::before {
   }
 
   #language-switcher .language-option-code {
-    font-size: 0.66rem;
+    font-size: var(--fs-2xs);
   }
 
   #language-switcher .language-option-name {
-    font-size: 0.88rem;
+    font-size: var(--fs-sm);
   }
 
   .welcome-stage {
@@ -3454,7 +3469,7 @@ body.theme-dark .photo-queue::before {
   }
 
   .node-label {
-    font-size: 0.9rem;
+    font-size: var(--fs-sm);
   }
 
   .language-insight {
@@ -3559,7 +3574,7 @@ body.theme-dark .photo-queue::before {
   }
 
   [data-language-insight-text] {
-    font-size: 0.9rem;
+    font-size: var(--fs-sm);
     line-height: 1.55;
   }
 
@@ -3573,7 +3588,7 @@ body.theme-dark .photo-queue::before {
   }
 
   .panel-copy p {
-    font-size: 0.94rem;
+    font-size: var(--fs-md);
     line-height: 1.5;
   }
 
@@ -3584,7 +3599,7 @@ body.theme-dark .photo-queue::before {
 
   .panel-grid span {
     padding: 10px 11px;
-    font-size: 0.92rem;
+    font-size: var(--fs-md);
   }
 }
 
