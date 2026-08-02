@@ -1,3 +1,28 @@
+/* ---------------------------------------------------------------------------
+   Breakpoints
+   ---------------------------------------------------------------------------
+   This sheet is desktop-first: base rules describe the wide layout and the
+   max-width blocks narrow it down. The five widths in use, and what each one
+   is actually for:
+
+     max-width: 1160px   the language section only — the brain canvas and the
+                         insight panel stop fitting side by side
+     max-width:  920px   hero drops from two columns to one
+     max-width:  680px   the main phone layout (largest block, 58 rules)
+     max-width:  480px   small-phone corrections on top of 680 (52 rules)
+     min-width: 1024px   the only min-width block: topbar spacing and the
+                         hero's 3D perspective, which are desktop-only affordances
+
+   Several blocks read `(max-width: 680px), (hover: none) and (pointer: coarse)`.
+   That second clause is deliberate: a large touchscreen gets the phone
+   treatment (bigger targets, no hover affordances) regardless of its width.
+   Do not "simplify" it away to a plain width query.
+
+   1024 and 1160 overlap between 1024-1160px, but their selectors are disjoint
+   (topbar/hero vs language section), so nothing fights. Verified: no gaps and
+   no conflicting overrides across the whole range.
+   --------------------------------------------------------------------------- */
+
 @property --snapshot-wave-radius {
   syntax: "<length>";
   inherits: true;
@@ -1234,7 +1259,6 @@ body.theme-dark .theme-icon-moon {
     --topbar-gap: 14px;
     --topbar-top: max(18px, calc(env(safe-area-inset-top, 0px) + 10px));
     --topbar-right: max(16px, calc((100vw - min(1180px, calc(100vw - 32px))) / 2 - 192px));
-    --topbar-button-size: 56px;
   }
 
   .hero-visual {
