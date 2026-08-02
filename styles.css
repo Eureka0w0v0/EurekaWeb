@@ -50,6 +50,24 @@
   --fs-base: 1rem;      /* 16px */
   --fs-lg: 1.0625rem;   /* 17px */
   --fs-xl: 1.375rem;    /* 22px */
+
+  /* Spacing, on a 4px grid. Only the declarations that already sat exactly on
+     the grid were converted, so introducing these moved nothing on screen.
+     Roughly half the stylesheet's spacing is still off-grid (10/14/18/26px
+     and friends) — those were eyeballed against the visuals and snapping them
+     would be a real design change, not a refactor, so they stay literal. */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-56: 56px;
+  --space-96: 96px;
 }
 
 /* Keyboard focus fallback. Uses :where() so it stays at zero specificity and
@@ -930,9 +948,9 @@ body.theme-syncing .welcome-stage {
   top: calc(100% + 10px);
   right: 0;
   min-width: 210px;
-  padding: 12px;
+  padding: var(--space-12);
   display: none;
-  gap: 8px;
+  gap: var(--space-8);
   border: 1px solid var(--line);
   border-radius: 30px;
   background:
@@ -1164,7 +1182,7 @@ body.theme-dark .theme-icon-moon {
 .hero-shell {
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
-  gap: 32px;
+  gap: var(--space-32);
   align-items: center;
   min-height: inherit;
   padding: 0;
@@ -1387,7 +1405,7 @@ html[lang="zh-CN"] .hero-text {
   position: relative;
   width: min(100%, 440px);
   border-radius: 28px;
-  padding: 24px;
+  padding: var(--space-24);
   transform-style: preserve-3d;
   transition:
     transform 180ms ease,
@@ -1460,7 +1478,7 @@ html[lang="zh-CN"] .hero-text {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
-  margin-top: 20px;
+  margin-top: var(--space-20);
 }
 
 .panel-grid span {
@@ -1595,7 +1613,7 @@ body.theme-dark .language-universe::after {
   box-sizing: border-box;
   position: relative;
   min-width: 44px;
-  padding: 8px 0;
+  padding: var(--space-8) 0;
   color: color-mix(in srgb, var(--muted) 78%, transparent);
   cursor: pointer;
   font-weight: 800;
@@ -1807,8 +1825,8 @@ html[lang="ja"] .language-section-title {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 0 16px;
+  gap: var(--space-8);
+  padding: 0 var(--space-16);
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
   background:
@@ -1966,7 +1984,7 @@ html[lang="ja"] .language-section-title {
 }
 
 .language-insight-kicker {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-8);
   color: color-mix(in srgb, var(--text) 72%, transparent);
   font-size: var(--fs-2xs);
   font-weight: 800;
@@ -1991,7 +2009,7 @@ html[lang="ja"] .language-section-title {
 .language-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-8);
   margin-top: 18px;
 }
 
@@ -2330,7 +2348,7 @@ body.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.i
 }
 
 .career-kicker {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-12);
   color: color-mix(in srgb, var(--muted) 82%, transparent);
   font-size: var(--fs-2xs);
   font-weight: 800;
@@ -2949,20 +2967,20 @@ body.theme-dark .photo-queue::before {
   .language-section {
     min-height: 100vh;
     min-height: 100svh;
-    padding: 24px 0 56px;
+    padding: var(--space-24) 0 var(--space-56);
   }
 
   .language-universe {
     min-height: 860px;
     grid-template-columns: 1fr;
-    gap: 24px;
-    padding: 28px 0;
+    gap: var(--space-24);
+    padding: var(--space-28) 0;
   }
 
   .language-index {
     grid-template-columns: repeat(5, auto);
     justify-content: center;
-    gap: 20px;
+    gap: var(--space-20);
   }
 
   .language-stage {
@@ -2998,7 +3016,7 @@ body.theme-dark .photo-queue::before {
   }
 
   .hero-shell {
-    padding: 32px 0 40px;
+    padding: var(--space-32) 0 var(--space-40);
     align-content: center;
   }
 
@@ -3054,8 +3072,8 @@ body.theme-dark .photo-queue::before {
   }
 
   .hero-shell {
-    gap: 24px;
-    padding: 28px 0 32px;
+    gap: var(--space-24);
+    padding: var(--space-28) 0 var(--space-32);
   }
 
   .hero-copy {
@@ -3079,7 +3097,7 @@ body.theme-dark .photo-queue::before {
   }
 
   .glass-panel {
-    padding: 20px;
+    padding: var(--space-20);
     border-radius: 24px;
   }
 
@@ -3097,7 +3115,7 @@ body.theme-dark .photo-queue::before {
 
   .language-universe {
     min-height: 820px;
-    padding: 20px 0;
+    padding: var(--space-20) 0;
   }
 
   .language-universe::after {
@@ -3168,7 +3186,7 @@ body.theme-dark .photo-queue::before {
     min-height: 170vh;
     min-height: 170svh;
     min-height: 170dvh;
-    padding-bottom: 96px;
+    padding-bottom: var(--space-96);
   }
 
   .career-sticky {
@@ -3177,7 +3195,7 @@ body.theme-dark .photo-queue::before {
 
   .career-scene {
     min-height: calc(var(--app-height, 100dvh) - 36px);
-    padding-bottom: 96px;
+    padding-bottom: var(--space-96);
   }
 
   .career-ufo {
@@ -3306,7 +3324,7 @@ body.theme-dark .photo-queue::before {
   }
 
   .panel-copy h2 {
-    margin: 0 0 8px;
+    margin: 0 0 var(--space-8);
     font-size: clamp(1.4rem, 7vw, 1.9rem);
   }
 
@@ -3317,8 +3335,8 @@ body.theme-dark .photo-queue::before {
 
   .panel-grid {
     grid-template-columns: 1fr;
-    gap: 8px;
-    margin-top: 16px;
+    gap: var(--space-8);
+    margin-top: var(--space-16);
   }
 
   .panel-grid span {
@@ -3351,7 +3369,7 @@ body.theme-dark .photo-queue::before {
 
   #language-switcher .language-menu {
     min-width: min(168px, calc(100vw - 22px));
-    padding: 8px;
+    padding: var(--space-8);
     border-radius: 24px;
   }
 
@@ -3407,7 +3425,7 @@ body.theme-dark .photo-queue::before {
   .language-section {
     min-height: 100vh;
     min-height: 100svh;
-    padding: 0 0 48px;
+    padding: 0 0 var(--space-48);
   }
 
   .language-universe {
@@ -3426,7 +3444,7 @@ body.theme-dark .photo-queue::before {
   }
 
   .language-heading {
-    padding: 0 8px;
+    padding: 0 var(--space-8);
   }
 
   .language-node {
@@ -3522,12 +3540,12 @@ body.theme-dark .photo-queue::before {
   }
 
   .photo-heading {
-    gap: 8px;
+    gap: var(--space-8);
   }
 
   .photo-fixed-title {
     top: 64px;
-    gap: 8px;
+    gap: var(--space-8);
   }
 
   .photo-stage {
@@ -3541,7 +3559,7 @@ body.theme-dark .photo-queue::before {
     top: auto;
     --photo-queue-bottom-offset: 0px;
     bottom: calc(env(safe-area-inset-bottom, 0px) + var(--photo-queue-final-bottom) - var(--photo-queue-bottom-offset));
-    gap: 4px;
+    gap: var(--space-4);
   }
 
   .photo-card {
