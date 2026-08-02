@@ -215,6 +215,7 @@ const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
 const pageTranslations = {
   zh: {
     documentLang: "zh-CN",
+    skipToContent: "跳到主要内容",
     title: "Eureka Web",
     description: "一个具有动态背景、交互卡片、鼠标跟随光效和粒子画布的网页示例。",
     welcomeWord: "欢迎",
@@ -258,6 +259,7 @@ const pageTranslations = {
   },
   en: {
     documentLang: "en",
+    skipToContent: "Skip to main content",
     title: "Eureka Web",
     description: "A dynamic personal page with animated particles, glass cards, and interactive motion.",
     welcomeWord: "Welcome",
@@ -301,6 +303,7 @@ const pageTranslations = {
   },
   ja: {
     documentLang: "ja",
+    skipToContent: "本文へスキップ",
     title: "Eureka Web",
     description: "動的な背景、ガラスカード、粒子アニメーションを備えたインタラクティブな個人ページです。",
     welcomeWord: "ようこそ",

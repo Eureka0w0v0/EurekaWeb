@@ -25,9 +25,10 @@
          into view; warming the connection saves a DNS + TLS round trip at the
          moment the brain scene is actually needed. -->
     <link rel="preconnect" href="https://unpkg.com" crossorigin />
-    <link rel="stylesheet" href="./styles.css?v=20260803-5" />
+    <link rel="stylesheet" href="./styles.css?v=20260803-6" />
   </head>
   <body>
+    <a class="skip-link" href="#main" data-i18n="skipToContent">跳到主要内容</a>
     <noscript>
       <style>
         /* The intro overlay is fixed at z-index 99999 with pointer-events on,
@@ -152,7 +153,7 @@
       <h2 class="photo-title" data-i18n="photoTitle">照片</h2>
     </div>
 
-    <main class="page-shell">
+    <main class="page-shell" id="main" tabindex="-1">
       <section class="first-screen" data-theme-section="welcome">
         <div class="section-shell first-screen-shell">
           <section class="welcome-section" id="welcome-section">
@@ -644,6 +645,6 @@
       </div>
     </div>
 
-    <script src="./script.js?v=20260803-12"></script>
+    <script src="./script.js?v=20260803-13"></script>
   </body>
 </html>

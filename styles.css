@@ -34,6 +34,56 @@
   --topbar-top: max(12px, calc(env(safe-area-inset-top, 0px) + 6px));
   --topbar-right: clamp(10px, 2vw, 24px);
   --topbar-button-size: 56px;
+  --focus-ring: var(--primary-text);
+}
+
+/* Keyboard focus fallback. Uses :where() so it stays at zero specificity and
+   any component that needs a bespoke ring can override it without !important.
+   Pointer users never see this — :focus-visible only fires for keyboard nav. */
+:where(a, button, [tabindex], summary, input, select, textarea):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: inherit;
+}
+
+/* #main carries tabindex="-1" purely so the skip link can move focus there.
+   It is not interactive, so it must not pick up the ring above. */
+:where([tabindex="-1"]):focus-visible {
+  outline: none;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 100000; /* above .intro-overlay (99999) */
+  padding: 12px 22px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0 0 12px 12px;
+  background: var(--surface-strong);
+  color: var(--primary-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow);
+  transform: translate(-50%, -110%);
+  transition: transform 180ms ease;
+}
+
+/* Deliberately :focus, not :focus-visible — a skip link must appear on any
+   focus, including programmatic and assistive-tech focus, not just keyboard. */
+.skip-link:focus {
+  transform: translate(-50%, 0);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
 }
 
 html.theme-dark,
@@ -45,8 +95,11 @@ body.theme-dark {
   --text: #f5f5f5;
   --muted: rgba(255, 255, 255, 0.65);
   --line: rgba(255, 255, 255, 0.14);
-  --primary: #f5f5f5;
-  --primary-text: #f5f5f5;
+  /* Was #f5f5f5 for both, which is identical to --text — accents became
+     indistinguishable from body copy in dark mode. These are the light-mode
+     blues lifted for a near-black ground (9:1 and 11:1 on --dark-bg). */
+  --primary: #7aa9ff;
+  --primary-text: #93b8ff;
   --secondary: #b8b8b8;
   --shadow: 0 30px 60px rgba(0, 0, 0, 0.42);
   --bg-radial-a: rgba(255, 255, 255, 0.055);
@@ -961,7 +1014,8 @@ body.theme-syncing .welcome-stage {
   box-shadow:
     0 14px 28px rgba(24, 44, 78, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.16);
-  outline: none;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 #language-switcher .language-option.is-active {
@@ -1558,10 +1612,14 @@ body.theme-dark .language-universe::after {
   outline: none;
 }
 
-.language-index-item:hover,
+.language-index-item:hover {
+  color: var(--text);
+}
+
 .language-index-item:focus-visible {
   color: var(--text);
-  outline: none;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
 }
 
 .language-index-item.is-active::after {
@@ -1806,7 +1864,6 @@ html[lang="ja"] .language-section-title {
     0 0 0 7px color-mix(in srgb, var(--text) 5%, transparent),
     0 0 22px color-mix(in srgb, var(--text) 10%, transparent),
     inset 0 1px 0 color-mix(in srgb, white 22%, transparent);
-  outline: none;
   transform:
     translate(-50%, -50%)
     translate3d(
@@ -1815,6 +1872,13 @@ html[lang="ja"] .language-section-title {
       0
     )
     scale(1.06);
+}
+
+/* The shared hover/focus treatment above is a glow, which reads as ambience
+   rather than "you are here". Keyboard focus gets an explicit ring on top. */
+.language-node:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
 }
 
 .node-cpp {
@@ -2673,8 +2737,8 @@ body.is-photo-zoom-open .topbar {
 .photo-zoom-close {
   position: relative;
   z-index: 1901;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border: 1px solid rgba(255, 255, 255, 0.34);
   border-radius: 50%;
   background: transparent;
@@ -2724,11 +2788,18 @@ body.is-photo-zoom-open .topbar {
   color: white;
 }
 
-.photo-zoom-close:focus,
-.photo-zoom-close:focus-visible {
+/* Bare :focus stays ring-less so a mouse click doesn't leave a ring behind;
+   :focus-visible (keyboard only) gets a real one. */
+.photo-zoom-close:focus {
   outline: none;
   border-color: rgba(255, 255, 255, 0.42);
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.photo-zoom-close:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-color: rgba(255, 255, 255, 0.42);
 }
 
 html:not(.theme-dark) .photo-zoom-close,
