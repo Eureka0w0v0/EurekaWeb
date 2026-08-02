@@ -6137,14 +6137,16 @@ function initCinematicParallax() {
   const sections = document.querySelectorAll("[data-theme-section]");
   if (!sections.length) return;
 
-  /* Skip career and photo – they run their own scroll-driven systems and
-     measure themselves with getBoundingClientRect, so an external scale()
-     would skew their coordinates. */
+  /* An allowlist, deliberately down to one section. Scaling and fading every
+     section on scroll is the dated "everything drifts in" look, and it was
+     also doing real damage: hero already runs updateHeroParallax over its own
+     children, so the container scale compounded with it, and welcome carries
+     the sand canvas which is motion enough on its own. career and photo were
+     never eligible — they measure themselves with getBoundingClientRect and an
+     external scale() skews those coordinates. */
+  const CINEMATIC_SECTIONS = new Set(["language"]);
   const parallaxSections = Array.from(sections)
-    .filter((s) => {
-      const key = s.getAttribute("data-theme-section");
-      return key !== "career" && key !== "photo";
-    })
+    .filter((s) => CINEMATIC_SECTIONS.has(s.getAttribute("data-theme-section")))
     .map((sec) => ({
       sec,
       eyebrow: sec.querySelector(".eyebrow"),
