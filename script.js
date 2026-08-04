@@ -5537,14 +5537,13 @@ async function createBrainWireframeScene(mount) {
   }
 
   try {
-    /* Race the CDN import against a timeout so a hanging connection cannot
-       stall initApp — the brain scene simply stays absent on failure. */
-    const THREE = await Promise.race([
-      import("https://unpkg.com/three@0.185.1/build/three.module.min.js"),
-      new Promise((_, reject) => {
-        window.setTimeout(() => reject(new Error("three.js CDN import timed out")), 8000);
-      }),
-    ]);
+    /* Vendored rather than pulled from unpkg. r185 ships as two files -- this
+       one and the ./three.core.min.js it imports -- so the CDN version cost
+       two cross-origin requests on a host that is unreliable from China, and
+       a failure meant the brain silently never appeared. Same-origin now, and
+       covered by the one-year immutable cache netlify.toml gives *.js.
+       Still lazy: this runs when the language section scrolls into view. */
+    const THREE = await import("./vendor/three.module.min.js?v=0.185.1");
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 1000);
     camera.position.set(0, 0.15, window.innerWidth < 720 ? 15.8 : 16.6);
