@@ -1262,6 +1262,84 @@ function getBrainEdgePoint(anchorRect, nodeRect) {
   };
 }
 
+/* Where each pill sits, as a bearing from the shell's centre. 72 degrees apart
+   starting straight up, which keeps the arrangement the CSS percentages had --
+   top, right, lower right, lower left, left -- while making the spacing even.
+   The percentages they replace ran 37.5 to 116.6 degrees apart. */
+const LANGUAGE_NODE_ANGLES = {
+  py: -90,
+  html: -18,
+  js: 54,
+  css: 126,
+  cpp: 198,
+};
+
+/* Clearance from the shell's outline to the nearest edge of a pill. Generous
+   enough that the cerebellum, which bulges past the shell ellipse at the
+   bottom, still does not reach the two lower pills. */
+const LANGUAGE_NODE_GAP = 40;
+
+/* The pills used to be placed with hand-set percentages of the stage box while
+   the brain is an ellipse inside it, so equal percentages meant unequal
+   clearance: measured, the gaps ran from -5.6px (CSS sitting on top of the
+   mesh) to +58.5px, a 64px spread. Positioning off the same silhouette the
+   connectors use makes the clearance identical by construction, and keeps it
+   that way if the shell is ever reshaped again.
+
+   Desktop only. Below 680px the layout is a different composition with its own
+   percentages, so any inline positioning is handed back to CSS. */
+function placeLanguageNodes(silhouette) {
+  languageNodeButtons.forEach((button) => {
+    const key = button.dataset.languageNode;
+    const angle = LANGUAGE_NODE_ANGLES[key];
+    const parent = button.offsetParent;
+
+    if (!silhouette || angle === undefined || !parent) {
+      button.style.left = "";
+      button.style.top = "";
+      return;
+    }
+
+    const radians = (angle * Math.PI) / 180;
+    const ux = Math.cos(radians);
+    const uy = Math.sin(radians);
+
+    // Centre to outline along this bearing.
+    const toOutline = 1 / Math.sqrt((ux / silhouette.rx) ** 2 + (uy / silhouette.ry) ** 2);
+
+    /* Centre to the pill's own near edge. Treating the rounded rect as a plain
+       one puts the corners a few px further out than measured, which only ever
+       errs toward more clearance. */
+    const rect = button.getBoundingClientRect();
+    const toPillEdge = Math.min(
+      Math.abs(ux) > 0.001 ? rect.width / 2 / Math.abs(ux) : Number.POSITIVE_INFINITY,
+      Math.abs(uy) > 0.001 ? rect.height / 2 / Math.abs(uy) : Number.POSITIVE_INFINITY
+    );
+
+    const distance = toOutline + LANGUAGE_NODE_GAP + toPillEdge;
+    const parentRect = parent.getBoundingClientRect();
+
+    /* An ancestor of the stage is scaled, so a getBoundingClientRect distance
+       is not the number to write into left/top -- those are resolved in the
+       containing block's own unscaled space and then scaled on the way to the
+       screen. Writing viewport pixels straight in put every pill 2% too far
+       out, which is 4-11px at this radius and was the whole residual error
+       when this was first measured. Dividing by the rect-to-layout ratio
+       recovers local units without needing to know where the scale comes from. */
+    const scaleX = parent.offsetWidth ? parentRect.width / parent.offsetWidth : 1;
+    const scaleY = parent.offsetHeight ? parentRect.height / parent.offsetHeight : 1;
+
+    /* .language-node is translate(-50%, -50%), so left/top address its centre.
+       The pointer parallax on top of this (--node-depth-*) is left alone; it is
+       a deliberate few px of drift, not part of the resting layout. */
+    const localX = (silhouette.cx + ux * distance - parentRect.left) / (scaleX || 1);
+    const localY = (silhouette.cy + uy * distance - parentRect.top) / (scaleY || 1);
+
+    button.style.left = `${localX.toFixed(2)}px`;
+    button.style.top = `${localY.toFixed(2)}px`;
+  });
+}
+
 function syncLanguageNetworkLines() {
   if (!languageNetwork || !brainMount || languageNodeButtons.length === 0) {
     return;
@@ -1280,6 +1358,10 @@ function syncLanguageNetworkLines() {
     js: { x: 0.65, y: 0.69 },
     py: { x: 0.5, y: 0.42 },
   };
+
+  /* Before the lines, not after: their endpoints are measured off the pills'
+     rects, so those have to be final first. */
+  placeLanguageNodes(silhouette);
 
   languageNodeButtons.forEach((button) => {
     const key = button.dataset.languageNode;
