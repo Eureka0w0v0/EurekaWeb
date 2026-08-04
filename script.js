@@ -54,6 +54,15 @@ const themeWave = document.querySelector(".theme-wave");
 const themeWaveCore = document.querySelector(".theme-wave-core");
 const i18nNodes = document.querySelectorAll("[data-i18n]");
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+/* The wireframe shell's ellipsoid, in local units before the group's scale.
+   These are shared on purpose: the connector lines from the language pills are
+   computed from the same numbers that build the mesh, so reshaping the brain
+   moves the line endpoints with it. They used to be independent -- the shell
+   was reshaped on 2026-08-02 and the connector anchors had been frozen since
+   2026-05-03, which left the Python line starting deep inside the sphere and
+   three of the others as stubs that never reached it. */
+const BRAIN_SHELL = { rx: 5.8, ry: 4.5, rz: 4.2, cy: 0.32 };
+
 const DESKTOP_BRAIN_WRAP_WIDTH = 660;
 const DESKTOP_BRAIN_RENDER_WIDTH = Math.round(DESKTOP_BRAIN_WRAP_WIDTH * 1.16);
 const DESKTOP_BRAIN_RENDER_HEIGHT = Math.round((DESKTOP_BRAIN_WRAP_WIDTH / 2) * 1.22);
@@ -1207,6 +1216,24 @@ function getRectEdgePoint(rect, targetPoint) {
   };
 }
 
+/* Point where the ray from an ellipse's centre toward a rect's centre crosses
+   the ellipse. Normalising by the radii turns the ellipse into a unit circle,
+   where the crossing is just the direction vector over its own length. */
+function getEllipseEdgePoint(ellipse, nodeRect) {
+  const dx = nodeRect.left + nodeRect.width * 0.5 - ellipse.cx;
+  const dy = nodeRect.top + nodeRect.height * 0.5 - ellipse.cy;
+  const normalized = Math.sqrt((dx / ellipse.rx) ** 2 + (dy / ellipse.ry) ** 2);
+
+  if (normalized <= 0.001) {
+    return { x: ellipse.cx, y: ellipse.cy };
+  }
+
+  return {
+    x: ellipse.cx + dx / normalized,
+    y: ellipse.cy + dy / normalized,
+  };
+}
+
 function getBrainEdgePoint(anchorRect, nodeRect) {
   const isMobileLayout = window.innerWidth <= 680;
   const center = {
@@ -1243,6 +1270,7 @@ function syncLanguageNetworkLines() {
   const networkRect = languageNetwork.getBoundingClientRect();
   const anchorRect = brainWrap?.getBoundingClientRect() || brainMount.getBoundingClientRect();
   const usesMobileAnchors = window.innerWidth <= 680;
+  const silhouette = usesMobileAnchors ? null : brainSceneController?.getShellSilhouette?.() || null;
   const anchorWidth = Math.max(anchorRect.width, 1);
   const anchorHeight = Math.max(anchorRect.height, 1);
   const brainAnchors = {
@@ -1262,12 +1290,23 @@ function syncLanguageNetworkLines() {
 
     const anchor = brainAnchors[key] || { x: 0.5, y: 0.62 };
     const nodeRect = button.getBoundingClientRect();
-    const brainEdge = usesMobileAnchors
-      ? getBrainEdgePoint(anchorRect, nodeRect)
-      : {
-          x: anchorRect.left + anchorWidth * anchor.x,
-          y: anchorRect.top + anchorHeight * anchor.y,
-        };
+
+    let brainEdge;
+    if (usesMobileAnchors) {
+      brainEdge = getBrainEdgePoint(anchorRect, nodeRect);
+    } else if (silhouette) {
+      /* Walk from the shell's centre toward the pill and stop on the outline.
+         Same ellipse intersection the mobile path has always used, but with
+         radii measured off the rendered mesh rather than guessed. */
+      brainEdge = getEllipseEdgePoint(silhouette, nodeRect);
+    } else {
+      /* Only before the scene exists -- three.js is imported lazily when this
+         section scrolls into view, and the lines are drawn on the way in. */
+      brainEdge = {
+        x: anchorRect.left + anchorWidth * anchor.x,
+        y: anchorRect.top + anchorHeight * anchor.y,
+      };
+    }
     const nodeEdge = getRectEdgePoint(nodeRect, brainEdge);
     const from = toNetworkPoint(networkRect, brainEdge.x, brainEdge.y);
     const to = toNetworkPoint(networkRect, nodeEdge.x, nodeEdge.y);
@@ -5626,9 +5665,9 @@ async function createBrainWireframeScene(mount) {
 
       for (let j = 0; j < localLon; j += 1) {
         const theta = (Math.PI * 2 * j) / localLon + (i % 2) * 0.055;
-        let x = s * Math.cos(theta) * 5.8;
-        let y = c * 4.5 + 0.32;
-        let z = s * Math.sin(theta) * 4.2;
+        let x = s * Math.cos(theta) * BRAIN_SHELL.rx;
+        let y = c * BRAIN_SHELL.ry + BRAIN_SHELL.cy;
+        let z = s * Math.sin(theta) * BRAIN_SHELL.rz;
         const upper = Math.max(0, y - 0.15);
 
         x *= 1 + upper * 0.007;
@@ -6027,6 +6066,53 @@ async function createBrainWireframeScene(mount) {
       }
     }
 
+    /* Where the shell actually lands on screen, in viewport pixels, so the
+       connector lines can end on its outline instead of at fractions of the
+       wrapper guessed by hand.
+
+       Offsets are taken along world X and Y, which are the camera's own axes
+       here (it has no roll), so they stay screen-aligned and share the centre's
+       depth -- that makes the projection exact rather than an approximation.
+
+       The horizontal radius uses the smaller of rx and rz on purpose. The group
+       spins about Y forever, so the silhouette's width breathes between those
+       two -- a 38% swing at the current 5.8/4.2. Taking the minimum means a
+       line always terminates on or just inside the outline at every angle,
+       instead of being correct at one rotation and floating or buried at the
+       rest. */
+    function getShellSilhouette() {
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (!rect.width || !rect.height) {
+        return null;
+      }
+
+      group.updateMatrixWorld();
+
+      const scale = group.scale.x;
+      const center = group.localToWorld(new THREE.Vector3(0, BRAIN_SHELL.cy, 0));
+      const toViewport = (vector) => {
+        const ndc = vector.clone().project(camera);
+        return {
+          x: rect.left + (ndc.x * 0.5 + 0.5) * rect.width,
+          y: rect.top + (-ndc.y * 0.5 + 0.5) * rect.height,
+        };
+      };
+
+      const middle = toViewport(center);
+      const side = toViewport(
+        center.clone().add(new THREE.Vector3(Math.min(BRAIN_SHELL.rx, BRAIN_SHELL.rz) * scale, 0, 0))
+      );
+      const top = toViewport(center.clone().add(new THREE.Vector3(0, BRAIN_SHELL.ry * scale, 0)));
+
+      const rx = Math.abs(side.x - middle.x);
+      const ry = Math.abs(top.y - middle.y);
+      if (!(rx > 1) || !(ry > 1)) {
+        return null;
+      }
+
+      return { cx: middle.x, cy: middle.y, rx, ry };
+    }
+
     resize();
     render();
     start();
@@ -6036,6 +6122,7 @@ async function createBrainWireframeScene(mount) {
       start,
       stop,
       setTheme: setBrainTheme,
+      getShellSilhouette,
       dispose,
     };
   } catch (error) {
