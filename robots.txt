@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Backup originals never ship, but the directory name is guessable and there
+# is no reason to spend crawl budget finding that out.
+Disallow: /images/_originals/
+Disallow: /maintenance/
+
+Sitemap: https://eureka0w0v0.github.io/EurekaWeb/sitemap.xml

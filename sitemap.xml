@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One URL, deliberately. The three languages and the five sections are all
+  client-side state on the same document, so listing them as separate entries
+  would advertise URLs that do not exist.
+
+  lastmod is stamped by .github/workflows/pages.yml on deploy; editing it by
+  hand here will just be overwritten.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://eureka0w0v0.github.io/EurekaWeb/</loc>
+    <lastmod>2026-08-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

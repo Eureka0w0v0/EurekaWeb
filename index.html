@@ -15,16 +15,19 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./images/icons/favicon-32.png?v=20260722-7" />
     <link rel="icon" type="image/png" sizes="192x192" href="./images/icons/favicon-192.png?v=20260722-7" />
     <link rel="apple-touch-icon" href="./images/icons/favicon-192.png?v=20260722-7" />
+    <!-- This site is served from both GitHub Pages and Netlify. Without a
+         canonical the two hosts read as duplicate content and split their own
+         ranking; this names the Pages copy as the one that counts. -->
+    <link rel="canonical" href="https://eureka0w0v0.github.io/EurekaWeb/" />
     <meta property="og:title" content="Eureka Web" />
     <meta property="og:description" content="尤里卡的个人网页：动态交互、编程语言节点、照片剧场。" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://eureka0w0v0.github.io/EurekaWeb/images/icons/assets-myicon.webp" />
     <meta property="og:url" content="https://eureka0w0v0.github.io/EurekaWeb/" />
     <meta name="twitter:card" content="summary" />
-    <!-- three.js is imported lazily from here once the language section comes
-         into view; warming the connection saves a DNS + TLS round trip at the
-         moment the brain scene is actually needed. -->
-    <link rel="preconnect" href="https://unpkg.com" crossorigin />
+    <!-- three.js now lives in vendor/ and is imported lazily from there when
+         the language section scrolls into view, so there is no third-party
+         origin left to warm up. -->
     <link rel="stylesheet" href="./styles.css?v=20260803-9" />
   </head>
   <body>
@@ -645,6 +648,6 @@
       </div>
     </div>
 
-    <script src="./script.js?v=20260803-13"></script>
+    <script src="./script.js?v=20260804-1"></script>
   </body>
 </html>
