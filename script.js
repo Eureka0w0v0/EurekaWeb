@@ -1283,10 +1283,20 @@ const LANGUAGE_NODE_ANGLES = {
   cpp: 180,
 };
 
-/* Clearance from the shell's outline to the nearest edge of a pill. Generous
-   enough that the cerebellum, which bulges past the shell ellipse at the
-   bottom, still does not reach the two lower pills. */
-const LANGUAGE_NODE_GAP = 40;
+/* Clearance from the shell's outline to a pill's nearest edge, as a share of
+   the shell's mean radius rather than a flat pixel count.
+
+   Not because the brain resizes with the viewport -- measured, it does not:
+   the desktop render size is pinned to DESKTOP_BRAIN_RENDER_WIDTH, and the
+   shell comes out at a 129px radius at both 1440 and 1920. The ratio is here
+   so the clearance stays proportionate if that pinned size is ever changed,
+   the same reason the bearings read the silhouette instead of hardcoding
+   fractions. At today's radius it works out to 54px.
+
+   The floor only matters if the shell is ever made much smaller, where a
+   percentage of it would come to nothing. */
+const LANGUAGE_NODE_GAP_RATIO = 0.42;
+const LANGUAGE_NODE_GAP_MIN = 44;
 
 /* The pills used to be placed with hand-set percentages of the stage box while
    the brain is an ellipse inside it, so equal percentages meant unequal
@@ -1298,6 +1308,10 @@ const LANGUAGE_NODE_GAP = 40;
    Desktop only. Below 680px the layout is a different composition with its own
    percentages, so any inline positioning is handed back to CSS. */
 function placeLanguageNodes(silhouette) {
+  const gap = silhouette
+    ? Math.max(LANGUAGE_NODE_GAP_MIN, ((silhouette.rx + silhouette.ry) / 2) * LANGUAGE_NODE_GAP_RATIO)
+    : 0;
+
   languageNodeButtons.forEach((button) => {
     const key = button.dataset.languageNode;
     const angle = LANGUAGE_NODE_ANGLES[key];
@@ -1325,7 +1339,7 @@ function placeLanguageNodes(silhouette) {
       Math.abs(uy) > 0.001 ? rect.height / 2 / Math.abs(uy) : Number.POSITIVE_INFINITY
     );
 
-    const distance = toOutline + LANGUAGE_NODE_GAP + toPillEdge;
+    const distance = toOutline + gap + toPillEdge;
     const parentRect = parent.getBoundingClientRect();
 
     /* An ancestor of the stage is scaled, so a getBoundingClientRect distance
