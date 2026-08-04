@@ -31,6 +31,34 @@ python3 -m http.server 5500
 - 照片剧场：掉落、轮播、Show All、点击放大
 - 玻璃拟态卡片、3D 倾斜、颗粒噪点
 
+## 维护脚本
+
+两个脚本都只依赖 Python 3 与 ImageMagick，不引入 Node。
+
+### 缓存版本号（必须）
+
+`netlify.toml` 对 css / js / images 是一年 immutable 缓存，改了文件不换 URL，老访客永远收不到新版本。版本号由内容哈希生成，**改完资源提交前跑一次**：
+
+```bash
+python3 tools/stamp-assets.py          # 按内容哈希改写 ?v=
+python3 tools/stamp-assets.py --check  # 只检查，过期则退出码 1
+```
+
+没跑会被 GitHub Actions 拦下（workflow 里有 `--check`）。脚本幂等，没改动的资源不会产生 diff。
+
+不在 CI 里自动改写，是因为 Netlify 无构建命令、直接发布仓库内容 —— 版本号必须落在提交里，否则两个站会不一致。
+
+### 加照片
+
+```bash
+python3 tools/add-photo.py ~/Desktop/IMG_1234.HEIC
+python3 tools/add-photo.py shot.jpg --name kamakura-beach
+```
+
+自动生成 preview / medium / full 三档 WebP（最长边 640 / 1280 / 1920，q92），**剥除 EXIF**（手机照片带 GPS），文件名统一小写，并打印可直接粘贴的 `<article>` 卡片。
+
+卡片只打印不自动插入 —— 照片区的 `data-photo-base` 顺序会被 `script.js` 的滚动编排读取，机器改写容易弄坏动画。粘贴完再跑一次 `stamp-assets.py`。
+
 ## 图片资源分层
 
 | 目录 | 用途 | 规格 |
