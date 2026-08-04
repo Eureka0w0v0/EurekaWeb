@@ -1262,16 +1262,25 @@ function getBrainEdgePoint(anchorRect, nodeRect) {
   };
 }
 
-/* Where each pill sits, as a bearing from the shell's centre. 72 degrees apart
-   starting straight up, which keeps the arrangement the CSS percentages had --
-   top, right, lower right, lower left, left -- while making the spacing even.
-   The percentages they replace ran 37.5 to 116.6 degrees apart. */
+/* Where each pill sits, as a bearing from the shell's centre: 0 is due right,
+   -90 straight up, positive turns downward.
+
+   These started as a perfect 72-degree ring, which is what the maths wants and
+   not what the composition wants. The shell ellipse is only the top of the
+   brain -- the cerebellum and stem hang well below it -- so its centre sits
+   above the visible mass, and a ring drawn around that centre reads as riding
+   too high on the two side pills. html and cpp are pulled down to level with
+   it by eye, which costs the even spacing (the ring is now 90/54/72/54/90) and
+   is worth it.
+
+   To move a pill, change only its bearing; the gap and everything downstream
+   follow. */
 const LANGUAGE_NODE_ANGLES = {
   py: -90,
-  html: -18,
+  html: 0,
   js: 54,
   css: 126,
-  cpp: 198,
+  cpp: 180,
 };
 
 /* Clearance from the shell's outline to the nearest edge of a pill. Generous
