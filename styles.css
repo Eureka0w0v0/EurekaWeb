@@ -1243,9 +1243,10 @@ body.theme-dark .theme-icon-moon {
 .hero-copy h1.has-magnet .magnet-char {
   display: inline-block;
   -webkit-text-stroke-color: currentColor;
-  transition:
-    font-weight 240ms ease-out,
-    -webkit-text-stroke-width 240ms ease-out;
+  /* font-weight used to be transitioned here too. It cannot be: weight changes
+     a glyph's advance width, and with every char inline-block that reflowed the
+     whole heading on every pointer move. Stroke width has no layout effect. */
+  transition: -webkit-text-stroke-width 240ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

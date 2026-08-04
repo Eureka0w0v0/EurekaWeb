@@ -6157,14 +6157,16 @@ function supportsMagneticHeading() {
 }
 
 /* Positions are captured once, with every glyph at rest, and kept in page
-   coordinates. Re-reading them per frame would feed back on itself: a heavier
-   glyph is a wider glyph, which shifts its neighbours, which changes their
-   distance to the pointer, which changes their weight. Rest positions break
-   that loop, and subtracting scroll each frame keeps them correct without
-   another layout read. */
+   coordinates, so that a frame never has to read layout back. Subtracting
+   scroll each frame keeps them correct.
+
+   Since the effect became stroke-only these positions are also stable by
+   construction -- stroke does not change advance width, so a glyph under the
+   pointer no longer moves itself or anything after it. Clearing the stroke
+   before measuring is belt-and-braces for the case where a rebuild lands
+   mid-effect. */
 function measureMagnetChars() {
   for (let i = 0; i < magnetChars.length; i += 1) {
-    magnetChars[i].el.style.fontWeight = "";
     magnetChars[i].el.style.webkitTextStrokeWidth = "";
   }
 
@@ -6192,16 +6194,25 @@ function renderMagnetFrame() {
     const linear = Math.max(0, 1 - distance / MAGNET_RADIUS);
     const influence = linear * linear * (3 - 2 * linear);
 
-    /* Two properties, because neither covers every script alone. Weight only
-       resolves on a variable face, so Latin gets the full 300..900 sweep while
-       CJK — falling back to static PingFang — ignores it entirely; the stroke
-       thickens any glyph regardless. Both were chosen over a scale because
-       neither disturbs the line box: the heading runs 96px on a ~0.92
-       line-height, where the two lines already touch at rest, so any vertical
-       growth drives the first line's glyphs into the second. Weight still
-       nudges Latin glyphs sideways, which reads as the magnetic push. */
-    char.el.style.fontWeight = String(Math.round(300 + influence * 600));
-    char.el.style.webkitTextStrokeWidth = `${(influence * 1.7).toFixed(2)}px`;
+    /* Stroke only, deliberately. This used to also sweep font-weight 300..900,
+       which was the whole bug: weight changes a glyph's advance width, every
+       char is inline-block, so each one that thickened widened and shoved its
+       neighbours along. With the pointer moving, the entire heading reflowed
+       continuously -- measured at 76px -> 83px for a single char going 300 ->
+       700. The old comment called that sideways nudge "the magnetic push";
+       on screen it reads as the line coming apart.
+
+       Stroke is the right lever anyway. It thickens outward from the glyph
+       outline and leaves the advance width untouched, so nothing reflows, and
+       unlike weight it works on every script here -- weight needs a variable
+       face, so CJK falling back to static PingFang ignored it entirely and
+       only ever got the stroke. Losing weight costs Latin a little contrast,
+       which is what the raised ceiling below pays back.
+
+       Neither property disturbs the line box, which still matters: the heading
+       runs 96px on a ~0.92 line-height and the two lines already touch at
+       rest, so any vertical growth would drive line one into line two. */
+    char.el.style.webkitTextStrokeWidth = `${(influence * 2.4).toFixed(2)}px`;
   }
 }
 
