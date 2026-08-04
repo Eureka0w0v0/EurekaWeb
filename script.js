@@ -1265,22 +1265,31 @@ function getBrainEdgePoint(anchorRect, nodeRect) {
 /* Where each pill sits, as a bearing from the shell's centre: 0 is due right,
    -90 straight up, positive turns downward.
 
-   These started as a perfect 72-degree ring, which is what the maths wants and
-   not what the composition wants. The shell ellipse is only the top of the
-   brain -- the cerebellum and stem hang well below it -- so its centre sits
-   above the visible mass, and a ring drawn around that centre reads as riding
-   too high on the two side pills. html and cpp are pulled down to level with
-   it by eye, which costs the even spacing (the ring is now 90/54/72/54/90) and
-   is worth it.
+   An even 72-degree ring with the two side pills pressed down by
+   LANGUAGE_NODE_SIDE_DROP.
+
+   These two goals are genuinely exclusive and the tilt is the dial between
+   them. With Python pinned to the top, an even ring puts C++ and HTML at 18
+   degrees above centre, which at this radius is 79px up -- total travel along
+   the bearing is outline 129 + gap 58 + half a pill 70, and 257 * sin(18) is
+   79. Pressing them level costs the even spacing: 90/54/72/54/90, with two
+   obvious voids in the upper corners.
+
+   Ringing the whole brain instead of the shell was an attempt to get both and
+   does not: the centre only drops 16px while the radius grows by the same, so
+   the two cancel. It is kept because centring on the visible mass is right on
+   its own, not because it solved this.
 
    To move a pill, change only its bearing; the gap and everything downstream
    follow. */
+const LANGUAGE_NODE_SIDE_DROP = 9;
+
 const LANGUAGE_NODE_ANGLES = {
   py: -90,
-  html: 0,
+  html: -18 + LANGUAGE_NODE_SIDE_DROP,
   js: 54,
   css: 126,
-  cpp: 180,
+  cpp: 198 - LANGUAGE_NODE_SIDE_DROP,
 };
 
 /* Clearance from the shell's outline to a pill's nearest edge, as a share of
@@ -1371,7 +1380,12 @@ function syncLanguageNetworkLines() {
   const networkRect = languageNetwork.getBoundingClientRect();
   const anchorRect = brainWrap?.getBoundingClientRect() || brainMount.getBoundingClientRect();
   const usesMobileAnchors = window.innerWidth <= 680;
+  /* Two different outlines on purpose. Lines end on the shell, because that is
+     the surface they read as plugging into; pills ring the whole brain, so the
+     cerebellum's mass is accounted for and the ring is not pulled off centre by
+     ignoring it. */
   const silhouette = usesMobileAnchors ? null : brainSceneController?.getShellSilhouette?.() || null;
+  const pillRing = usesMobileAnchors ? null : brainSceneController?.getBrainSilhouette?.() || null;
   const anchorWidth = Math.max(anchorRect.width, 1);
   const anchorHeight = Math.max(anchorRect.height, 1);
   const brainAnchors = {
@@ -1384,7 +1398,7 @@ function syncLanguageNetworkLines() {
 
   /* Before the lines, not after: their endpoints are measured off the pills'
      rects, so those have to be final first. */
-  placeLanguageNodes(silhouette);
+  placeLanguageNodes(pillRing);
 
   languageNodeButtons.forEach((button) => {
     const key = button.dataset.languageNode;
@@ -6185,7 +6199,11 @@ async function createBrainWireframeScene(mount) {
        line always terminates on or just inside the outline at every angle,
        instead of being correct at one rotation and floating or buried at the
        rest. */
-    function getShellSilhouette() {
+    /* Projects an ellipse given in the group's local space. Offsets are taken
+       along world X and Y, which are the camera's own axes here (it has no
+       roll), so they stay screen-aligned and share the centre's depth -- which
+       makes the projection exact rather than an approximation. */
+    function projectLocalEllipse(centerLocal, halfWidth, halfHeight) {
       const rect = renderer.domElement.getBoundingClientRect();
       if (!rect.width || !rect.height) {
         return null;
@@ -6194,7 +6212,7 @@ async function createBrainWireframeScene(mount) {
       group.updateMatrixWorld();
 
       const scale = group.scale.x;
-      const center = group.localToWorld(new THREE.Vector3(0, BRAIN_SHELL.cy, 0));
+      const center = group.localToWorld(centerLocal.clone());
       const toViewport = (vector) => {
         const ndc = vector.clone().project(camera);
         return {
@@ -6204,10 +6222,8 @@ async function createBrainWireframeScene(mount) {
       };
 
       const middle = toViewport(center);
-      const side = toViewport(
-        center.clone().add(new THREE.Vector3(Math.min(BRAIN_SHELL.rx, BRAIN_SHELL.rz) * scale, 0, 0))
-      );
-      const top = toViewport(center.clone().add(new THREE.Vector3(0, BRAIN_SHELL.ry * scale, 0)));
+      const side = toViewport(center.clone().add(new THREE.Vector3(halfWidth * scale, 0, 0)));
+      const top = toViewport(center.clone().add(new THREE.Vector3(0, halfHeight * scale, 0)));
 
       const rx = Math.abs(side.x - middle.x);
       const ry = Math.abs(top.y - middle.y);
@@ -6216,6 +6232,62 @@ async function createBrainWireframeScene(mount) {
       }
 
       return { cx: middle.x, cy: middle.y, rx, ry };
+    }
+
+    /* The shell only -- where the connector lines should end, because that is
+       the surface they read as plugging into.
+
+       The horizontal radius uses the smaller of rx and rz on purpose. The group
+       spins about Y forever, so the silhouette's width breathes between those
+       two -- a 38% swing at the current 5.8/4.2. Taking the minimum means a
+       line always terminates on or just inside the outline at every angle,
+       instead of being correct at one rotation and floating or buried at the
+       rest. */
+    function getShellSilhouette() {
+      return projectLocalEllipse(
+        new THREE.Vector3(0, BRAIN_SHELL.cy, 0),
+        Math.min(BRAIN_SHELL.rx, BRAIN_SHELL.rz),
+        BRAIN_SHELL.ry
+      );
+    }
+
+    /* Everything the group draws, so the shell plus the cerebellum and stem
+       hanging below it. This is what the pills should ring: the shell's centre
+       sits above the visible mass, and a ring drawn around it reads as riding
+       high on the sides no matter how evenly it is spaced.
+
+       Measured off the geometry rather than the mesh's world box so it does not
+       breathe with the spin -- same reason, and same min(x, z) trick, as the
+       shell. Dust is on the scene rather than the group, so it stays out of
+       this. */
+    let brainLocalBox = null;
+    function getBrainSilhouette() {
+      if (!brainLocalBox) {
+        const box = new THREE.Box3();
+        group.traverse((child) => {
+          const geometry = child.geometry;
+          if (!geometry) {
+            return;
+          }
+          if (!geometry.boundingBox) {
+            geometry.computeBoundingBox();
+          }
+          if (geometry.boundingBox) {
+            box.union(geometry.boundingBox);
+          }
+        });
+        if (box.isEmpty()) {
+          return null;
+        }
+        brainLocalBox = box;
+      }
+
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      brainLocalBox.getSize(size);
+      brainLocalBox.getCenter(center);
+
+      return projectLocalEllipse(center, Math.min(size.x, size.z) / 2, size.y / 2);
     }
 
     resize();
@@ -6228,6 +6300,7 @@ async function createBrainWireframeScene(mount) {
       stop,
       setTheme: setBrainTheme,
       getShellSilhouette,
+      getBrainSilhouette,
       dispose,
     };
   } catch (error) {
