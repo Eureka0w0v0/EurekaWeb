@@ -24,6 +24,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Runs in check mode rather than rewriting: Netlify publishes the repo
+      # directly with no build command, so the stamped index.html has to be the
+      # committed one or the two hosts would serve different URLs. Failing here
+      # is the point -- an unstamped asset is invisible to anyone who has
+      # already visited, because netlify.toml marks it immutable for a year.
+      - name: Check asset cache stamps are current
+        run: python3 tools/stamp-assets.py --check
+
       - name: Strip non-deploy assets
         run: |
           rm -rf images/_originals .vscode .DS_Store
