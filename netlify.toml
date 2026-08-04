@@ -33,3 +33,17 @@
   for = "/site-config.json"
   [headers.values]
     Cache-Control = "no-store"
+
+# Must come after the /*.js rule so it wins. A service worker cached as
+# immutable for a year can never be replaced -- the site would be pinned to
+# whatever worker the visitor happened to install first, forever.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "public, max-age=3600"

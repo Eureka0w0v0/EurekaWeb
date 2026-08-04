@@ -19,6 +19,10 @@
          canonical the two hosts read as duplicate content and split their own
          ranking; this names the Pages copy as the one that counts. -->
     <link rel="canonical" href="https://eureka0w0v0.github.io/EurekaWeb/" />
+    <link rel="manifest" href="./manifest.webmanifest?v=20260804-1" />
+    <!-- Dark-scheme bar colour. The light value stays first so browsers that
+         ignore the media attribute keep the original behaviour. -->
+    <meta name="theme-color" content="#050505" media="(prefers-color-scheme: dark)" />
     <meta property="og:title" content="Eureka Web" />
     <meta property="og:description" content="尤里卡的个人网页：动态交互、编程语言节点、照片剧场。" />
     <meta property="og:type" content="website" />
@@ -649,5 +653,19 @@
     </div>
 
     <script src="./script.js?v=20260804-1"></script>
+    <script>
+      /* Registered inline and after load so the worker never competes with the
+         intro animation for bandwidth or main-thread time. The relative path
+         also sets the scope, which is what makes this work unchanged on both
+         the GitHub Pages subpath and the Netlify root. */
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("./sw.js").catch(() => {
+            /* A failed registration costs nothing here -- every feature of the
+               site works without it -- so there is nothing to report. */
+          });
+        });
+      }
+    </script>
   </body>
 </html>
