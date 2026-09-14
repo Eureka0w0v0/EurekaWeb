@@ -5830,11 +5830,21 @@ async function createBrainWireframeScene(mount) {
     }
 
     const cereStart = pts.length;
-    const cLat = 12;
-    const cLonBase = 24;
+    /* 10x16, down from 12x24. The cerebellum occupies roughly a tenth of the
+       shell's volume but used to carry 244 points against the shell's much
+       sparser grid, so wherever the two overlap the wireframe collapsed into a
+       white smear. 136 points keeps the shape and lets the edges read. */
+    const cLat = 10;
+    const cLonBase = 16;
     const cereRows = [];
-    const cereCenterX = 3.45;
-    const cereCenterY = -2.75;
+    /* Sits on the shell's surface, not inside it. At (3.45, -2.75) the centre
+       normalised to 0.909 against BRAIN_SHELL -- comfortably interior -- so the
+       shell cut through the cerebellum's middle and both grids drew through
+       each other, over 56% of its surface. (3.62, -3.05) normalises to 0.978:
+       the mass hangs below and behind the shell the way it does anatomically,
+       and the buried share drops to 46%. */
+    const cereCenterX = 3.62;
+    const cereCenterY = -3.05;
     const cereCenterZ = 0.35;
 
     for (let i = 0; i <= cLat; i += 1) {
@@ -5844,9 +5854,9 @@ async function createBrainWireframeScene(mount) {
       const c = Math.cos(phi);
       let localLon = cLonBase;
 
-      if (i === 0 || i === cLat) localLon = 8;
-      else if (i === 1 || i === cLat - 1) localLon = 12;
-      else if (i === 2 || i === cLat - 2) localLon = 18;
+      if (i === 0 || i === cLat) localLon = 6;
+      else if (i === 1 || i === cLat - 1) localLon = 9;
+      else if (i === 2 || i === cLat - 2) localLon = 13;
 
       for (let j = 0; j < localLon; j += 1) {
         const theta = (Math.PI * 2 * j) / localLon + (i % 2) * 0.06;
@@ -5880,13 +5890,20 @@ async function createBrainWireframeScene(mount) {
 
     const stemRows = [];
     const stemRingCount = 9;
-    const stemSegCount = 10;
+    /* 16, not 10. At this on-screen size a 10-gon reads as a faceted post
+       rather than a tube -- its silhouette has visible straight runs while the
+       cerebellum beside it is 16 and the shell is far denser. 16 matches the
+       cerebellum so the two sit in the same visual register. */
+    const stemSegCount = 16;
 
     for (let i = 0; i < stemRingCount; i += 1) {
       const row = [];
       const t = i / (stemRingCount - 1);
       const cx = 1.28 + t * 0.92;
-      const cy = -2.75 - t * 2.4;
+      /* Emerges from the cerebellum's lower half rather than its centre, which
+         is where the two grids used to pile up. The taper shortens to match so
+         the tip still lands at -5.15. */
+      const cy = -3.35 - t * 1.8;
       const cz = 0.18 - t * 0.1;
       const rx = 0.68 * (1 - t * 0.38);
       const rz = 0.78 * (1 - t * 0.42);
@@ -5940,7 +5957,11 @@ async function createBrainWireframeScene(mount) {
       }
     }
 
-    closeStemRingSmooth(stemRows[0], 0.04, 0.42);
+    /* Only the bottom. The top ring is buried inside the cerebellum and the
+       shell, so its cap was never visible as a cap -- it just piled another 16
+       points and their edges into the one place where three grids already
+       overlap, which read as a bright knot once the surrounding smear was
+       cleaned up. */
     closeStemRingSmooth(stemRows[stemRows.length - 1], -0.08, 0.36);
 
     function nearestEdges(fromStart, fromEnd, toStart, toEnd, maxDistance, maxCount) {
@@ -5957,7 +5978,7 @@ async function createBrainWireframeScene(mount) {
       }
     }
 
-    nearestEdges(cereStart, cereEnd, 0, innerStart, 1.02, 2);
+    nearestEdges(cereStart, cereEnd, 0, innerStart, 0.92, 1);
     nearestEdges(stemRows[0][0], pts.length, 0, innerStart, 0.98, 1);
 
     for (let i = 0; i < pts.length; i += 1) {
@@ -5973,8 +5994,8 @@ async function createBrainWireframeScene(mount) {
         maxDistance = 1.15;
         maxCount = 2;
       } else if (a.part === "cerebellum") {
-        maxDistance = 1.12;
-        maxCount = 4;
+        maxDistance = 1.0;
+        maxCount = 3;
       } else if (a.part === "stem") {
         maxDistance = 1.08;
         maxCount = 3;
