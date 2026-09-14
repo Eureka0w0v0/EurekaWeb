@@ -210,6 +210,14 @@ let brainSceneController = null;
 let themeRenderFrame = 0;
 let themeTransitionLiteActive = false;
 let languageNetworkFrame = 0;
+/* Measured geometry for the connector lines, filled in by
+   syncLanguageNetworkLines() and replayed every frame by
+   updateLanguageNetworkEndpoints(). Pill offsets are stored relative to the
+   SVG's own rect rather than the viewport, so scrolling leaves them valid --
+   the pills and the SVG move together -- and only the shell's outline has to be
+   re-projected per frame. Null on mobile, where the lines use the static
+   wrapper-fraction anchors instead. */
+let languageNetworkLayout = null;
 let activeCareerLayer = 1;
 let careerLayerTimer = 0;
 let careerWheelUnlockTimer = 0;
@@ -1388,6 +1396,7 @@ function syncLanguageNetworkLines() {
   const pillRing = usesMobileAnchors ? null : brainSceneController?.getBrainSilhouette?.() || null;
   const anchorWidth = Math.max(anchorRect.width, 1);
   const anchorHeight = Math.max(anchorRect.height, 1);
+  const entries = [];
   const brainAnchors = {
     cpp: { x: 0.26, y: 0.53 },
     html: { x: 0.74, y: 0.53 },
@@ -1434,7 +1443,91 @@ function syncLanguageNetworkLines() {
     line.setAttribute("y1", from.y.toFixed(2));
     line.setAttribute("x2", to.x.toFixed(2));
     line.setAttribute("y2", to.y.toFixed(2));
+
+    entries.push({
+      line,
+      dx: nodeRect.left - networkRect.left,
+      dy: nodeRect.top - networkRect.top,
+      width: nodeRect.width,
+      height: nodeRect.height,
+      x1: from.x,
+      y1: from.y,
+      x2: to.x,
+      y2: to.y,
+    });
   });
+
+  languageNetworkLayout = usesMobileAnchors || !silhouette ? null : entries;
+}
+
+/* The per-frame half of the connector sync. The brain spins and bobs forever,
+   but this used to run only on scroll and resize, so the endpoints were pinned
+   to whatever pose the brain held when the page last moved -- which is why
+   getShellSilhouette had to hand back the narrowest outline the spin could
+   produce rather than the real one.
+
+   Everything expensive stays in syncLanguageNetworkLines: the pills do not move
+   while the brain turns, so their rects are reused from there. This re-projects
+   one ellipse and writes at most four numbers per line. */
+function updateLanguageNetworkEndpoints() {
+  const entries = languageNetworkLayout;
+  if (!entries || entries.length === 0 || !languageNetwork) {
+    return;
+  }
+
+  const silhouette = brainSceneController?.getShellSilhouette?.();
+  if (!silhouette) {
+    return;
+  }
+
+  /* The scene keeps animating while the section is off screen -- only
+     visibilitychange stops it -- so without this the rest of this function
+     would read layout and rewrite the SVG sixty times a second for a brain
+     nobody is looking at. The silhouette is already in viewport coordinates,
+     so the test is free. */
+  if (silhouette.cy + silhouette.ry < 0 || silhouette.cy - silhouette.ry > window.innerHeight) {
+    return;
+  }
+
+  const networkRect = languageNetwork.getBoundingClientRect();
+  if (!networkRect.width || !networkRect.height) {
+    return;
+  }
+
+  for (let i = 0; i < entries.length; i += 1) {
+    const entry = entries[i];
+    const nodeRect = {
+      left: networkRect.left + entry.dx,
+      top: networkRect.top + entry.dy,
+      width: entry.width,
+      height: entry.height,
+    };
+
+    const brainEdge = getEllipseEdgePoint(silhouette, nodeRect);
+    const nodeEdge = getRectEdgePoint(nodeRect, brainEdge);
+    const from = toNetworkPoint(networkRect, brainEdge.x, brainEdge.y);
+    const to = toNetworkPoint(networkRect, nodeEdge.x, nodeEdge.y);
+
+    /* The viewBox is 0-100, so 0.01 is a tenth of a pixel on a 1000px SVG.
+       Below that, writing the attribute only dirties the tree for nothing. */
+    if (
+      Math.abs(from.x - entry.x1) < 0.01 &&
+      Math.abs(from.y - entry.y1) < 0.01 &&
+      Math.abs(to.x - entry.x2) < 0.01 &&
+      Math.abs(to.y - entry.y2) < 0.01
+    ) {
+      continue;
+    }
+
+    entry.x1 = from.x;
+    entry.y1 = from.y;
+    entry.x2 = to.x;
+    entry.y2 = to.y;
+    entry.line.setAttribute("x1", from.x.toFixed(2));
+    entry.line.setAttribute("y1", from.y.toFixed(2));
+    entry.line.setAttribute("x2", to.x.toFixed(2));
+    entry.line.setAttribute("y2", to.y.toFixed(2));
+  }
 }
 
 function requestLanguageNetworkSync() {
@@ -6172,6 +6265,10 @@ async function createBrainWireframeScene(mount) {
       }
 
       render();
+      /* After render, not before: the lines trail the mesh by a frame either
+         way, and doing the DOM writes last keeps them out of the path between
+         the matrix update and the draw call. */
+      updateLanguageNetworkEndpoints();
     }
 
     function start() {
@@ -6258,17 +6355,38 @@ async function createBrainWireframeScene(mount) {
     /* The shell only -- where the connector lines should end, because that is
        the surface they read as plugging into.
 
-       The horizontal radius uses the smaller of rx and rz on purpose. The group
-       spins about Y forever, so the silhouette's width breathes between those
-       two -- a 38% swing at the current 5.8/4.2. Taking the minimum means a
-       line always terminates on or just inside the outline at every angle,
-       instead of being correct at one rotation and floating or buried at the
-       rest. */
+       This passed min(rx, rz) as the horizontal radius until the endpoints
+       started updating per frame. The reasoning was sound while they did not:
+       the group spins about Y forever, the silhouette's width breathes across a
+       38% swing between 5.8 and 4.2, and an endpoint frozen at the last scroll
+       had to survive every pose -- so the narrowest was the safe pick, because a
+       short line reads as plugged in while a long one floats. The cost was that
+       whenever the wide face came round the C++ and HTML lines ran 1.6 local
+       units past the outline, 28% of rx, and looked skewered through it.
+
+       updateLanguageNetworkEndpoints now re-projects this every frame, so the
+       honest radius is the correct one. For an ellipsoid diag(r) under rotation
+       R, the extent along a unit direction d is |diag(r) * transpose(R) * d|;
+       for the world X and Y axes transpose(R) * d is just the matching row of R,
+       which is what the element indices below pick out. Checked against a dense
+       surface sampling at six poses: worst error 8e-6 local units. */
+    const shellRotation = new THREE.Matrix4();
     function getShellSilhouette() {
+      group.updateMatrixWorld();
+      shellRotation.extractRotation(group.matrixWorld);
+      const e = shellRotation.elements;
+      const { rx, ry, rz, cy } = BRAIN_SHELL;
+
+      /* The built mesh sits outside the ideal ellipsoid -- the sine displacement
+         and per-point jitter push each vertex out by up to ~0.13 local units --
+         so the analytic outline lands just inside the wireframe the eye reads.
+         2% is that gap at this radius. */
+      const bulge = 1.02;
+
       return projectLocalEllipse(
-        new THREE.Vector3(0, BRAIN_SHELL.cy, 0),
-        Math.min(BRAIN_SHELL.rx, BRAIN_SHELL.rz),
-        BRAIN_SHELL.ry
+        new THREE.Vector3(0, cy, 0),
+        Math.hypot(rx * e[0], ry * e[4], rz * e[8]) * bulge,
+        Math.hypot(rx * e[1], ry * e[5], rz * e[9]) * bulge
       );
     }
 
