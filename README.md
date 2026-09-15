@@ -46,6 +46,12 @@ python3 tools/stamp-assets.py          # 按内容哈希改写 ?v=
 python3 tools/stamp-assets.py --check  # 只检查，过期则退出码 1
 ```
 
+覆盖三个文件：`index.html`、`404.html`、`manifest.webmanifest`。后两个原来是手写日期戳（404 的 favicon 干脆没戳），`--check` 看不见它们，换个图标就会被 immutable 缓存钉死一年。
+
+`index.html` 引用 `manifest.webmanifest`，而后者自己的戳一改、它的哈希就变了，所以脚本跑的是不动点迭代——改一个图标，一趟就能把 manifest 和 index.html 两层一起收敛。
+
+引用了本地资源却**不带** `?v=` 会以退出码 2 报错。唯一豁免是 `sw.js`：service worker 必须保持固定 URL 才能被替换，所以 `netlify.toml` 单独给它 `no-cache`。
+
 没跑会被 GitHub Actions 拦下（workflow 里有 `--check`）。脚本幂等，没改动的资源不会产生 diff。
 
 不在 CI 里自动改写，是因为 Netlify 无构建命令、直接发布仓库内容 —— 版本号必须落在提交里，否则两个站会不一致。
