@@ -29,7 +29,6 @@ const careerCardStack = document.querySelector(".career-card-stack");
 const careerUfo = document.querySelector(".career-ufo");
 const careerAlien = document.querySelector(".career-alien");
 const careerCardLayers = document.querySelectorAll("[data-career-layer]");
-const careerLayerScrollAreas = document.querySelectorAll(".layer-card-scroll");
 const photoSection = document.querySelector("#photo-section");
 const photoFixedTitle = document.querySelector(".photo-fixed-title");
 const photoStage = document.querySelector(".photo-stage");
@@ -3259,10 +3258,6 @@ function canScrollCareerLayer(scrollArea, deltaY) {
 }
 
 
-function stopCareerScrollPropagation(event) {
-  event.stopPropagation();
-}
-
 function handleCareerLayerWheel(event) {
   if (!careerCardStack || Math.abs(event.deltaY) < 4) {
     return;
@@ -4033,21 +4028,6 @@ function preloadNearbyPhotoZoomImages(activeSlot, radius = (isMobileViewport() ?
     preloadPhotoZoomContent(sourceContent, slot === clampedActiveSlot, slot);
   });
   prunePhotoZoomPreloadCache(clampedActiveSlot);
-}
-
-function preloadActivePhotoZoomImage(priority = true) {
-  if (!photoCarouselEnabled || photoAllExpandedTarget > 0 || photoAllExpandedProgress > 0.01) {
-    return;
-  }
-
-  const activeSlot = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
-  const activeContent = photoSlotContentMap.get(activeSlot);
-  if (!activeContent) {
-    return;
-  }
-
-  preloadPhotoZoomContent(activeContent, priority, activeSlot);
-  preloadNearbyPhotoZoomImages(activeSlot, isMobileViewport() ? 1 : 2);
 }
 
 function openPhotoZoom(sourceContent) {
@@ -7565,10 +7545,6 @@ async function initApp() {
   photoSection?.addEventListener("touchmove", handlePhotoCarouselTouchMove, { passive: false, capture: true });
   photoSection?.addEventListener("touchend", handlePhotoCarouselTouchEnd, { passive: true, capture: true });
   photoSection?.addEventListener("touchcancel", handlePhotoCarouselTouchEnd, { passive: true, capture: true });
-  careerLayerScrollAreas.forEach((scrollArea) => {
-    scrollArea.addEventListener("wheel", stopCareerScrollPropagation, { passive: false });
-    scrollArea.addEventListener("touchmove", stopCareerScrollPropagation, { passive: false });
-  });
   careerCardStack?.addEventListener("keydown", handleCareerLayerKeydown);
   window.addEventListener("resize", measureMagnetChars, { passive: true });
   document.fonts?.ready?.then(requestLanguageNetworkSync);
