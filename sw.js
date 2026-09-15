@@ -16,14 +16,24 @@
        matching header override in netlify.toml; this comment exists so the
        next person to touch either one finds the other. */
 
-const VERSION = "2026-09-15-1";
+const VERSION = "2026-09-15-2";
 const SHELL_CACHE = `eureka-shell-${VERSION}`;
 const ASSET_CACHE = `eureka-assets-${VERSION}`;
 
 /* Only the documents needed to paint something useful. The heavy assets --
    images and the vendored three.js -- are deliberately left to runtime
-   caching so a first visit does not stall on a multi-megabyte install. */
-const SHELL = ["./", "./index.html", "./styles.css", "./script.js"];
+   caching so a first visit does not stall on a multi-megabyte install.
+
+   Nothing with a ?v= stamp belongs in this list. caches.match compares full
+   URLs including the query, so a bare "./styles.css" here can never answer the
+   "./styles.css?v=4c94b6f9" the page actually asks for -- it would just be
+   downloaded on every install and never read. Both files are cached correctly
+   at runtime by cacheFirst, under the URL that gets requested.
+
+   Making this list carry the stamped URLs instead would take a warm cache one
+   visit earlier, but only by having stamp-assets.py rewrite this file too --
+   more coupling than the half-visit is worth. */
+const SHELL = ["./", "./index.html"];
 
 const NEVER_CACHE = ["site-config.json", "sw.js"];
 
