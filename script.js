@@ -260,9 +260,6 @@ const pageTranslations = {
     railLanguage: "语言",
     railCareer: "职业",
     railPhoto: "照片",
-    footerLine: "谢谢你看到这里。",
-    footerTop: "回到顶部",
-    footerBuilt: "原生 HTML / CSS / JS，没有框架",
     languageEyebrow: "编程语言",
     languageTitle: "我接触过的\n编程语言",
     languageText: "这些语言陪我搭建网页、探索交互，也让我把灵感慢慢变成真实作品。",
@@ -311,9 +308,6 @@ const pageTranslations = {
     railLanguage: "Languages",
     railCareer: "Career",
     railPhoto: "Photos",
-    footerLine: "Thanks for scrolling all the way down.",
-    footerTop: "Back to top",
-    footerBuilt: "Plain HTML / CSS / JS, no framework",
     languageEyebrow: "PROGRAMMING LANGUAGES",
     languageTitle: "Programming Languages",
     languageText: "These languages helped me build websites, explore interaction, and turn ideas into real projects.",
@@ -362,9 +356,6 @@ const pageTranslations = {
     railLanguage: "言語",
     railCareer: "職業",
     railPhoto: "写真",
-    footerLine: "ここまで読んでくれてありがとう。",
-    footerTop: "トップへ戻る",
-    footerBuilt: "素の HTML / CSS / JS、フレームワークなし",
     languageEyebrow: "プログラミング言語",
     languageTitle: "触れてきたプログラミング言語",
     languageText: "これらの言語は、Web制作やインタラクションの探究を支え、アイデアを実際の作品へ形にしてくれました。",
@@ -7292,10 +7283,10 @@ function initSectionRail() {
   targets.forEach((target) => observer.observe(target));
 }
 
-/* Every in-page link -- rail, hero actions, footer, wordmark -- scrolls
-   rather than jumps. The welcome screen's own scroll handling is left alone:
-   these all land below it, and "back to top" lands on it, which is the one
-   place a jump is fine. */
+/* Every in-page link -- rail, hero actions, wordmark -- scrolls rather than
+   jumps. The welcome screen's own scroll handling is left alone: these all
+   land below it, and anything targeting the welcome screen itself lands on
+   it, which is the one place a jump is fine. */
 function initJumpLinks() {
   document.addEventListener("click", (event) => {
     const link = event.target.closest("a[data-jump]");
