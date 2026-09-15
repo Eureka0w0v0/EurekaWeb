@@ -76,7 +76,11 @@ self.addEventListener("activate", (event) => {
 });
 
 function isNeverCached(url) {
-  return NEVER_CACHE.some((name) => url.pathname.endsWith(name));
+  /* Compare the last path segment, not a suffix. endsWith would also have
+     excluded a future legacy-sw.js or my-site-config.json, silently and for a
+     reason nobody would think to look for. */
+  const name = url.pathname.split("/").pop();
+  return NEVER_CACHE.includes(name);
 }
 
 function isCacheableAsset(url) {
@@ -134,7 +138,11 @@ async function cacheFirst(request) {
   if (cached) return cached;
 
   const response = await fetch(request);
-  if (response && (response.ok || response.type === "opaque")) {
+  /* No opaque check: the fetch handler returns early on any cross-origin
+     request, and opaque responses only come from cross-origin no-cors. The
+     condition could never be true, and reading it suggested this worker
+     handles third-party assets, which it does not. */
+  if (response && response.ok) {
     const cache = await caches.open(ASSET_CACHE);
     cache.put(request, response.clone());
   }

@@ -245,6 +245,16 @@ const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const storageKey = "preferred-theme";
 const languageStorageKey = "preferred-language";
 const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+/* Re-read on change like the theme query does. Everything that consults
+   shouldReduceMotion() asks per call rather than caching, so turning the
+   preference on mid-session takes effect from the next frame; this listener
+   exists so the layers that latch -- the brain scene, the grain canvas --
+   settle instead of running on with a stale answer. */
+reducedMotionQuery.addEventListener?.("change", () => {
+  if (reducedMotionQuery.matches) {
+    brainSceneController?.stop();
+  }
+});
 const pageTranslations = {
   zh: {
     documentLang: "zh-CN",
@@ -7103,7 +7113,14 @@ function buildMagneticHeading() {
     return;
   }
 
-  const text = heading.textContent;
+  /* From the stored source, not the live textContent. A previous build turned
+     the "\n" into <br> elements, whose textContent is empty, so reading the
+     DOM back would silently collapse the hero's two lines into one. Both call
+     sites happen to rewrite textContent first, which makes this a trap rather
+     than a live bug -- but it is a trap that fires the first time someone
+     calls this twice. */
+  const text = heading.dataset.magnetSource ?? heading.textContent;
+  heading.dataset.magnetSource = text;
   const fragment = document.createDocumentFragment();
 
   /* Characters are grouped into word wrappers before being made inline-block.
@@ -7660,6 +7677,15 @@ async function initApp() {
         return;
       }
       closeLanguageMenu();
+    }
+
+    /* aria-modal="true" tells a screen reader that nothing outside the dialog
+       exists, so Tab leaving it puts the two in disagreement: focus lands on
+       something the user has just been told is not there. The dialog holds
+       exactly one focusable element, so trapping is simply keeping it. */
+    if (photoZoomActive && event.key === "Tab") {
+      event.preventDefault();
+      photoZoomCloseButton?.focus({ preventScroll: true });
     }
   });
   tiltCard?.addEventListener("mouseleave", resetTilt);
