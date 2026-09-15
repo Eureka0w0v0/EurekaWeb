@@ -216,6 +216,10 @@ let welcomeLayers = [];
 let welcomeEntrance = 1;
 let welcomeEntranceFrame = 0;
 let brainSceneController = null;
+/* Whether the brain is close enough to the viewport to be worth rendering.
+   Defaults to true so that a browser without IntersectionObserver keeps the
+   old always-on behaviour instead of a scene that never starts. */
+let brainSceneOnScreen = true;
 let themeRenderFrame = 0;
 let themeTransitionLiteActive = false;
 let languageNetworkFrame = 0;
@@ -1519,22 +1523,23 @@ function updateLanguageNetworkEndpoints() {
     return;
   }
 
-  const silhouette = brainSceneController?.getShellSilhouette?.();
-  if (!silhouette) {
-    return;
-  }
-
-  /* The scene keeps animating while the section is off screen -- only
-     visibilitychange stops it -- so without this the rest of this function
-     would read layout and rewrite the SVG sixty times a second for a brain
-     nobody is looking at. The silhouette is already in viewport coordinates,
-     so the test is free. */
-  if (silhouette.cy + silhouette.ry < 0 || silhouette.cy - silhouette.ry > window.innerHeight) {
-    return;
-  }
-
+  /* Bail before getShellSilhouette, not after. The silhouette is genuinely
+     cheap to *test* -- it is already in viewport coordinates -- but producing
+     it projects every vertex of the shell through the camera, and that is the
+     work this early return exists to avoid. The network element wraps the
+     brain, so its rect answers the same question for the price of one layout
+     read, and the rect is needed below regardless. */
   const networkRect = languageNetwork.getBoundingClientRect();
   if (!networkRect.width || !networkRect.height) {
+    return;
+  }
+
+  if (networkRect.bottom < 0 || networkRect.top > window.innerHeight) {
+    return;
+  }
+
+  const silhouette = brainSceneController?.getShellSilhouette?.();
+  if (!silhouette) {
     return;
   }
 
@@ -2761,6 +2766,19 @@ function drawWelcome() {
   const unformed = 1 - welcomeEntrance;
   const eased = Math.max(scrollEased, unformed);
   const crumble = Math.max(Math.min(1, Math.max(0, (progress - 0.06) / 0.9)), unformed);
+
+  /* Everything above is cheap and has to run on every scroll frame: the CSS
+     variable drives the kicker fade, which is readable while the canvas is
+     not. Everything below is not cheap -- a few thousand particles and a
+     full-canvas blur -- and is invisible once the section leaves the
+     viewport, so from here on there is nothing worth painting.
+
+     The entrance is the one case where the section can be off screen and
+     still need to paint: runWelcomeEntrance starts while the intro panels
+     still cover the page. welcomeEntrance is 1 once that has finished. */
+  if (welcomeEntrance >= 1 && !isElementInViewport(welcomeSection)) {
+    return;
+  }
 
   welcomeLayers.forEach((layer) => {
     const { context, width, height, texture, points, textColor, type } = layer;
@@ -7233,7 +7251,7 @@ function scheduleBrainSceneLoad() {
         }
 
         observer.disconnect();
-        loadBrain();
+        loadBrain().then(() => watchBrainSceneVisibility(target));
       },
       {
         root: null,
@@ -7248,8 +7266,37 @@ function scheduleBrainSceneLoad() {
 
   const idle = window.requestIdleCallback || ((cb) => window.setTimeout(cb, 900));
   idle(() => {
-    loadBrain();
+    loadBrain().then(() => watchBrainSceneVisibility(target));
   });
+}
+
+/* The loader's observer disconnects the moment the scene exists, which left
+   nothing watching afterwards: a WebGL scene three screens above the fold kept
+   rendering at 60fps because only visibilitychange ever stopped it. This
+   second observer outlives the load and owns the running state from then on.
+
+   The margin is smaller than the loader's 220px -- that one buys time to
+   download three.js, this one only needs the scene warm before it is seen. */
+function watchBrainSceneVisibility(target) {
+  if (!brainSceneController || !target || typeof IntersectionObserver !== "function") {
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      brainSceneOnScreen = entries.some((entry) => entry.isIntersecting);
+      if (brainSceneOnScreen) {
+        if (!document.hidden) {
+          brainSceneController?.start();
+        }
+      } else {
+        brainSceneController?.stop();
+      }
+    },
+    { root: null, rootMargin: "120px 0px", threshold: 0 }
+  );
+
+  observer.observe(target);
 }
 
 /* The dot rail on the right: one dot per section, the one whose middle is
@@ -7467,7 +7514,11 @@ async function initApp() {
       }
       brainSceneController?.stop();
     } else {
-      brainSceneController?.start();
+      /* Only resume what is actually on screen -- otherwise switching back to
+         the tab restarts the brain no matter where the page is scrolled. */
+      if (brainSceneOnScreen) {
+        brainSceneController?.start();
+      }
       requestPhotoSceneUpdate();
     }
   });
