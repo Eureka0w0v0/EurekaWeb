@@ -341,6 +341,15 @@ html {
   transition: background-color 320ms ease;
 }
 
+/* script.js already checks shouldReduceMotion() before every scroll it drives
+   (see initJumpLinks), but the skip link is a plain hash href handled by the
+   browser, so that path needs the CSS side turned off too. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 html.theme-syncing,
 body.theme-syncing,
 html.theme-syncing body,
@@ -442,7 +451,12 @@ body {
 
 @media (max-width: 680px), (hover: none) and (pointer: coarse) {
   body {
-    touch-action: pan-y;
+    /* pan-y alone also removes pinch-zoom, which is not a gesture this page
+       has any business taking: the viewport meta deliberately does not set
+       user-scalable=no, and a reader who needs to magnify the text has no
+       other way in. Naming pinch-zoom explicitly keeps the horizontal-pan
+       suppression this rule is actually for. */
+    touch-action: pan-y pinch-zoom;
   }
 }
 
@@ -1410,6 +1424,12 @@ html[lang="zh-CN"] .hero-text {
   border-radius: 50%;
   filter: blur(10px);
   animation: float 8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb {
+    animation: none;
+  }
 }
 
 .orb-a {
