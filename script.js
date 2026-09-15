@@ -3268,7 +3268,13 @@ function canScrollCareerLayer(scrollArea, deltaY) {
 
 
 function handleCareerLayerWheel(event) {
-  if (!careerCardStack || Math.abs(event.deltaY) < 4) {
+  /* setCareerLayer refuses to act while the theme is transitioning, but this
+     ran first and had already called preventDefault and armed
+     careerWheelUnlockTimer by then. The step was dropped and the page was
+     held anyway: roughly 720ms of theme transition plus a 510ms unlock timer
+     where a wheel over the cards neither turned a card nor scrolled the page.
+     Checking here lets the event fall through to the page instead. */
+  if (!careerCardStack || Math.abs(event.deltaY) < 4 || isCareerSceneThemeLocked()) {
     return;
   }
 
@@ -3301,7 +3307,9 @@ function handleCareerLayerTouchStart(event) {
 }
 
 function handleCareerLayerTouchMove(event) {
-  if (!careerCardStack) {
+  /* Same reasoning as handleCareerLayerWheel: bail before preventDefault
+     rather than hold the gesture for a step setCareerLayer will refuse. */
+  if (!careerCardStack || isCareerSceneThemeLocked()) {
     return;
   }
 
@@ -3871,8 +3879,12 @@ function getPhotoZoomPreloadKey(sourceContent) {
   ].join("|");
 }
 
+/* The ceiling has to cover the working set preloadNearbyPhotoZoomImages
+   actually builds -- radius 1 on phones, 2 elsewhere, so 3 and 5 entries. It
+   used to be 6 and 10, exactly double, and every extra entry holds a decoded
+   1920w bitmap: roughly 9.8MB once the browser has expanded it. */
 function getPhotoZoomPreloadLimit() {
-  return isMobileViewport() ? 6 : 10;
+  return isMobileViewport() ? 3 : 5;
 }
 
 function getPhotoZoomPreloadConcurrency() {
@@ -5550,6 +5562,10 @@ function requestPhotoSceneUpdate() {
   });
 }
 
+function coerceNumber(value, fallback) {
+  return Number.isFinite(value) ? value : fallback;
+}
+
 function clampPhotoCarouselIndex(index) {
   return Math.min(Math.max(index, photoCarouselMinIndex), photoCarouselMaxIndex);
 }
@@ -5605,8 +5621,12 @@ function getPhotoCardLayoutSnapshot(card) {
     y,
     scale,
     rotate,
-    opacity: Number.parseFloat(style.opacity) || 1,
-    zIndex: Number.parseInt(style.zIndex, 10) || 1,
+    /* || would turn a legitimate 0 into 1. Nothing sets opacity 0 on these
+       cards today, so this is a trap rather than a live bug: the day a card
+       is faded out, the expand animation would start it fully opaque and it
+       would pop. */
+    opacity: coerceNumber(Number.parseFloat(style.opacity), 1),
+    zIndex: coerceNumber(Number.parseInt(style.zIndex, 10), 1),
   };
 }
 
@@ -7238,7 +7258,17 @@ function initGrainCanvas() {
 
     /* Decay velocity toward base */
     currentOpacity = currentOpacity * DECAY + BASE_OPACITY * (1 - DECAY);
-    if (currentOpacity < BASE_OPACITY + 0.001) currentOpacity = BASE_OPACITY;
+    if (currentOpacity < BASE_OPACITY + 0.001) {
+      /* Settled. The grain is uniform random noise, so once the opacity stops
+         moving one frame is indistinguishable from the next -- the loop was
+         redrawing 16384 pixels twenty times a second to produce a picture
+         nobody could tell from the previous one. Park it; the canvas keeps
+         its last frame, and onScroll wakes it. */
+      currentOpacity = BASE_OPACITY;
+      canvas.style.opacity = currentOpacity;
+      stop();
+      return;
+    }
     canvas.style.opacity = currentOpacity;
   }
 
@@ -7248,6 +7278,7 @@ function initGrainCanvas() {
     lastScrollY = nowY;
     currentOpacity = Math.min(MAX_OPACITY, BASE_OPACITY + scrollVelocity * 0.003);
     canvas.style.opacity = currentOpacity;
+    start();
   }
 
   function start() {
@@ -7267,7 +7298,13 @@ function initGrainCanvas() {
   window.addEventListener("scroll", onScroll, { passive: true });
 
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) stop(); else start();
+    /* Only resume if there is still something to animate -- coming back to a
+       settled page should leave it settled, not restart the loop. */
+    if (document.hidden) {
+      stop();
+    } else if (currentOpacity > BASE_OPACITY + 0.001) {
+      start();
+    }
   });
 
   start();
@@ -7292,16 +7329,44 @@ function initPhotoCardHoverGlow() {
     card.appendChild(glow);
   });
 
-  /* Track mouse position to update CSS vars on the hovered card */
-  stage.addEventListener("mousemove", (e) => {
+  /* Track mouse position to update CSS vars on the hovered card.
+
+     Coalesced into a frame rather than run per event. A mouse can report well
+     over a hundred moves a second, and each one read a rect off a card that
+     updatePhotoScene had just written a transform to -- a forced layout every
+     time, on the one element guaranteed to be dirty. Reading in the frame
+     costs at most one, and the glow cannot be seen more often than that. */
+  let glowEvent = null;
+  let glowFrame = 0;
+
+  const applyGlow = () => {
+    glowFrame = 0;
+    const e = glowEvent;
+    glowEvent = null;
+    if (!e) return;
+
     const card = e.target.closest(".photo-card");
-    if (!card) return;
+    if (!card || !card.isConnected) return;
+
     const rect = card.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     card.style.setProperty("--hover-x", x + "%");
     card.style.setProperty("--hover-y", y + "%");
-  });
+  };
+
+  stage.addEventListener(
+    "mousemove",
+    (e) => {
+      glowEvent = e;
+      if (!glowFrame) {
+        glowFrame = requestAnimationFrame(applyGlow);
+      }
+    },
+    { passive: true }
+  );
 }
 
 function scheduleBrainSceneLoad() {
@@ -7509,7 +7574,7 @@ async function initApp() {
     await triggerThemeWave(originX, originY, nextTheme);
   });
 
-  window.addEventListener("pointermove", handlePointerMove);
+  window.addEventListener("pointermove", handlePointerMove, { passive: true });
   window.addEventListener("click", (event) => {
     if (!languageSwitcher?.contains(event.target)) {
       closeLanguageMenu();
