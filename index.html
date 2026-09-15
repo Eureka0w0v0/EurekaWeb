@@ -36,6 +36,14 @@
          the language section scrolls into view, so there is no third-party
          origin left to warm up. -->
     <link rel="stylesheet" href="./styles.css?v=229349ea" />
+    <!-- defer, from the head: the parser reaches this immediately instead of
+         700 lines later, so a 245KB download starts alongside the stylesheet
+         rather than after the document is parsed. Execution timing is
+         unchanged -- a deferred script runs after parsing completes, which is
+         exactly where it ran at the end of <body> -- and nothing here touches
+         the DOM before that: every querySelector is at module top level and
+         initApp() is the last statement in the file. -->
+    <script defer src="./script.js?v=9d3da5c8"></script>
   </head>
   <body>
     <a class="skip-link" href="#main" data-i18n="skipToContent">跳到主要内容</a>
@@ -687,7 +695,6 @@
       data-cf-beacon='{"token": "PASTE_YOUR_TOKEN_HERE"}'
     ></script>
     -->
-    <script src="./script.js?v=9d3da5c8"></script>
     <script>
       /* Registered inline and after load so the worker never competes with the
          intro animation for bandwidth or main-thread time. The relative path
