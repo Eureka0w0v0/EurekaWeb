@@ -1472,10 +1472,23 @@ const LANGUAGE_NODE_GAP_MIN = 44;
 
    Desktop only. Below 680px the layout is a different composition with its own
    percentages, so any inline positioning is handed back to CSS. */
+/* Measured in one pass, written in another.
+
+   This used to read a rect and then write left/top inside the same iteration,
+   so the next pill's getBoundingClientRect landed on a layout the previous
+   one had just dirtied -- five pills, five forced synchronous layouts, on
+   every scroll frame, every pill transitionend, and every pointer move that
+   drives the parallax. Reading everything first costs one.
+
+   offsetParent is the same element for all five in the current markup, so its
+   rect and offset sizes are cached by element rather than re-read per pill. */
 function placeLanguageNodes(silhouette) {
   const gap = silhouette
     ? Math.max(LANGUAGE_NODE_GAP_MIN, ((silhouette.rx + silhouette.ry) / 2) * LANGUAGE_NODE_GAP_RATIO)
     : 0;
+
+  const parentMetrics = new Map();
+  const measured = [];
 
   languageNodeButtons.forEach((button) => {
     const key = button.dataset.languageNode;
@@ -1483,6 +1496,25 @@ function placeLanguageNodes(silhouette) {
     const parent = button.offsetParent;
 
     if (!silhouette || angle === undefined || !parent) {
+      measured.push({ button, clear: true });
+      return;
+    }
+
+    let metrics = parentMetrics.get(parent);
+    if (!metrics) {
+      metrics = {
+        rect: parent.getBoundingClientRect(),
+        offsetWidth: parent.offsetWidth,
+        offsetHeight: parent.offsetHeight,
+      };
+      parentMetrics.set(parent, metrics);
+    }
+
+    measured.push({ button, angle, rect: button.getBoundingClientRect(), metrics });
+  });
+
+  measured.forEach(({ button, angle, rect, metrics, clear }) => {
+    if (clear) {
       button.style.left = "";
       button.style.top = "";
       return;
@@ -1498,14 +1530,13 @@ function placeLanguageNodes(silhouette) {
     /* Centre to the pill's own near edge. Treating the rounded rect as a plain
        one puts the corners a few px further out than measured, which only ever
        errs toward more clearance. */
-    const rect = button.getBoundingClientRect();
     const toPillEdge = Math.min(
       Math.abs(ux) > 0.001 ? rect.width / 2 / Math.abs(ux) : Number.POSITIVE_INFINITY,
       Math.abs(uy) > 0.001 ? rect.height / 2 / Math.abs(uy) : Number.POSITIVE_INFINITY
     );
 
     const distance = toOutline + gap + toPillEdge;
-    const parentRect = parent.getBoundingClientRect();
+    const parentRect = metrics.rect;
 
     /* An ancestor of the stage is scaled, so a getBoundingClientRect distance
        is not the number to write into left/top -- those are resolved in the
@@ -1514,8 +1545,8 @@ function placeLanguageNodes(silhouette) {
        out, which is 4-11px at this radius and was the whole residual error
        when this was first measured. Dividing by the rect-to-layout ratio
        recovers local units without needing to know where the scale comes from. */
-    const scaleX = parent.offsetWidth ? parentRect.width / parent.offsetWidth : 1;
-    const scaleY = parent.offsetHeight ? parentRect.height / parent.offsetHeight : 1;
+    const scaleX = metrics.offsetWidth ? parentRect.width / metrics.offsetWidth : 1;
+    const scaleY = metrics.offsetHeight ? parentRect.height / metrics.offsetHeight : 1;
 
     /* .language-node is translate(-50%, -50%), so left/top address its centre.
        The pointer parallax on top of this (--node-depth-*) is left alone; it is
@@ -7515,6 +7546,48 @@ function initJumpLinks() {
   });
 }
 
+/* Resize fires continuously -- dozens a second while a window is dragged, and
+   once per address-bar collapse on a phone -- so the work is split by cost.
+
+   Everything here is cheap or already rAF-coalesced downstream, and is run on
+   a frame so a burst of events collapses into one pass.
+
+   buildWelcomeCanvas is the exception and is deferred to the trailing edge
+   instead. It calls buildWelcomeLayer, which allocates three fresh canvases
+   per layer -- sample, texture and dust, around 22MB together at desktop size
+   -- then runs a full getImageData scan and a nested sampling loop over the
+   result. Doing that per resize event churned tens of megabytes a second; on
+   iOS Safari, where total canvas memory is capped, that kind of churn is how
+   you lose the WebGL context. The canvas is invisible mid-drag anyway. */
+const RESIZE_SETTLE_MS = 150;
+let resizeFrame = 0;
+let welcomeRebuildTimer = 0;
+
+function handleWindowResize() {
+  if (!resizeFrame) {
+    resizeFrame = window.requestAnimationFrame(() => {
+      resizeFrame = 0;
+      syncInputDeviceClass();
+      invalidatePhotoLayoutCaches();
+      syncViewportHeightVar();
+      updateHeroParallax();
+      requestCareerSceneUpdate();
+      requestPhotoSceneUpdate();
+      brainSceneController?.resize();
+      requestLanguageNetworkSync();
+    });
+  }
+
+  if (welcomeRebuildTimer) {
+    window.clearTimeout(welcomeRebuildTimer);
+  }
+  welcomeRebuildTimer = window.setTimeout(() => {
+    welcomeRebuildTimer = 0;
+    buildWelcomeCanvas();
+    requestWelcomeRender();
+  }, RESIZE_SETTLE_MS);
+}
+
 async function initApp() {
   const siteConfig = await loadSiteConfig();
   if (siteConfig.maintenance) {
@@ -7590,18 +7663,7 @@ async function initApp() {
     }
   });
   tiltCard?.addEventListener("mouseleave", resetTilt);
-  window.addEventListener("resize", () => {
-    syncInputDeviceClass();
-    invalidatePhotoLayoutCaches();
-    syncViewportHeightVar();
-    buildWelcomeCanvas();
-    requestWelcomeRender();
-    updateHeroParallax();
-    requestCareerSceneUpdate();
-    requestPhotoSceneUpdate();
-    brainSceneController?.resize();
-    requestLanguageNetworkSync();
-  });
+  window.addEventListener("resize", handleWindowResize, { passive: true });
   window.visualViewport?.addEventListener("resize", handleVisualViewportResize);
   window.addEventListener("scroll", requestWelcomeScatterUpdate, { passive: true });
   window.addEventListener("scroll", requestHeroParallaxUpdate, { passive: true });
