@@ -8,6 +8,12 @@
       name="description"
       content="Eureka Web 正在维护中，请稍后再访问。"
     />
+    <!-- robots.txt disallows /maintenance/, but that only stops crawling, not
+         indexing: a page linked from anywhere else can still be listed, with
+         whatever title the crawler infers. 404.html carries the same line. -->
+    <meta name="robots" content="noindex" />
+    <!-- Without this the browser asks for /favicon.ico and takes a 404. -->
+    <link rel="icon" type="image/png" sizes="32x32" href="../images/icons/favicon-32.png" />
     <link rel="stylesheet" href="./maintenance.css" />
   </head>
   <body>

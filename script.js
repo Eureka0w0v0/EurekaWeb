@@ -305,6 +305,9 @@ const pageTranslations = {
     photoCardLabel: "照片 {n}",
     photoZoomCloseLabel: "关闭放大的照片",
     photoZoomLoadingLabel: "正在加载图片",
+    welcomeSectionLabel: "欢迎",
+    heroSectionLabel: "开场",
+    languageSectionLabel: "编程语言",
     languageToggleLabel: "切换语言",
   },
   en: {
@@ -366,6 +369,9 @@ const pageTranslations = {
     photoCardLabel: "Photo {n}",
     photoZoomCloseLabel: "Close enlarged photo",
     photoZoomLoadingLabel: "Loading image",
+    welcomeSectionLabel: "Welcome",
+    heroSectionLabel: "Intro",
+    languageSectionLabel: "Programming languages",
     languageToggleLabel: "Switch language",
   },
   ja: {
@@ -427,6 +433,9 @@ const pageTranslations = {
     photoCardLabel: "写真 {n}",
     photoZoomCloseLabel: "拡大表示を閉じる",
     photoZoomLoadingLabel: "画像を読み込み中",
+    welcomeSectionLabel: "ようこそ",
+    heroSectionLabel: "イントロ",
+    languageSectionLabel: "プログラミング言語",
     languageToggleLabel: "言語を切り替える",
   },
 };
@@ -7423,6 +7432,21 @@ function initJumpLinks() {
     }
     event.preventDefault();
     target.scrollIntoView({ behavior: shouldReduceMotion() ? "auto" : "smooth", block: "start" });
+
+    /* preventDefault above cancels the browser's own hash navigation, and with
+       it the focus move that normally comes free. Without this the viewport
+       goes to the section while the keyboard stays on the link, so the next
+       Tab continues through the nav instead of into what was just jumped to.
+
+       The skip link is not affected and must stay as it is: it has no
+       data-jump, so it never reaches here and its native jump to #main (which
+       carries tabindex="-1") already lands focus correctly.
+
+       tabindex="-1" makes a non-interactive section focusable without putting
+       it in the Tab order, and styles.css already suppresses the ring on
+       :where([tabindex="-1"]):focus-visible so nothing visible changes. */
+    target.setAttribute("tabindex", "-1");
+    target.focus({ preventScroll: true });
   });
 }
 

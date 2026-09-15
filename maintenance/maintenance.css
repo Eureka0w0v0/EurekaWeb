@@ -18,7 +18,11 @@
 body {
   margin: 0;
   min-height: 100vh;
-  overflow: hidden;
+  /* overflow-x, not overflow. The card is taller than a short landscape
+     window -- a 1200x500 desktop window, an iPad on its side -- and
+     overflow: hidden left the bottom of it unreachable with no way to
+     scroll to it. The phone breakpoint below already had to undo it. */
+  overflow-x: hidden;
   font-family:
     "PingFang SC",
     "PingFang TC",
@@ -130,10 +134,6 @@ h1 {
 }
 
 @media (max-width: 640px) {
-  body {
-    overflow: auto;
-  }
-
   .maintenance-card {
     border-radius: 26px;
   }

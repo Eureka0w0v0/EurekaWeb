@@ -43,7 +43,7 @@
          exactly where it ran at the end of <body> -- and nothing here touches
          the DOM before that: every querySelector is at module top level and
          initApp() is the last statement in the file. -->
-    <script defer src="./script.js?v=3898bb0c"></script>
+    <script defer src="./script.js?v=19fcd927"></script>
   </head>
   <body>
     <a class="skip-link" href="#main" data-i18n="skipToContent">跳到主要内容</a>
@@ -140,21 +140,21 @@
           <button class="language-option" type="button" data-language="zh">
             <span class="language-option-copy">
               <span class="language-option-code">CN</span>
-              <span class="language-option-name">中文</span>
+              <span class="language-option-name" lang="zh-Hans">中文</span>
             </span>
             <span class="language-option-mark" aria-hidden="true"></span>
           </button>
           <button class="language-option" type="button" data-language="en">
             <span class="language-option-copy">
-              <span class="language-option-code">EN</span>
-              <span class="language-option-name">English</span>
+              <span class="language-option-code" lang="en">EN</span>
+              <span class="language-option-name" lang="en">English</span>
             </span>
             <span class="language-option-mark" aria-hidden="true"></span>
           </button>
           <button class="language-option" type="button" data-language="ja">
             <span class="language-option-copy">
-              <span class="language-option-code">JP</span>
-              <span class="language-option-name">日本語</span>
+              <span class="language-option-code" lang="ja">JP</span>
+              <span class="language-option-name" lang="ja">日本語</span>
             </span>
             <span class="language-option-mark" aria-hidden="true"></span>
           </button>
@@ -182,7 +182,7 @@
     <main class="page-shell" id="main" tabindex="-1">
       <section class="first-screen" data-theme-section="welcome">
         <div class="section-shell first-screen-shell">
-          <section class="welcome-section" id="welcome-section">
+          <section class="welcome-section" id="welcome-section" data-i18n-aria="welcomeSectionLabel" aria-label="欢迎">
             <div class="welcome-stage" aria-hidden="true">
               <p class="welcome-kicker" data-i18n="welcomeKicker">FOR YOU</p>
               <div class="welcome-word" id="welcome-word">
@@ -194,7 +194,7 @@
         </div>
       </section>
 
-      <section class="hero" id="hero-section" data-hero-section data-theme-section="hero">
+      <section class="hero" id="hero-section" data-hero-section data-theme-section="hero" data-i18n-aria="heroSectionLabel" aria-label="开场">
         <div class="section-shell hero-shell">
           <div class="hero-copy" data-hero-copy>
             <p class="eyebrow" data-i18n="eyebrow">Eureka Web</p>
@@ -233,7 +233,7 @@
         </div>
       </section>
 
-      <section class="language-section" id="language-section" data-theme-section="language">
+      <section class="language-section" id="language-section" data-theme-section="language" data-i18n-aria="languageSectionLabel" aria-label="编程语言">
         <div class="section-shell language-shell">
           <article class="language-universe" id="language-universe">
             <nav class="language-index" data-i18n-aria="languageIndexLabel" aria-label="语言节点导航">
@@ -305,7 +305,7 @@
         </div>
       </section>
 
-      <section class="career-section" id="career-section" data-theme-section="career">
+      <section class="career-section" id="career-section" data-theme-section="career" data-i18n-aria="careerLayer1Title" aria-label="职业">
         <div class="career-sticky">
           <div class="career-scene" role="group" data-i18n-aria="careerSceneLabel" aria-label="职业">
             <div class="career-orbit career-orbit-a"></div>
@@ -339,7 +339,7 @@
         </div>
       </section>
 
-      <section class="photo-section" id="photo-section" data-theme-section="photo">
+      <section class="photo-section" id="photo-section" data-theme-section="photo" data-i18n-aria="photoTitle" aria-label="照片">
         <div class="photo-sticky">
           <div class="section-shell photo-shell">
             <header class="photo-heading">
