@@ -37,7 +37,7 @@
     <!-- three.js now lives in vendor/ and is imported lazily from there when
          the language section scrolls into view, so there is no third-party
          origin left to warm up. -->
-    <link rel="stylesheet" href="./styles.css?v=349f1e0f" />
+    <link rel="stylesheet" href="./styles.css?v=d42bbf38" />
     <!-- defer, from the head: the parser reaches this immediately instead of
          700 lines later, so a 245KB download starts alongside the stylesheet
          rather than after the document is parsed. Execution timing is
@@ -45,7 +45,7 @@
          exactly where it ran at the end of <body> -- and nothing here touches
          the DOM before that: every querySelector is at module top level and
          initApp() is the last statement in the file. -->
-    <script defer src="./script.js?v=84d66e79"></script>
+    <script defer src="./script.js?v=da62ec56"></script>
   </head>
   <body>
     <a class="skip-link" href="#main" data-i18n="skipToContent">跳到主要内容</a>
@@ -221,7 +221,17 @@
                   <h2>EUREKA</h2>
                   <p data-i18n="contactLine">联系方式:脑电波</p>
                   <p data-i18n="birthdayLine">生日:****.06.14</p>
-                  <p data-i18n="addressLine">住址:火星</p>
+                  <p class="panel-address">
+                    <span data-i18n="addressLine">住址:火星</span>
+                    <!-- Filled by initMarsClock. hidden until the first render so
+                         the line does not reserve an empty gap when JS is off. -->
+                    <span
+                      class="mars-clock"
+                      id="mars-clock"
+                      data-i18n-title="marsClockTitle"
+                      hidden
+                    ></span>
+                  </p>
                 </div>
               </div>
               <div class="panel-grid">

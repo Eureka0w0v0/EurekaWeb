@@ -1530,6 +1530,31 @@ html[lang="zh-CN"] .hero-text {
   color: var(--muted);
 }
 
+/* The address line carries a live clock after it, so it is a flex row that is
+   allowed to wrap: at the narrowest card width the time drops to its own line
+   rather than pushing the address out of the card. */
+.panel-address {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-8);
+}
+
+.mars-clock {
+  /* tabular-nums is the whole reason this is not just a span: without it the
+     digits have different widths, so a ticking clock visibly jitters and drags
+     the text around it a pixel at a time.
+
+     Solid --muted, not a color-mix dilution of it. Diluting to 72% reads 2.94:1
+     on the light theme, and this is 13px text that wants 4.5 -- the same trap
+     three other rules in this file fell into and were pulled back out of. */
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .panel-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
