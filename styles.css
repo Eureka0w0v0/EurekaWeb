@@ -323,10 +323,6 @@ body.intro-active {
   .intro-overlay {
     display: none;
   }
-
-  .welcome-cue {
-    animation: none;
-  }
 }
 
 * {
@@ -4071,31 +4067,6 @@ body.intro-active .section-rail {
 
 .welcome-section {
   position: relative;
-}
-
-/* A hairline that drips from the bottom of the first screen: the only hint
-   that there is more below. Gone by the time the word starts to crumble. */
-.welcome-cue {
-  position: absolute;
-  left: 50%;
-  bottom: clamp(24px, 5vh, 48px);
-  width: 1px;
-  height: 46px;
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--text) 70%, transparent), transparent);
-  transform-origin: top;
-  opacity: calc(0.9 - var(--welcome-progress, 0) * 4);
-  animation: welcomeCue 2.2s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes welcomeCue {
-  0%,
-  100% {
-    transform: translate(-50%, 0) scaleY(0.55);
-  }
-  50% {
-    transform: translate(-50%, 10px) scaleY(1);
-  }
 }
 
 @media (max-width: 900px), (hover: none) and (pointer: coarse) {
