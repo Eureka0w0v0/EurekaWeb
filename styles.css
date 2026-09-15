@@ -2,7 +2,7 @@
    Breakpoints
    ---------------------------------------------------------------------------
    This sheet is desktop-first: base rules describe the wide layout and the
-   max-width blocks narrow it down. The five widths in use, and what each one
+   max-width blocks narrow it down. The widths in use, and what each one
    is actually for:
 
      max-width: 1160px   the language section only — the brain canvas and the
@@ -10,8 +10,12 @@
      max-width:  920px   hero drops from two columns to one
      max-width:  680px   the main phone layout (largest block, 58 rules)
      max-width:  480px   small-phone corrections on top of 680 (52 rules)
-     min-width: 1024px   the only min-width block: topbar spacing and the
-                         hero's 3D perspective, which are desktop-only affordances
+     min-width: 1024px   topbar spacing and the hero's 3D perspective, which
+                         are desktop-only affordances
+     min-width:  781px   the brain's fixed 660px sizing, floored where that
+                         stops fitting inside .language-section
+     max-width:  900px   the section rail only, hidden below this and on any
+                         touch device (paired with the coarse-pointer clause)
 
    Several blocks read `(max-width: 680px), (hover: none) and (pointer: coarse)`.
    That second clause is deliberate: a large touchscreen gets the phone
@@ -593,7 +597,7 @@ body.theme-dark .noise {
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.055), transparent 28%),
     radial-gradient(circle at 85% 18%, rgba(255, 255, 255, 0.028), transparent 24%),
-    linear-gradient(135deg, #050505, #0a0a0a);
+    linear-gradient(135deg, var(--dark-bg), var(--dark-bg-soft));
 }
 
 .theme-wave.is-mobile-wave .theme-wave-core {
@@ -700,7 +704,7 @@ body.theme-dark .noise {
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.055), transparent 28%),
     radial-gradient(circle at 85% 18%, rgba(255, 255, 255, 0.028), transparent 24%),
-    linear-gradient(135deg, #050505, #0a0a0a);
+    linear-gradient(135deg, var(--dark-bg), var(--dark-bg-soft));
 }
 
 .theme-wave.is-mobile-clip-wave .theme-wave-core {
@@ -1100,7 +1104,11 @@ body.theme-syncing .welcome-stage {
 }
 
 #language-switcher .language-option.is-active .language-option-mark {
-  background: var(--primary);
+  /* --primary is 2.99:1 on the light background and this sits on a tinted
+     chip, so it reads lower still; --primary-text clears 1.4.11 both ways.
+     Not the only cue for the selection -- the chip is tinted and aria-pressed
+     is set -- but it is the one that is meant to be seen. */
+  background: var(--primary-text);
   transform: scale(1.08);
   box-shadow:
     0 0 0 5px color-mix(in srgb, var(--primary) 16%, transparent),
@@ -2513,7 +2521,8 @@ html[lang="en"] .career-statement {
   position: relative;
   /* Fallback only: applyPhotoSectionScrollHeight() sets the real height inline
      from PHOTO_INTRO_PHASES (about 2.5 viewports plus padding). This used to
-     say 580vh, a number nothing ever produced. */
+     say 580vh, a number nothing ever produced -- and the phone blocks below
+     went on saying 620vh for the same reason until they were brought here. */
   min-height: 250vh;
   min-height: 250svh;
   min-height: 250dvh;
@@ -2808,7 +2817,7 @@ body.is-photo-zoom-open .topbar {
 .photo-zoom-overlay.is-active:not(.is-image-ready) .photo-zoom-frame {
   width: var(--photo-zoom-loading-width, min(72vw, 720px));
   height: var(--photo-zoom-loading-height, min(72vh, 720px));
-  background: #050505;
+  background: var(--dark-bg);
 }
 
 .photo-zoom-image {
@@ -2961,12 +2970,6 @@ body.theme-dark .photo-card {
     0 24px 58px rgba(0, 0, 0, 0.46);
 }
 
-html.theme-dark .photo-card::before,
-body.theme-dark .photo-card::before,
-html.theme-dark .photo-card::after,
-body.theme-dark .photo-card::after {
-  content: none;
-}
 
 html.theme-dark .photo-section,
 body.theme-dark .photo-section {
@@ -3341,9 +3344,9 @@ body.theme-dark .photo-queue::before {
   .photo-section {
     --photo-queue-final-bottom: clamp(74px, 12vh, 140px);
     --photo-queue-final-y: clamp(28px, 4.5vh, 84px);
-    min-height: 620vh;
-    min-height: 620svh;
-    min-height: 620dvh;
+    min-height: 250vh;
+    min-height: 250svh;
+    min-height: 250dvh;
   }
 
   .photo-sticky {
@@ -3620,9 +3623,9 @@ body.theme-dark .photo-queue::before {
   .photo-section {
     --photo-queue-final-bottom: clamp(66px, 11.5vh, 122px);
     --photo-queue-final-y: clamp(22px, 4vh, 72px);
-    min-height: 620vh;
-    min-height: 620svh;
-    min-height: 620dvh;
+    min-height: 250vh;
+    min-height: 250svh;
+    min-height: 250dvh;
   }
 
   .photo-sticky {
@@ -4103,10 +4106,6 @@ body.intro-active .section-rail {
 .section-rail a:focus-visible .rail-label {
   opacity: 1;
   transform: translate(0, -50%);
-}
-
-.welcome-section {
-  position: relative;
 }
 
 @media (max-width: 900px), (hover: none) and (pointer: coarse) {
