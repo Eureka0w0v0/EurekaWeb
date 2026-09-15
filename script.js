@@ -881,22 +881,46 @@ async function finishThemeTransitionContext() {
   careerThemeRestorePending = false;
 }
 
-async function loadSiteConfig() {
-  try {
-    const response = await fetch("./site-config.json", {
-      cache: "no-store",
-      signal: AbortSignal.timeout?.(4000),
-    });
-    if (!response.ok) {
-      return { maintenance: false };
-    }
+/* initApp awaits this before anything else runs, and site-config.json is
+   no-store on both hosts and in the worker's NEVER_CACHE -- so this is one
+   unavoidable network round trip standing between the visitor and the page,
+   behind an intro overlay that is opaque, fixed, and at z-index 99999. If it
+   never settles, that overlay is the whole site.
 
-    const config = await response.json();
-    return config && typeof config === "object" ? config : { maintenance: false };
-  } catch (error) {
-    console.error("Failed to load site config.", error);
-    return { maintenance: false };
-  }
+   It used to guard that with `signal: AbortSignal.timeout?.(4000)`, which is
+   the failure this is written to avoid: where AbortSignal.timeout is missing
+   the optional call evaluates to undefined, `signal: undefined` is a fetch
+   with no signal at all, and the guard silently becomes no guard on exactly
+   the old browsers most likely to need it. Racing a plain setTimeout needs
+   nothing newer than a promise.
+
+   Losing the race resolves rather than rejects: a config that did not arrive
+   in time means "not in maintenance", the same answer every other failure
+   path here gives. */
+const SITE_CONFIG_TIMEOUT_MS = 3000;
+const SITE_CONFIG_DEFAULT = { maintenance: false };
+
+async function loadSiteConfig() {
+  const request = (async () => {
+    try {
+      const response = await fetch("./site-config.json", { cache: "no-store" });
+      if (!response.ok) {
+        return SITE_CONFIG_DEFAULT;
+      }
+
+      const config = await response.json();
+      return config && typeof config === "object" ? config : SITE_CONFIG_DEFAULT;
+    } catch (error) {
+      console.error("Failed to load site config.", error);
+      return SITE_CONFIG_DEFAULT;
+    }
+  })();
+
+  const deadline = new Promise((resolve) => {
+    setTimeout(() => resolve(SITE_CONFIG_DEFAULT), SITE_CONFIG_TIMEOUT_MS);
+  });
+
+  return Promise.race([request, deadline]);
 }
 
 function syncViewportHeightVar() {

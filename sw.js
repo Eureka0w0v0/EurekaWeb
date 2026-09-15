@@ -84,18 +84,42 @@ function isCacheableAsset(url) {
 }
 
 /* Network-first, because the document is the one file whose URL never changes
-   and therefore the only way a new deploy can announce itself. */
+   and therefore the only way a new deploy can announce itself.
+
+   The timeout is the point of the race. Offline is the easy case -- fetch
+   rejects and the catch runs. The case that hurts is a connection that is up
+   but not moving: a captive portal, a hotel access point, one bar of signal.
+   There fetch neither resolves nor rejects, and without a deadline the
+   navigation hangs on a blank page while a complete copy of the document sits
+   in the cache. Three seconds is longer than any real first byte and shorter
+   than a visitor's patience.
+
+   The cache lookup starts before the race rather than inside the catch, so by
+   the time the deadline fires the answer is usually already in hand instead of
+   adding its own latency on top. */
+const NAVIGATION_TIMEOUT_MS = 3000;
+
 async function networkFirst(request) {
+  const cached = caches.match(request);
+
   try {
-    const response = await fetch(request);
+    const response = await Promise.race([
+      fetch(request),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("navigation timeout")), NAVIGATION_TIMEOUT_MS);
+      }),
+    ]);
     if (response && response.ok) {
       const cache = await caches.open(SHELL_CACHE);
       cache.put(request, response.clone());
     }
     return response;
   } catch (error) {
-    const cached = (await caches.match(request)) || (await caches.match("./index.html"));
-    if (cached) return cached;
+    /* install uses allSettled, so any one of these can be missing without the
+       worker failing to install. Ask for all three rather than assume. */
+    const fallback =
+      (await cached) || (await caches.match("./index.html")) || (await caches.match("./"));
+    if (fallback) return fallback;
     throw error;
   }
 }
