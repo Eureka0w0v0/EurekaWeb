@@ -959,7 +959,7 @@ body.theme-syncing .welcome-stage {
 }
 
 #language-switcher .language-toggle:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 4px;
 }
 
@@ -1118,7 +1118,7 @@ body.theme-syncing .welcome-stage {
 }
 
 .theme-icon-button:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 4px;
 }
 
@@ -1642,7 +1642,7 @@ body.theme-dark .language-universe::after {
   position: relative;
   min-width: 44px;
   padding: var(--space-8) 0;
-  color: color-mix(in srgb, var(--muted) 78%, transparent);
+  color: var(--muted);
   cursor: pointer;
   font-weight: 800;
   font-size: var(--fs-sm);
@@ -1896,11 +1896,10 @@ html[lang="ja"] .language-section-title {
 .node-index {
   position: relative;
   z-index: 1;
-  color: color-mix(in srgb, var(--muted) 82%, transparent);
+  color: var(--muted);
   font-size: var(--fs-2xs);
   font-weight: 800;
   letter-spacing: 0.12em;
-  opacity: 0.82;
 }
 
 .language-node.is-active {
@@ -2208,7 +2207,7 @@ html[lang="ja"] .language-section-title {
 /* The stack takes focus so arrows can step through the cards. Offset the
    ring outward so it clears the rounded card edge instead of sitting on it. */
 .career-card-stack:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 6px;
   border-radius: 28px;
 }
@@ -2416,7 +2415,7 @@ body.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.i
 
 .career-kicker {
   margin: 0 0 var(--space-12);
-  color: color-mix(in srgb, var(--muted) 82%, transparent);
+  color: var(--muted);
   font-size: var(--fs-2xs);
   font-weight: 800;
   letter-spacing: 0.18em;
