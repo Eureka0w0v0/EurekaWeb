@@ -43,7 +43,7 @@
          exactly where it ran at the end of <body> -- and nothing here touches
          the DOM before that: every querySelector is at module top level and
          initApp() is the last statement in the file. -->
-    <script defer src="./script.js?v=9d3da5c8"></script>
+    <script defer src="./script.js?v=0a7390c9"></script>
   </head>
   <body>
     <a class="skip-link" href="#main" data-i18n="skipToContent">跳到主要内容</a>
@@ -66,8 +66,8 @@
     <div class="theme-wave" aria-hidden="true">
       <div class="theme-wave-core"></div>
     </div>
-    <a class="wordmark" href="#welcome-section" data-jump="welcome-section" aria-label="Eureka Web, back to top">EUREKA</a>
-    <nav class="section-rail" aria-label="页面导航">
+    <a class="wordmark" href="#welcome-section" data-jump="welcome-section" data-i18n-aria="wordmarkLabel" aria-label="Eureka Web，回到顶部">EUREKA</a>
+    <nav class="section-rail" data-i18n-aria="sectionRailLabel" aria-label="页面导航">
       <a href="#hero-section" data-rail="hero-section" data-jump="hero-section"><span class="rail-label" data-i18n="railHero">你好</span></a>
       <a href="#language-section" data-rail="language-section" data-jump="language-section"><span class="rail-label" data-i18n="railLanguage">语言</span></a>
       <a href="#career-section" data-rail="career-section" data-jump="career-section"><span class="rail-label" data-i18n="railCareer">职业</span></a>
@@ -236,7 +236,7 @@
       <section class="language-section" id="language-section" data-theme-section="language">
         <div class="section-shell language-shell">
           <article class="language-universe" id="language-universe">
-            <nav class="language-index" aria-label="Language node navigation">
+            <nav class="language-index" data-i18n-aria="languageIndexLabel" aria-label="语言节点导航">
               <button class="language-index-item" type="button" data-language-node="py">01</button>
               <button class="language-index-item" type="button" data-language-node="html">02</button>
               <button class="language-index-item is-active" type="button" data-language-node="js">03</button>
@@ -265,7 +265,7 @@
                 <div class="brain-three-mount" id="brain-three-mount"></div>
               </div>
 
-              <div class="language-node-field" role="group" aria-label="Programming languages">
+              <div class="language-node-field" role="group" data-i18n-aria="languageFieldLabel" aria-label="编程语言">
                 <button class="language-node node-cpp" type="button" data-language-node="cpp">
                   <span class="node-index">05</span>
                   <span class="node-label">C++</span>
@@ -307,7 +307,7 @@
 
       <section class="career-section" id="career-section" data-theme-section="career">
         <div class="career-sticky">
-          <div class="career-scene" role="group" aria-label="职业">
+          <div class="career-scene" role="group" data-i18n-aria="careerSceneLabel" aria-label="职业">
             <div class="career-orbit career-orbit-a"></div>
             <div class="career-orbit career-orbit-b"></div>
 
@@ -315,7 +315,7 @@
               <img class="career-ufo-img" src="./images/icons/ufo.webp?v=90e7ed4e" loading="lazy" decoding="async" alt="" />
             </div>
 
-            <div class="career-card-stack" data-active-layer="1" data-direction="forward" role="group" tabindex="0" aria-label="职业卡片，用方向键切换">
+            <div class="career-card-stack" data-active-layer="1" data-direction="forward" role="group" tabindex="0" data-i18n-aria="careerStackLabel" aria-label="职业卡片，用方向键切换">
               <article class="career-card-layer layer-card-scroll career-card-layer-1" data-career-layer="1">
                 <p class="career-kicker" data-i18n="careerLayer1Kicker">第 01 页</p>
                 <h2 class="career-title-primary" data-i18n="careerLayer1Title">职业</h2>
@@ -347,8 +347,8 @@
               <h2 class="photo-title" data-i18n="photoTitle">照片</h2>
             </header>
 
-            <div class="photo-stage" role="group" aria-label="照片卡片掉落动画">
-              <article class="photo-card photo-floating-card" data-photo-insert="1" aria-label="即将插入的照片 1">
+            <div class="photo-stage" role="group" data-i18n-aria="photoStageLabel" aria-label="照片卡片掉落动画">
+              <article class="photo-card photo-floating-card" data-photo-insert="1" data-i18n-aria="photoInsertLabel" aria-label="即将插入的照片 1">
                 <img
                   class="photo-card-image"
                   src="./images/photo-preview/353ada2ec7798bf29b0ea234c88fc0c3.webp?v=be42a9f4"
@@ -364,8 +364,8 @@
                 <span class="photo-card-shine" aria-hidden="true"></span>
               </article>
 
-              <div class="photo-queue" role="group" aria-label="照片卡片队列">
-                <article class="photo-card photo-queue-card" data-photo-base="1" aria-label="照片 1">
+              <div class="photo-queue" role="group" data-i18n-aria="photoQueueLabel" aria-label="照片卡片队列">
+                <article class="photo-card photo-queue-card" data-photo-base="1" data-i18n-aria="photoCardLabel" aria-label="照片 1">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/01362e483ec3218bab9580a317f7f619.webp?v=bd631fe0"
@@ -379,7 +379,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="2" aria-label="照片 2">
+                <article class="photo-card photo-queue-card" data-photo-base="2" data-i18n-aria="photoCardLabel" aria-label="照片 2">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_5077.webp?v=0679f972"
@@ -393,7 +393,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="3" aria-label="照片 3">
+                <article class="photo-card photo-queue-card" data-photo-base="3" data-i18n-aria="photoCardLabel" aria-label="照片 3">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_5256.webp?v=46830c69"
@@ -407,7 +407,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="4" aria-label="照片 4">
+                <article class="photo-card photo-queue-card" data-photo-base="4" data-i18n-aria="photoCardLabel" aria-label="照片 4">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_9638.webp?v=86f0f91f"
@@ -421,7 +421,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="5" aria-label="照片 5">
+                <article class="photo-card photo-queue-card" data-photo-base="5" data-i18n-aria="photoCardLabel" aria-label="照片 5">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_1389.webp?v=b0fb592c"
@@ -435,7 +435,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="6" aria-label="照片 6">
+                <article class="photo-card photo-queue-card" data-photo-base="6" data-i18n-aria="photoCardLabel" aria-label="照片 6">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_0518.webp?v=f5d079c5"
@@ -449,7 +449,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="7" aria-label="照片 7">
+                <article class="photo-card photo-queue-card" data-photo-base="7" data-i18n-aria="photoCardLabel" aria-label="照片 7">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_1483.webp?v=a1d7b053"
@@ -463,7 +463,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="8" aria-label="照片 8">
+                <article class="photo-card photo-queue-card" data-photo-base="8" data-i18n-aria="photoCardLabel" aria-label="照片 8">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_3863.webp?v=ae3ba48d"
@@ -477,7 +477,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="9" aria-label="照片 9">
+                <article class="photo-card photo-queue-card" data-photo-base="9" data-i18n-aria="photoCardLabel" aria-label="照片 9">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_3109.webp?v=360f8cc8"
@@ -491,7 +491,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="10" aria-label="照片 10">
+                <article class="photo-card photo-queue-card" data-photo-base="10" data-i18n-aria="photoCardLabel" aria-label="照片 10">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_7125.webp?v=30cb7678"
@@ -505,7 +505,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="11" aria-label="照片 11">
+                <article class="photo-card photo-queue-card" data-photo-base="11" data-i18n-aria="photoCardLabel" aria-label="照片 11">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_0209.webp?v=a7cb3011"
@@ -519,7 +519,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="12" aria-label="照片 12">
+                <article class="photo-card photo-queue-card" data-photo-base="12" data-i18n-aria="photoCardLabel" aria-label="照片 12">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_3865.webp?v=26606923"
@@ -533,7 +533,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="13" aria-label="照片 13">
+                <article class="photo-card photo-queue-card" data-photo-base="13" data-i18n-aria="photoCardLabel" aria-label="照片 13">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_4994.webp?v=0494ee2a"
@@ -547,7 +547,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="14" aria-label="照片 14">
+                <article class="photo-card photo-queue-card" data-photo-base="14" data-i18n-aria="photoCardLabel" aria-label="照片 14">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_4996.webp?v=68f5e94a"
@@ -561,7 +561,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="15" aria-label="照片 15">
+                <article class="photo-card photo-queue-card" data-photo-base="15" data-i18n-aria="photoCardLabel" aria-label="照片 15">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_5174.webp?v=7c13c10e"
@@ -575,7 +575,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="16" aria-label="照片 16">
+                <article class="photo-card photo-queue-card" data-photo-base="16" data-i18n-aria="photoCardLabel" aria-label="照片 16">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_7265.webp?v=21804139"
@@ -589,7 +589,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="17" aria-label="照片 17">
+                <article class="photo-card photo-queue-card" data-photo-base="17" data-i18n-aria="photoCardLabel" aria-label="照片 17">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_6723.webp?v=aaae5482"
@@ -603,7 +603,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="18" aria-label="照片 18">
+                <article class="photo-card photo-queue-card" data-photo-base="18" data-i18n-aria="photoCardLabel" aria-label="照片 18">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_3735.webp?v=ad7cd722"
@@ -617,7 +617,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="19" aria-label="照片 19">
+                <article class="photo-card photo-queue-card" data-photo-base="19" data-i18n-aria="photoCardLabel" aria-label="照片 19">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_3872.webp?v=c538700b"
@@ -631,7 +631,7 @@
                   draggable="false"
                 />
                 </article>
-                <article class="photo-card photo-queue-card" data-photo-base="20" aria-label="照片 20">
+                <article class="photo-card photo-queue-card" data-photo-base="20" data-i18n-aria="photoCardLabel" aria-label="照片 20">
                   <img
                   class="photo-card-image"
                   src="./images/photo-preview/IMG_5187.webp?v=90709030"
@@ -670,10 +670,10 @@
       aria-label="放大的照片"
     >
       <div class="photo-zoom-shell">
-        <button class="photo-zoom-close" id="photo-zoom-close" type="button" aria-label="Close enlarged photo"></button>
+        <button class="photo-zoom-close" id="photo-zoom-close" type="button" data-i18n-aria="photoZoomCloseLabel" aria-label="关闭放大的照片"></button>
         <div class="photo-zoom-frame">
           <img class="photo-zoom-image" id="photo-zoom-image" alt="" decoding="async" draggable="false" />
-          <div class="photo-zoom-loading" id="photo-zoom-loading" role="status" aria-label="Loading image"></div>
+          <div class="photo-zoom-loading" id="photo-zoom-loading" role="status" data-i18n-aria="photoZoomLoadingLabel" aria-label="正在加载图片"></div>
         </div>
       </div>
     </div>

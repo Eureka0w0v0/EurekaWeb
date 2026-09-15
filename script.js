@@ -53,6 +53,10 @@ let photoZoomPreloadLastActiveSlot = 0;
 const themeWave = document.querySelector(".theme-wave");
 const themeWaveCore = document.querySelector(".theme-wave-core");
 const i18nNodes = document.querySelectorAll("[data-i18n]");
+/* Queried live rather than cached: the photo carousel clones cards at runtime,
+   and a clone carrying data-i18n-aria has to be picked up by the next language
+   switch the same as the markup that shipped with the page. */
+const i18nAriaSelector = "[data-i18n-aria]";
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
 /* The envelope the shell is sculpted from, in local units before the group's
    scale: the surface starts as this ellipsoid and is pushed into a brain from
@@ -290,6 +294,18 @@ const pageTranslations = {
     careerLayer3Text: "请你在怀疑我的职业之前先想一下你在生活中有亲眼见到过任何外星人吗？",
     themeToggleLabel: "切换浅色或深色模式",
     photoZoomLabel: "放大的照片",
+    wordmarkLabel: "Eureka Web，回到顶部",
+    sectionRailLabel: "页面导航",
+    languageIndexLabel: "语言节点导航",
+    languageFieldLabel: "编程语言",
+    careerSceneLabel: "职业",
+    careerStackLabel: "职业卡片，用方向键切换",
+    photoStageLabel: "照片卡片掉落动画",
+    photoQueueLabel: "照片卡片队列",
+    photoInsertLabel: "即将插入的照片 {n}",
+    photoCardLabel: "照片 {n}",
+    photoZoomCloseLabel: "关闭放大的照片",
+    photoZoomLoadingLabel: "正在加载图片",
     languageToggleLabel: "切换语言",
   },
   en: {
@@ -339,6 +355,18 @@ const pageTranslations = {
     careerLayer3Text: "Before you doubt my job, ask yourself: have you ever seen an alien with your own eyes in everyday life?",
     themeToggleLabel: "Switch between light and dark mode",
     photoZoomLabel: "Enlarged photo",
+    wordmarkLabel: "Eureka Web, back to top",
+    sectionRailLabel: "Section navigation",
+    languageIndexLabel: "Language node navigation",
+    languageFieldLabel: "Programming languages",
+    careerSceneLabel: "Career",
+    careerStackLabel: "Career cards, use the arrow keys to switch",
+    photoStageLabel: "Photo card drop animation",
+    photoQueueLabel: "Photo card queue",
+    photoInsertLabel: "Incoming photo {n}",
+    photoCardLabel: "Photo {n}",
+    photoZoomCloseLabel: "Close enlarged photo",
+    photoZoomLoadingLabel: "Loading image",
     languageToggleLabel: "Switch language",
   },
   ja: {
@@ -388,6 +416,18 @@ const pageTranslations = {
     careerLayer3Text: "私の職業を疑う前に、日常生活で宇宙人を自分の目で見たことがあるか、先に考えてみてください。",
     themeToggleLabel: "ライトモードとダークモードを切り替える",
     photoZoomLabel: "拡大した写真",
+    wordmarkLabel: "Eureka Web、トップへ戻る",
+    sectionRailLabel: "セクションナビゲーション",
+    languageIndexLabel: "言語ノードナビゲーション",
+    languageFieldLabel: "プログラミング言語",
+    careerSceneLabel: "職業",
+    careerStackLabel: "職業カード。矢印キーで切り替え",
+    photoStageLabel: "写真カードの落下アニメーション",
+    photoQueueLabel: "写真カードのキュー",
+    photoInsertLabel: "挿入予定の写真 {n}",
+    photoCardLabel: "写真 {n}",
+    photoZoomCloseLabel: "拡大表示を閉じる",
+    photoZoomLoadingLabel: "画像を読み込み中",
     languageToggleLabel: "言語を切り替える",
   },
 };
@@ -1125,11 +1165,35 @@ function syncLanguageChrome(copy, language) {
   themeToggle?.setAttribute("aria-label", copy.themeToggleLabel);
   themeToggle?.setAttribute("title", copy.themeToggleLabel);
   photoZoomOverlay?.setAttribute("aria-label", copy.photoZoomLabel);
+  applyAriaLabels(copy);
 
   languageOptions.forEach((option) => {
     const isActive = option.dataset.language === language;
     option.classList.toggle("is-active", isActive);
     option.setAttribute("aria-pressed", `${isActive}`);
+  });
+}
+
+/* aria-label is the one piece of copy that cannot live in textContent, so it
+   was the one piece that never got translated -- eleven labels frozen in
+   whichever language they were written in, half Chinese and half English, on a
+   page with a three-way switcher.
+
+   The photo cards take a count rather than twenty strings per language: the
+   number is already on the element, as data-photo-base on the queue, as
+   data-photo-insert on the incoming card, and as data-photo-clone-source on
+   the copies the carousel makes. */
+function applyAriaLabels(copy) {
+  document.querySelectorAll(i18nAriaSelector).forEach((node) => {
+    const key = node.dataset.i18nAria;
+    if (!key || !(key in copy)) {
+      return;
+    }
+
+    const value = copy[key];
+    const index =
+      node.dataset.photoBase || node.dataset.photoInsert || node.dataset.photoCloneSource;
+    node.setAttribute("aria-label", index ? value.replace("{n}", index) : value);
   });
 }
 
@@ -5416,6 +5480,8 @@ function updatePhotoScene(timestamp = window.performance.now()) {
         selectedContentCard?.dataset.photoInsert;
       if (sourceId) {
         cardData.push(["photoCloneSource", sourceId]);
+        /* So a language switch while a clone is on screen relabels it too. */
+        cardData.push(["i18nAria", "photoCardLabel"]);
       }
       const sourceLabel = selectedContent?.label || selectedContentCard?.getAttribute("aria-label");
       if (sourceLabel) {
