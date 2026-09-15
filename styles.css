@@ -57,7 +57,7 @@
   --welcome-text: #000000;
   --topbar-gap: 12px;
   --topbar-top: max(12px, calc(env(safe-area-inset-top, 0px) + 6px));
-  --topbar-right: clamp(10px, 2vw, 24px);
+  --topbar-right: max(clamp(10px, 2vw, 24px), env(safe-area-inset-right, 0px));
   --topbar-button-size: 56px;
   --focus-ring: var(--primary-text);
 
@@ -1276,7 +1276,7 @@ body.theme-dark .theme-icon-moon {
   :root {
     --topbar-gap: 14px;
     --topbar-top: max(18px, calc(env(safe-area-inset-top, 0px) + 10px));
-    --topbar-right: max(16px, calc((100vw - min(1180px, calc(100vw - 32px))) / 2 - 192px));
+    --topbar-right: max(16px, calc((100vw - min(1180px, calc(100vw - 32px))) / 2 - 192px), env(safe-area-inset-right, 0px));
   }
 
   .hero-visual {
@@ -2751,7 +2751,8 @@ html[lang="en"] .career-statement {
   z-index: 1900;
   display: grid;
   place-items: center;
-  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  padding: max(18px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px))
+    max(18px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
   background: color-mix(in srgb, var(--chrome-bg) 78%, transparent);
   opacity: 0;
   visibility: hidden;
@@ -3118,7 +3119,7 @@ body.theme-dark .photo-queue::before {
   :root {
     --topbar-gap: 10px;
     --topbar-top: max(10px, calc(env(safe-area-inset-top, 0px) + 4px));
-    --topbar-right: 12px;
+    --topbar-right: max(12px, env(safe-area-inset-right, 0px));
     --topbar-button-size: 48px;
   }
 
@@ -3438,7 +3439,7 @@ body.theme-dark .photo-queue::before {
   :root {
     --topbar-gap: 8px;
     --topbar-top: max(8px, calc(env(safe-area-inset-top, 0px) + 2px));
-    --topbar-right: 10px;
+    --topbar-right: max(10px, env(safe-area-inset-right, 0px));
     --topbar-button-size: 44px;
   }
 
@@ -3881,7 +3882,25 @@ body.theme-dark .photo-queue::before {
   }
 }
 
-@media (hover: hover) and (pointer: fine) {
+/* Both of these need the width floor, and both need to exist.
+   (hover: hover) and (pointer: fine) is the media query; is-desktop-input is
+   the class script.js sets from navigator.maxTouchPoints === 0. A touchscreen
+   laptop matches the query but not the class, so neither is redundant.
+
+   The floor is 781px because that is where this layout stops fitting, not
+   because of any other breakpoint: 660px of brain shifted 59px left by
+   --brain-wrap-offset-x needs about 780px of viewport before its left edge
+   passes .language-section's, and the section is overflow: clip, so past that
+   point the brain is silently cropped rather than overflowing visibly.
+   Measured at 20px steps -- 780px sits exactly on the edge, 760px is 9px over.
+
+   Below the floor the base .brain-wrap rule takes back over with
+   clamp(540px, 54vw, 720px) and no offset, which centres and fits; below
+   680px the phone rule's min(500px, 98vw) takes over from that. It was these
+   two blocks being unbounded that broke it -- they are later in the file than
+   the phone rule and carry min-width: 660px, so at 600px wide with a mouse
+   they won and forced a 660px brain into a 600px window. */
+@media (hover: hover) and (pointer: fine) and (min-width: 781px) {
   .brain-wrap {
     width: 660px;
     min-width: 660px;
@@ -3889,21 +3908,23 @@ body.theme-dark .photo-queue::before {
   }
 }
 
-html.is-desktop-input .brain-wrap {
-  width: 660px;
-  min-width: 660px;
-  max-width: 660px;
-  --brain-wrap-offset-x: -59px;
-}
+@media (min-width: 781px) {
+  html.is-desktop-input .brain-wrap {
+    width: 660px;
+    min-width: 660px;
+    max-width: 660px;
+    --brain-wrap-offset-x: -59px;
+  }
 
-html.is-desktop-input .brain-three-mount {
-  width: 766px;
-  min-width: 766px;
-  max-width: 766px;
-  height: 403px;
-  min-height: 403px;
-  max-height: 403px;
-  justify-self: center;
+  html.is-desktop-input .brain-three-mount {
+    width: 766px;
+    min-width: 766px;
+    max-width: 766px;
+    height: 403px;
+    min-height: 403px;
+    max-height: 403px;
+    justify-self: center;
+  }
 }
 
 /* ───────────────────────────────────────────────────────────
@@ -3980,7 +4001,7 @@ body.theme-dark .photo-card-hover-glow {
 .wordmark {
   position: fixed;
   top: calc(var(--topbar-top) + 11px);
-  left: 28px;
+  left: max(28px, env(safe-area-inset-left, 0px));
   z-index: 24;
   display: inline-flex;
   align-items: center;
