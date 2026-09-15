@@ -18,7 +18,14 @@
 
 const VERSION = "2026-09-15-2";
 const SHELL_CACHE = `eureka-shell-${VERSION}`;
-const ASSET_CACHE = `eureka-assets-${VERSION}`;
+
+/* Deliberately not versioned. Every asset URL carries a ?v= content hash, so
+   an entry in here is either still referenced or unreachable -- which is
+   exactly the guarantee cacheFirst already relies on. Tying the name to
+   VERSION meant a one-line CSS change emptied it: 6.1MB of images/full, 2.9MB
+   of images/medium and 744KB of vendor/, re-downloaded by every returning
+   visitor, to replace bytes that were still perfectly valid. */
+const ASSET_CACHE = "eureka-assets";
 
 /* Only the documents needed to paint something useful. The heavy assets --
    images and the vendored three.js -- are deliberately left to runtime
@@ -57,6 +64,9 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
+            /* Only shells are swept by version. The old eureka-assets-* caches
+               from when this was versioned get collected by the same rule,
+               once, and then it stops finding anything. */
             .filter((key) => key.startsWith("eureka-") && key !== SHELL_CACHE && key !== ASSET_CACHE)
             .map((key) => caches.delete(key))
         )
