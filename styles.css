@@ -178,6 +178,12 @@ body.theme-dark section {
 }
 
 .intro-overlay {
+  --intro-curtain: #101012;
+  /* Seam rise across the full width, per side. 2.6vw each way is a 5.2vw
+     rise over 100vw: atan(0.052) = 2.98deg, which is what .intro-seam rotates
+     by so the hairline and the cut are the same line. */
+  --intro-seam-drop: 2.6vw;
+  --intro-part: 820ms;
   position: fixed;
   inset: 0;
   z-index: 99999;
@@ -189,7 +195,7 @@ body.theme-dark section {
 .intro-overlay.is-done {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 380ms ease;
+  transition: opacity 260ms ease;
 }
 
 html.intro-active,
@@ -197,6 +203,78 @@ body.intro-active {
   overflow: hidden !important;
 }
 
+/* The curtain: two panels meeting on one tilted seam. The polygons overlap by
+   3px so no sliver of page shows through the seam before the cut -- at 1px the
+   anti-aliased fringes of the two diagonal edges left a dotted line of page
+   visible on high-DPR narrow viewports -- and the inset overshoot does the same
+   at the outer edges. Always dark whatever the
+   theme -- both kicker colours read on it, and it is the colour the old bars
+   were, so the first painted frame is unchanged. */
+.intro-panel {
+  position: absolute;
+  inset: -2px;
+  background: var(--intro-curtain);
+  will-change: transform;
+  transition: transform var(--intro-part) cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.intro-panel.is-top {
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(50% + var(--intro-seam-drop) + 3px),
+    0 calc(50% - var(--intro-seam-drop) + 3px)
+  );
+}
+
+.intro-panel.is-bottom {
+  clip-path: polygon(
+    0 calc(50% - var(--intro-seam-drop)),
+    100% calc(50% + var(--intro-seam-drop)),
+    100% 100%,
+    0 100%
+  );
+}
+
+.intro-overlay.is-parting .intro-panel.is-top {
+  transform: translateY(-104%);
+}
+
+.intro-overlay.is-parting .intro-panel.is-bottom {
+  transform: translateY(104%);
+}
+
+/* The blade: drawn left to right along the seam just before the panels part,
+   gone before they have finished. */
+.intro-seam {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 102vw;
+  height: 1px;
+  margin-left: -51vw;
+  background: rgba(255, 255, 255, 0.55);
+  transform-origin: 0 50%;
+  transform: rotate(2.98deg) scaleX(0);
+  z-index: 1;
+  will-change: transform, opacity;
+}
+
+.intro-seam.is-drawn {
+  transition: transform 300ms cubic-bezier(0.65, 0, 0.35, 1);
+  transform: rotate(2.98deg) scaleX(1);
+}
+
+.intro-overlay.is-parting .intro-seam {
+  transition: opacity 240ms ease;
+  opacity: 0;
+}
+
+/* The kicker, rising through the curtain. It is a clone of the real kicker
+   placed on the real kicker's rect, so it carries that element's font, colour
+   and tracking by class, and there is nothing to hand off when the overlay
+   goes: the same letters are already underneath. Centred instead when the
+   page did not load at the top and the real kicker is off screen. */
 .intro-text {
   position: absolute;
   inset: 0;
@@ -204,121 +282,50 @@ body.intro-active {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.08em;
-  font-family: inherit;
-  font-size: clamp(0.78rem, 1.2vw, 0.95rem);
-  font-weight: 600;
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.88);
   pointer-events: none;
+}
+
+.intro-text.is-anchored {
+  display: block;
+}
+
+.intro-kicker {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.intro-text.is-anchored .intro-kicker {
+  position: absolute;
 }
 
 .intro-letter {
   display: inline-block;
   opacity: 0;
-  transform: translate3d(var(--from-x, 0px), var(--from-y, 0px), 0) rotate(var(--from-r, 0deg));
-  will-change: transform, opacity;
+  transform: translateY(0.55em);
+  filter: blur(6px);
+  will-change: transform, opacity, filter;
 }
 
-.intro-text.is-gathering .intro-letter {
-  animation: introGather 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+.intro-text.is-rising .intro-letter {
+  animation: introRise 640ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
   animation-delay: var(--delay, 0ms);
 }
 
-.intro-text.is-scattering .intro-letter {
-  animation: introScatter 500ms cubic-bezier(0.4, 0, 1, 1) forwards;
-  animation-delay: var(--scatter-delay, 0ms);
-}
-
-@keyframes introGather {
-  0% {
-    opacity: 0;
-    transform: translate3d(var(--from-x), var(--from-y), 0) rotate(var(--from-r));
-  }
-  50% { opacity: 0.7; }
-  100% {
+@keyframes introRise {
+  to {
     opacity: 1;
-    transform: translate3d(0, 0, 0) rotate(0deg);
-  }
-}
-
-@keyframes introScatter {
-  0% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) rotate(0deg);
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(var(--to-x), var(--to-y), 0) rotate(var(--to-r));
-  }
-}
-
-.intro-top,
-.intro-bottom {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: 50%;
-  display: flex;
-  flex-direction: row;
-  z-index: 1;
-  overflow: visible;
-}
-
-.intro-top {
-  top: 0;
-}
-
-.intro-bottom {
-  bottom: 0;
-}
-
-.intro-bar {
-  flex: 1 0 0%;
-  height: 100%;
-  background: #111;
-  will-change: transform;
-}
-
-.intro-top.is-revealing .intro-bar {
-  animation: introBarUp 900ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
-  animation-delay: var(--bar-delay, 0ms);
-}
-
-.intro-bottom.is-revealing .intro-bar {
-  animation: introBarDown 900ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
-  animation-delay: var(--bar-delay, 0ms);
-}
-
-@keyframes introBarUp {
-  to { transform: translateY(-105%); }
-}
-
-@keyframes introBarDown {
-  to { transform: translateY(105%); }
-}
-
-@media (max-width: 680px), (hover: none) and (pointer: coarse) {
-  .intro-top,
-  .intro-bottom {
-    height: 50dvh;
-    height: calc(var(--app-height, 100dvh) / 2);
-  }
-
-  .intro-text {
-    font-size: clamp(0.72rem, 3.2vw, 0.9rem);
-  }
-
-  .intro-top.is-revealing .intro-bar,
-  .intro-bottom.is-revealing .intro-bar {
-    animation-duration: 720ms;
+    transform: translateY(0);
+    filter: blur(0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .intro-overlay {
     display: none;
+  }
+
+  .welcome-cue {
+    animation: none;
   }
 }
 
@@ -2165,6 +2172,32 @@ html[lang="ja"] .language-section-title {
   overscroll-behavior: contain;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* The stack owns the vertical gesture so a swipe steps a card instead of
+   scrolling -- but only between the ends. On the first card a downward pan
+   is handed back to the browser, on the last an upward one, so the page can
+   leave the section in that direction while the other direction still steps.
+   touch-action is decided at touch start, so this has to be set by state
+   ahead of the gesture; and the contain above would keep even a native pan
+   from chaining out to the page, so it is lifted at the ends as well. Before
+   this, a phone visitor whose thumb landed on the last card could not scroll
+   past it at all. */
+.career-card-stack.is-at-first {
+  touch-action: pan-down;
+}
+
+.career-card-stack.is-at-last {
+  touch-action: pan-up;
+}
+
+.career-card-stack.is-at-first,
+.career-card-stack.is-at-last,
+.career-card-stack.is-at-first .career-card-layer,
+.career-card-stack.is-at-last .career-card-layer,
+.career-card-stack.is-at-first .layer-card-scroll,
+.career-card-stack.is-at-last .layer-card-scroll {
+  overscroll-behavior: auto;
   transform:
     translate3d(-50%, calc(-50% + var(--career-card-y) * 1px), 0)
     scale(var(--career-card-scale));
@@ -2242,7 +2275,14 @@ body.theme-dark .career-card-stack[data-active-layer="3"]::before {
 .layer-card-scroll {
   max-height: calc(var(--career-card-height) + 4px);
   overflow-y: auto;
-  overscroll-behavior: contain;
+  /* auto, not contain. The card is a scroll container even where it has
+     nothing to scroll (phones set it to overflow hidden), and contain stops
+     the browser chaining a touch or wheel that starts on it out to the page.
+     The stack's own handlers decide when to hold the page -- they cancel the
+     event when they step a card -- so at either end, when they let the event
+     through, the page has to be allowed to move. With contain it was not,
+     and a phone visitor whose thumb landed on the last card was stuck there. */
+  overscroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -2450,9 +2490,12 @@ html[lang="en"] .career-statement {
   --photo-queue-final-bottom: clamp(78px, 12vh, 154px);
   --photo-queue-final-y: clamp(20px, 4vh, 76px);
   position: relative;
-  min-height: 580vh;
-  min-height: 580svh;
-  min-height: 580dvh;
+  /* Fallback only: applyPhotoSectionScrollHeight() sets the real height inline
+     from PHOTO_INTRO_PHASES (about 2.5 viewports plus padding). This used to
+     say 580vh, a number nothing ever produced. */
+  min-height: 250vh;
+  min-height: 250svh;
+  min-height: 250dvh;
   color: var(--text);
   overflow: visible;
   background: transparent;
@@ -3903,4 +3946,222 @@ body.theme-dark .photo-card-hover-glow {
     rgba(255, 255, 255, 0.12),
     transparent 60%
   );
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Site chrome: wordmark, section rail, welcome cue
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Both appear as the welcome word crumbles: --welcome-progress is 0 on the
+   first screen and 1 everywhere below it, so they are invisible over the
+   opening and fade in with the first scroll without any script. */
+.wordmark {
+  position: fixed;
+  top: calc(var(--topbar-top) + 11px);
+  left: 28px;
+  z-index: 24;
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-strong) 62%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--primary-text);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: 0.32em;
+  text-decoration: none;
+  opacity: calc(var(--welcome-progress, 0) * 1.6);
+  transition: color 260ms ease, opacity 200ms ease;
+}
+
+.wordmark:hover,
+.wordmark:focus-visible {
+  color: var(--text);
+}
+
+.section-rail {
+  position: fixed;
+  right: 22px;
+  top: 50%;
+  z-index: 24;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transform: translateY(-50%);
+  opacity: calc(var(--welcome-progress, 0) * 1.6);
+  transition: opacity 200ms ease;
+}
+
+body.intro-active .wordmark,
+body.intro-active .section-rail {
+  opacity: 0;
+}
+
+.section-rail a {
+  position: relative;
+  display: block;
+  width: 22px;
+  height: 22px;
+  text-decoration: none;
+}
+
+.section-rail a::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--text) 45%, transparent);
+  transform: translate(-50%, -50%);
+  transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
+}
+
+.section-rail a:hover::before,
+.section-rail a:focus-visible::before,
+.section-rail a.is-active::before {
+  border-color: var(--primary-text);
+  background: var(--primary-text);
+}
+
+.section-rail a.is-active::before {
+  transform: translate(-50%, -50%) scale(1.3);
+}
+
+.rail-label {
+  position: absolute;
+  right: 30px;
+  top: 50%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 82%, transparent);
+  color: var(--text);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(6px, -50%);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.section-rail a:hover .rail-label,
+.section-rail a:focus-visible .rail-label {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+.welcome-section {
+  position: relative;
+}
+
+/* A hairline that drips from the bottom of the first screen: the only hint
+   that there is more below. Gone by the time the word starts to crumble. */
+.welcome-cue {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(24px, 5vh, 48px);
+  width: 1px;
+  height: 46px;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--text) 70%, transparent), transparent);
+  transform-origin: top;
+  opacity: calc(0.9 - var(--welcome-progress, 0) * 4);
+  animation: welcomeCue 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes welcomeCue {
+  0%,
+  100% {
+    transform: translate(-50%, 0) scaleY(0.55);
+  }
+  50% {
+    transform: translate(-50%, 10px) scaleY(1);
+  }
+}
+
+/* ═══ Footer ═══ */
+.site-footer {
+  position: relative;
+  z-index: 3;
+  padding: clamp(56px, 9vh, 96px) 0 40px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  background: var(--bg);
+}
+
+.footer-shell {
+  display: grid;
+  gap: var(--space-24);
+}
+
+.footer-line {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.4rem, 2.6vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footer-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+
+.footer-links a:hover,
+.footer-links a:focus-visible {
+  border-color: var(--primary-text);
+  color: var(--primary-text);
+}
+
+.footer-meta {
+  margin: 0;
+  color: color-mix(in srgb, var(--text) 48%, transparent);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.06em;
+}
+
+@media (max-width: 900px), (hover: none) and (pointer: coarse) {
+  .section-rail {
+    display: none;
+  }
+}
+
+@media (max-width: 680px) {
+  /* The two round buttons already anchor the top on a phone; a third pill on
+     the left sat on top of whatever scrolled under it. */
+  .wordmark {
+    display: none;
+  }
+
 }

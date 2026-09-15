@@ -54,13 +54,15 @@ const themeWave = document.querySelector(".theme-wave");
 const themeWaveCore = document.querySelector(".theme-wave-core");
 const i18nNodes = document.querySelectorAll("[data-i18n]");
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-/* The wireframe shell's ellipsoid, in local units before the group's scale.
-   These are shared on purpose: the connector lines from the language pills are
-   computed from the same numbers that build the mesh, so reshaping the brain
-   moves the line endpoints with it. They used to be independent -- the shell
-   was reshaped on 2026-08-02 and the connector anchors had been frozen since
-   2026-05-03, which left the Python line starting deep inside the sphere and
-   three of the others as stubs that never reached it. */
+/* The envelope the shell is sculpted from, in local units before the group's
+   scale: the surface starts as this ellipsoid and is pushed into a brain from
+   there (see shellPoint), so these set its overall length, height and width.
+   The connector lines from the language pills no longer read these numbers --
+   they are measured off the built vertices as projected each frame, so any
+   reshaping moves the endpoints with it by construction. (They used to be
+   independent: the shell was reshaped on 2026-08-02 and the anchors had been
+   frozen since 2026-05-03, which left the Python line starting deep inside
+   the sphere and three of the others as stubs.) */
 const BRAIN_SHELL = { rx: 5.8, ry: 4.5, rz: 4.2, cy: 0.32 };
 
 const DESKTOP_BRAIN_WRAP_WIDTH = 660;
@@ -116,7 +118,10 @@ let photoVisualProgress = 0;
 let photoProgressVelocity = 0;
 let photoLastFrameTime = 0;
 const PHOTO_INTRO_PHASES = {
-  rawDurationVh: 2.5,
+  /* Desktop was 2.5 viewports of scroll for the drop; 2.2 tightens the run-up
+     where only the title is on screen without changing the sequence, which is
+     all in progress units. Touch scrolling is coarser, so mobile keeps 2.5. */
+  rawDurationVh: 2.2,
   mobileRawDurationVh: 2.5,
   dropEnd: 0.995,
   insertHoldEnd: 0.995,
@@ -206,6 +211,10 @@ let photoCarouselTouchReleasedToPage = false;
 let photoCarouselTouchUnlockTimer = 0;
 let welcomeRenderFrame = 0;
 let welcomeLayers = [];
+/* How far the welcome word has condensed out of its own dust: 0 is all dust,
+   1 is the word as built. Only the intro moves it; see runWelcomeEntrance. */
+let welcomeEntrance = 1;
+let welcomeEntranceFrame = 0;
 let brainSceneController = null;
 let themeRenderFrame = 0;
 let themeTransitionLiteActive = false;
@@ -240,13 +249,20 @@ const pageTranslations = {
     eyebrow: "Eureka Web",
     heroTitle: "你好\n我是尤里卡",
     heroText: "欢迎来到我的网页",
-    contactLine: "联系方式:******",
+    contactLine: "联系方式:脑电波",
     birthdayLine: "生日:****.06.14",
     addressLine: "住址:火星",
     tagHello: "你好",
     tagName: "尤里卡",
     tagWelcome: "欢迎你",
     tagHere: "来到这里",
+    railHero: "你好",
+    railLanguage: "语言",
+    railCareer: "职业",
+    railPhoto: "照片",
+    footerLine: "谢谢你看到这里。",
+    footerTop: "回到顶部",
+    footerBuilt: "原生 HTML / CSS / JS，没有框架",
     languageEyebrow: "编程语言",
     languageTitle: "我接触过的\n编程语言",
     languageText: "这些语言陪我搭建网页、探索交互，也让我把灵感慢慢变成真实作品。",
@@ -284,13 +300,20 @@ const pageTranslations = {
     eyebrow: "Eureka Web",
     heroTitle: "Hello I'm Eureka",
     heroText: "Welcome to my website",
-    contactLine: "Contact:******",
+    contactLine: "Contact: telepathy",
     birthdayLine: "Birthday:****.06.14",
     addressLine: "Address:Mars",
     tagHello: "Hello",
     tagName: "there",
     tagWelcome: "Welcome",
     tagHere: "Right Here",
+    railHero: "Hello",
+    railLanguage: "Languages",
+    railCareer: "Career",
+    railPhoto: "Photos",
+    footerLine: "Thanks for scrolling all the way down.",
+    footerTop: "Back to top",
+    footerBuilt: "Plain HTML / CSS / JS, no framework",
     languageEyebrow: "PROGRAMMING LANGUAGES",
     languageTitle: "Programming Languages",
     languageText: "These languages helped me build websites, explore interaction, and turn ideas into real projects.",
@@ -328,13 +351,20 @@ const pageTranslations = {
     eyebrow: "Eureka Web",
     heroTitle: "こんにちは\nユリカです",
     heroText: "私のホームページへようこそ",
-    contactLine: "連絡先:******",
+    contactLine: "連絡先:テレパシー",
     birthdayLine: "誕生日:****.06.14",
     addressLine: "住所:火星",
     tagHello: "こんにちは",
     tagName: "ユリカです",
     tagWelcome: "ようこそ",
     tagHere: "ここへ",
+    railHero: "はじめに",
+    railLanguage: "言語",
+    railCareer: "職業",
+    railPhoto: "写真",
+    footerLine: "ここまで読んでくれてありがとう。",
+    footerTop: "トップへ戻る",
+    footerBuilt: "素の HTML / CSS / JS、フレームワークなし",
     languageEyebrow: "プログラミング言語",
     languageTitle: "触れてきたプログラミング言語",
     languageText: "これらの言語は、Web制作やインタラクションの探究を支え、アイデアを実際の作品へ形にしてくれました。",
@@ -1230,11 +1260,31 @@ function getRectEdgePoint(rect, targetPoint) {
 function getEllipseEdgePoint(ellipse, nodeRect) {
   const dx = nodeRect.left + nodeRect.width * 0.5 - ellipse.cx;
   const dy = nodeRect.top + nodeRect.height * 0.5 - ellipse.cy;
-  const normalized = Math.sqrt((dx / ellipse.rx) ** 2 + (dy / ellipse.ry) ** 2);
+  const length = Math.hypot(dx, dy);
 
-  if (normalized <= 0.001) {
+  if (length <= 0.001) {
     return { x: ellipse.cx, y: ellipse.cy };
   }
+
+  /* A measured outline, when there is one: the outer radius in the pill's
+     angular bin and its two neighbours, so a line aimed between two vertices
+     still lands on the nearer crest instead of falling into the gap. The
+     ellipse below is the mobile path's, and the fallback when the scene is
+     not up yet. */
+  if (ellipse.bins) {
+    const count = ellipse.binCount;
+    const centre = Math.round((Math.atan2(dy, dx) / (Math.PI * 2)) * count);
+    let radius = 0;
+    for (let k = -1; k <= 1; k += 1) {
+      const r = ellipse.bins[(((centre + k) % count) + count) % count];
+      if (r > radius) radius = r;
+    }
+    if (radius > 0) {
+      return { x: ellipse.cx + (dx / length) * radius, y: ellipse.cy + (dy / length) * radius };
+    }
+  }
+
+  const normalized = Math.sqrt((dx / ellipse.rx) ** 2 + (dy / ellipse.ry) ** 2);
 
   return {
     x: ellipse.cx + dx / normalized,
@@ -1392,7 +1442,11 @@ function syncLanguageNetworkLines() {
      the surface they read as plugging into; pills ring the whole brain, so the
      cerebellum's mass is accounted for and the ring is not pulled off centre by
      ignoring it. */
-  const silhouette = usesMobileAnchors ? null : brainSceneController?.getShellSilhouette?.() || null;
+  /* The measured outline is used wherever the scene is up, phones included;
+     only the pill ring stays desktop-only, because on narrow layouts the pills
+     are placed by CSS. The wrapper-fraction anchors are now purely the
+     fallback for before the scene exists. */
+  const silhouette = brainSceneController?.getShellSilhouette?.() || null;
   const pillRing = usesMobileAnchors ? null : brainSceneController?.getBrainSilhouette?.() || null;
   const anchorWidth = Math.max(anchorRect.width, 1);
   const anchorHeight = Math.max(anchorRect.height, 1);
@@ -1420,13 +1474,12 @@ function syncLanguageNetworkLines() {
     const nodeRect = button.getBoundingClientRect();
 
     let brainEdge;
-    if (usesMobileAnchors) {
-      brainEdge = getBrainEdgePoint(anchorRect, nodeRect);
-    } else if (silhouette) {
-      /* Walk from the shell's centre toward the pill and stop on the outline.
-         Same ellipse intersection the mobile path has always used, but with
-         radii measured off the rendered mesh rather than guessed. */
+    if (silhouette) {
+      /* Walk from the shell's centre toward the pill and stop on the outline
+         measured off the projected mesh this frame. */
       brainEdge = getEllipseEdgePoint(silhouette, nodeRect);
+    } else if (usesMobileAnchors) {
+      brainEdge = getBrainEdgePoint(anchorRect, nodeRect);
     } else {
       /* Only before the scene exists -- three.js is imported lazily when this
          section scrolls into view, and the lines are drawn on the way in. */
@@ -1457,7 +1510,7 @@ function syncLanguageNetworkLines() {
     });
   });
 
-  languageNetworkLayout = usesMobileAnchors || !silhouette ? null : entries;
+  languageNetworkLayout = silhouette ? entries : null;
 }
 
 /* The per-frame half of the connector sync. The brain spins and bobs forever,
@@ -2708,9 +2761,15 @@ function drawWelcome() {
   }
 
   const progress = getWelcomeProgress();
-  const eased = 1 - (1 - progress) * (1 - progress);
-  const crumble = Math.min(1, Math.max(0, (progress - 0.06) / 0.9));
-  body.style.setProperty("--welcome-progress", `${eased}`);
+  const scrollEased = 1 - (1 - progress) * (1 - progress);
+  body.style.setProperty("--welcome-progress", `${scrollEased}`);
+
+  /* The intro's entrance is this same crumble run backwards, so the two just
+     take the larger claim on the word. The CSS variable stays scroll-only: the
+     kicker above the word must not fade while the word is still condensing. */
+  const unformed = 1 - welcomeEntrance;
+  const eased = Math.max(scrollEased, unformed);
+  const crumble = Math.max(Math.min(1, Math.max(0, (progress - 0.06) / 0.9)), unformed);
 
   welcomeLayers.forEach((layer) => {
     const { context, width, height, texture, points, textColor, type } = layer;
@@ -2788,6 +2847,51 @@ function drawWelcome() {
     context.drawImage(dustCanvas, 0, 0);
     context.restore();
   });
+}
+
+/* Condenses the welcome word out of dust by running the scroll crumble in
+   reverse. Nothing here is new drawing code: welcomeEntrance is fed into
+   drawWelcome as a floor on the crumble, so the particles fly back along the
+   exact paths the first scroll will send them out on. Interior points carry
+   the larger delays, so they land first and the outline sharpens last. */
+function runWelcomeEntrance(duration = 1000) {
+  if (shouldReduceMotion() || !welcomeCanvas) {
+    return;
+  }
+
+  if (welcomeLayers.length === 0) {
+    buildWelcomeCanvas();
+  }
+  if (welcomeLayers.length === 0) {
+    return;
+  }
+
+  if (welcomeEntranceFrame) {
+    window.cancelAnimationFrame(welcomeEntranceFrame);
+  }
+
+  const start = performance.now();
+  welcomeEntrance = 0;
+  drawWelcome();
+
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    /* Ease in-out so the dust does not lurch on the first frame the panels
+       uncover it, and settles rather than snapping at the end. */
+    welcomeEntrance = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    drawWelcome();
+
+    if (t < 1) {
+      welcomeEntranceFrame = window.requestAnimationFrame(step);
+      return;
+    }
+
+    welcomeEntranceFrame = 0;
+    welcomeEntrance = 1;
+    drawWelcome();
+  };
+
+  welcomeEntranceFrame = window.requestAnimationFrame(step);
 }
 
 function requestWelcomeRender() {
@@ -2899,6 +3003,10 @@ function updateCareerLayerClasses() {
   }
 
   careerCardStack.dataset.activeLayer = String(activeCareerLayer);
+  /* The ends are where the page has to be able to take the gesture back; the
+     stylesheet keys touch-action and overscroll-behavior off these. */
+  careerCardStack.classList.toggle("is-at-first", activeCareerLayer <= 1);
+  careerCardStack.classList.toggle("is-at-last", activeCareerLayer >= careerCardLayers.length);
 
   careerCardLayers.forEach((layer) => {
     const layerIndex = Number(layer.dataset.careerLayer);
@@ -2951,17 +3059,24 @@ function setCareerLayer(nextLayer, direction = "forward") {
   }, switchDuration);
 }
 
-function stepCareerLayer(direction) {
+/* True when a step in this direction would run off the end of the stack. The
+   stack used to wrap instead -- card 3 stepped to card 1 -- and because the
+   wheel and touch handlers below cancel the event whenever they step, that
+   was a trap on phones: the stack fills the screen there, every swipe lands on
+   it, and a visitor cycled Career / Alien Hunter / Layer 03 forever without
+   the page ever moving on to the photos. Now the ends fall through, the same
+   way the keyboard handler always has. */
+function isCareerStackAtEnd(direction) {
   const layerCount = careerCardLayers.length;
+  return direction === "back" ? activeCareerLayer <= 1 : activeCareerLayer >= layerCount;
+}
 
-  if (!layerCount) {
+function stepCareerLayer(direction) {
+  if (!careerCardLayers.length || isCareerStackAtEnd(direction)) {
     return;
   }
 
-  const nextLayer = direction === "back"
-    ? ((activeCareerLayer + layerCount - 2) % layerCount) + 1
-    : (activeCareerLayer % layerCount) + 1;
-  setCareerLayer(nextLayer, direction);
+  setCareerLayer(activeCareerLayer + (direction === "back" ? -1 : 1), direction);
 }
 
 /* The stack is otherwise reachable only by wheel and touch drag, which left
@@ -3039,19 +3154,6 @@ function canScrollCareerLayer(scrollArea, deltaY) {
   return scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight - 1;
 }
 
-function stabilizeCareerScrollBoundary(scrollArea) {
-  if (!scrollArea || scrollArea.scrollHeight <= scrollArea.clientHeight + 1) {
-    return;
-  }
-
-  const maxScrollTop = scrollArea.scrollHeight - scrollArea.clientHeight;
-
-  if (scrollArea.scrollTop <= 0) {
-    scrollArea.scrollTop = 1;
-  } else if (scrollArea.scrollTop >= maxScrollTop) {
-    scrollArea.scrollTop = Math.max(maxScrollTop - 1, 0);
-  }
-}
 
 function stopCareerScrollPropagation(event) {
   event.stopPropagation();
@@ -3065,7 +3167,7 @@ function handleCareerLayerWheel(event) {
   const direction = event.deltaY > 0 ? "forward" : "back";
   const scrollArea = getActiveCareerScrollArea();
 
-  if (canScrollCareerLayer(scrollArea, event.deltaY)) {
+  if (canScrollCareerLayer(scrollArea, event.deltaY) || isCareerStackAtEnd(direction)) {
     return;
   }
 
@@ -3119,7 +3221,7 @@ function handleCareerLayerTouchMove(event) {
   const direction = deltaY > 0 ? "forward" : "back";
   const scrollArea = getActiveCareerScrollArea();
 
-  if (canScrollCareerLayer(scrollArea, deltaY)) {
+  if (canScrollCareerLayer(scrollArea, deltaY) || isCareerStackAtEnd(direction)) {
     return;
   }
 
@@ -5797,7 +5899,18 @@ async function createBrainWireframeScene(mount) {
     const THREE = await import("./vendor/three.module.min.js?v=0.185.1");
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 1000);
-    camera.position.set(0, 0.15, window.innerWidth < 720 ? 15.8 : 16.6);
+    /* On narrow viewports the canvas is wider than the screen -- the wrapper
+       keeps its desktop width and overflows -- so the brain used to be cropped
+       on both sides. Pull the camera back by that overflow ratio, plus a
+       little air, so the whole silhouette fits the viewport instead. */
+    function fitCameraDistance() {
+      const compactViewport = window.innerWidth < 720;
+      const overflow = compactViewport
+        ? Math.max(1, ((mount.clientWidth || window.innerWidth) / window.innerWidth) * 1.12)
+        : 1;
+      camera.position.set(0, 0.15, (compactViewport ? 15.8 : 16.6) * overflow);
+    }
+    fitCameraDistance();
 
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -5857,45 +5970,124 @@ async function createBrainWireframeScene(mount) {
       }
     }
 
-    const latCount = 30;
-    const lonBase = 44;
+    /* ── The shell ────────────────────────────────────────────────────
+       Parametrised on the unit sphere and deformed there, then scaled by
+       BRAIN_SHELL, so every push below is a fraction of the brain's own size.
+       u runs front (-1) to back (+1) -- the cerebellum and brainstem hang at
+       +x -- v is up, w is side to side.
+
+       It used to be the bare ellipsoid with three bottom nudges and a sine
+       wobble, which read as an egg. What makes a brain read as a brain at
+       wireframe resolution is silhouette, not texture, so the work is in the
+       big shapes: a flat underside, a narrower and lower occipital end, the
+       temporal lobes hanging below a lateral fissure, and the longitudinal
+       fissure splitting the top into two crests. The gyral folding on top of
+       that is deliberately faint -- at 34 rings it can only be a ripple in the
+       lines, and pushed harder it reads as noise. */
+    const smoothstep = (a, b, x) => {
+      const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+      return t * t * (3 - 2 * t);
+    };
+    const gauss = (x) => Math.exp(-x * x);
+
+    function shellPoint(phi, theta, jitterScale) {
+      const s = Math.sin(phi);
+      let u = s * Math.cos(theta);
+      let v = Math.cos(phi);
+      let w = s * Math.sin(theta);
+      const nu = u;
+      const nv = v;
+      const nw = w;
+
+      /* Underside: the bottom 38% of the sphere squashed to 42% of its depth.
+         The orbital surface under the frontal lobe is close to flat. */
+      if (v < -0.62) {
+        v = -0.62 + (v + 0.62) * 0.42;
+      }
+
+      /* Occipital end: narrower and lower than the frontal. */
+      const back = smoothstep(0.25, 1, u);
+      w *= 1 - 0.16 * back * back;
+      if (v > 0) {
+        v *= 1 - 0.1 * back * back;
+      }
+
+      /* Temporal lobes: out, down and a little forward on each flank, low and
+         toward the front. */
+      const flank = smoothstep(0.25, 0.7, Math.abs(w));
+      const temporal = gauss((v + 0.45) / 0.3) * gauss((u + 0.2) / 0.55) * flank;
+      w += Math.sign(w) * 0.16 * temporal;
+      v -= 0.14 * temporal;
+      u -= 0.05 * temporal * smoothstep(-0.2, -0.8, u);
+
+      /* Lateral fissure: the groove the temporal lobe hangs under, climbing
+         toward the back. */
+      const sylvian =
+        gauss((v - (-0.1 + 0.22 * u)) / 0.1) *
+        smoothstep(0.55, 0.85, Math.abs(w)) *
+        smoothstep(-0.95, -0.7, u) *
+        (1 - smoothstep(0.3, 0.55, u));
+      w -= Math.sign(w) * 0.08 * sylvian;
+
+      /* Longitudinal fissure: a groove along the midline over the top and
+         down the front and back faces, with the two hemispheres crowned either
+         side of it. Pushed along the sphere normal so it stays a groove
+         however the surface curves. */
+      const topness = smoothstep(-0.15, 0.55, v);
+      const faceness = 0.6 * smoothstep(0.55, 0.95, Math.abs(u)) * smoothstep(-0.55, 0, v);
+      const fissure = gauss(w / 0.2) * Math.max(topness, faceness);
+      const crest = gauss((Math.abs(w) - 0.42) / 0.24) * topness;
+      let push = -0.13 * fissure + 0.035 * crest;
+
+      /* Gyri: two wandering band systems, crowns broad and sulci narrow.
+         Fades out on the underside, in the fissure and at the poles. */
+      const g1 = Math.sin(phi * 7 + Math.sin(theta * 3 + phi * 1.7) * 1.3);
+      const g2 = Math.sin(theta * 5 + Math.sin(phi * 2.6 - theta * 1.1) * 1.1 + 0.7);
+      const g = 0.55 * g1 + 0.45 * g2;
+      const folds = 2 * Math.sqrt(Math.abs(g)) - 1;
+      const gyral =
+        smoothstep(-0.55, -0.2, v) * (1 - fissure) * (1 - smoothstep(0.85, 1, Math.abs(nv)));
+      push += 0.032 * folds * gyral;
+
+      u += nu * push;
+      v += nv * push;
+      w += nw * push;
+
+      const jitter = 0.016 * jitterScale;
+      u += (random() - 0.5) * jitter;
+      v += (random() - 0.5) * jitter * 0.7;
+      w += (random() - 0.5) * jitter;
+
+      return {
+        x: u * BRAIN_SHELL.rx,
+        y: v * BRAIN_SHELL.ry + BRAIN_SHELL.cy,
+        z: w * BRAIN_SHELL.rz,
+      };
+    }
+
+    const latCount = 34;
+    const lonBase = 50;
     const brainRows = [];
 
-    pts.push(p(0, 4.62, 0, "brain", 0, 0));
+    const topPole = shellPoint(0, 0, 0);
+    pts.push(p(topPole.x, topPole.y, topPole.z, "brain", 0, 0));
     brainRows.push([0]);
 
     for (let i = 1; i < latCount; i += 1) {
       const row = [];
       const phi = (Math.PI * i) / latCount;
-      const s = Math.sin(phi);
-      const c = Math.cos(phi);
       let localLon = lonBase;
 
       if (i === 1 || i === latCount - 1) localLon = 18;
       else if (i === 2 || i === latCount - 2) localLon = 28;
-      else if (i === 3 || i === latCount - 3) localLon = 36;
+      else if (i === 3 || i === latCount - 3) localLon = 38;
 
+      const nearPole = i <= 3 || i >= latCount - 3;
       for (let j = 0; j < localLon; j += 1) {
         const theta = (Math.PI * 2 * j) / localLon + (i % 2) * 0.055;
-        let x = s * Math.cos(theta) * BRAIN_SHELL.rx;
-        let y = c * BRAIN_SHELL.ry + BRAIN_SHELL.cy;
-        let z = s * Math.sin(theta) * BRAIN_SHELL.rz;
-        const upper = Math.max(0, y - 0.15);
-
-        x *= 1 + upper * 0.007;
-        z *= 1 + upper * 0.01;
-        if (y < -2.2 && x < -2.25) y += 0.48;
-        if (y < -2.6 && x > 1.95) y += 0.22;
-        if (x > 4.0) y -= 0.1;
-
-        const nearPole = i <= 3 || i >= latCount - 3;
-        const jitter = nearPole ? 0.014 : 0.065;
-        x += Math.sin(y * 1.25 + z * 0.3) * 0.1 + (random() - 0.5) * jitter;
-        y += Math.sin(x * 0.55) * 0.075 + (random() - 0.5) * jitter * 0.7;
-        z += Math.sin(x * 0.78 + y * 0.22) * 0.12 + (random() - 0.5) * jitter;
-
+        const point = shellPoint(phi, theta, nearPole ? 0.25 : 1);
         const idx = pts.length;
-        pts.push(p(x, y, z, "brain", i, j));
+        pts.push(p(point.x, point.y, point.z, "brain", i, j));
         row.push(idx);
       }
 
@@ -5903,9 +6095,19 @@ async function createBrainWireframeScene(mount) {
     }
 
     const bottomPole = pts.length;
-    pts.push(p(0, -3.9, 0, "brain", latCount, 0));
+    const bottomPoint = shellPoint(Math.PI, 0, 0);
+    pts.push(p(bottomPoint.x, bottomPoint.y, bottomPoint.z, "brain", latCount, 0));
     brainRows.push([bottomPole]);
     connectRows(brainRows, 36, 4);
+
+    /* Local positions of the shell alone, for projecting its outline each
+       frame (getShellSilhouette). Taken now, before any other part is added. */
+    const shellLocal = new Float32Array(pts.length * 3);
+    for (let i = 0; i < pts.length; i += 1) {
+      shellLocal[i * 3] = pts[i].p.x;
+      shellLocal[i * 3 + 1] = pts[i].p.y;
+      shellLocal[i * 3 + 2] = pts[i].p.z;
+    }
 
     const innerStart = pts.length;
     for (let i = 0; i < 260; i += 1) {
@@ -5917,89 +6119,121 @@ async function createBrainWireframeScene(mount) {
         x = (random() - 0.5) * 11.4;
         y = (random() - 0.5) * 7.2 + 0.35;
         z = (random() - 0.5) * 6.1;
-        ok = (x / 5.45) ** 2 + ((y - 0.32) / 4.05) ** 2 + (z / 3.72) ** 2 < 0.78 && y > -2.85;
+        ok = (x / 5.45) ** 2 + ((y - 0.32) / 4.05) ** 2 + (z / 3.72) ** 2 < 0.7 && y > -2.3;
       }
       if (ok) pts.push(p(x, y, z, "inner"));
     }
 
     const cereStart = pts.length;
-    /* 10x16, down from 12x24. The cerebellum occupies roughly a tenth of the
-       shell's volume but used to carry 244 points against the shell's much
-       sparser grid, so wherever the two overlap the wireframe collapsed into a
-       white smear. 136 points keeps the shape and lets the edges read. */
-    const cLat = 10;
-    const cLonBase = 16;
+
+    /* ── The cerebellum ──────────────────────────────────────────────
+       Wider than it is deep or tall, two hemispheres either side of a narrow
+       vermis, a flat top where it sits under the tentorium, a hollowed front
+       where it wraps the brainstem, and horizontal folia. The folia are done
+       structurally rather than drawn: rows only, no in-row diagonals, and
+       alternate rows pushed in and out so the meridian zigzags read as a stack
+       of folds. It used to be a plain ellipsoid with its long axis running
+       front to back -- an egg, hanging off the back of the brain. */
+    /* About 62% of the cerebrum's width and half as tall as it is wide,
+       which is roughly the real proportion; the top sits 0.3 inside the
+       shell's underside, the tentorial overlap. */
+    const cereRadii = { rx: 1.55, ry: 1.3, rz: 2.8 };
+    const cereCenter = { x: 3.2, y: -3.4, z: 0 };
+    const cLat = 14;
+    const cLonBase = 22;
     const cereRows = [];
-    /* Sits on the shell's surface, not inside it. At (3.45, -2.75) the centre
-       normalised to 0.909 against BRAIN_SHELL -- comfortably interior -- so the
-       shell cut through the cerebellum's middle and both grids drew through
-       each other, over 56% of its surface. (3.62, -3.05) normalises to 0.978:
-       the mass hangs below and behind the shell the way it does anatomically,
-       and the buried share drops to 46%. */
-    const cereCenterX = 3.62;
-    const cereCenterY = -3.05;
-    const cereCenterZ = 0.35;
+
+    function cerebellumPoint(phi, theta, row) {
+      const sp = Math.sin(phi);
+      let u = sp * Math.cos(theta);
+      let v = Math.cos(phi);
+      let w = sp * Math.sin(theta);
+      const nu = u;
+      const nv = v;
+      const nw = w;
+
+      /* Flat top, hollowed front. */
+      if (v > 0.35) {
+        v = 0.35 + (v - 0.35) * 0.45;
+      }
+      if (u < -0.4) {
+        u = -0.4 + (u + 0.4) * 0.5;
+      }
+
+      /* Two hemispheres: a groove either side of the vermis, over the top and
+         down the back, not underneath. */
+      const upperBack = Math.max(smoothstep(-0.2, 0.5, v), smoothstep(0.2, 0.8, u));
+      const grooves = gauss((Math.abs(w) - 0.2) / 0.12) * upperBack;
+      let push = -0.15 * grooves;
+
+      /* Folia: alternate rows in and out, poles left smooth. */
+      if (row > 1 && row < cLat - 1) {
+        push += row % 2 === 0 ? 0.045 : -0.045;
+      }
+
+      u += nu * push;
+      v += nv * push;
+      w += nw * push;
+
+      const jitter = row <= 1 || row >= cLat - 1 ? 0.008 : 0.02;
+      u += (random() - 0.5) * jitter;
+      v += (random() - 0.5) * jitter * 0.6;
+      w += (random() - 0.5) * jitter;
+
+      return {
+        x: cereCenter.x + u * cereRadii.rx,
+        y: cereCenter.y + v * cereRadii.ry,
+        z: cereCenter.z + w * cereRadii.rz,
+      };
+    }
 
     for (let i = 0; i <= cLat; i += 1) {
       const row = [];
-      const phi = (Math.PI * i) / cLat;
-      const s = Math.sin(phi);
-      const c = Math.cos(phi);
+      /* The pole rows are small rings a third of a step in from the poles, so
+         the top and bottom close with a ring rather than a single point. */
+      const phiIndex = i === 0 ? 0.35 : i === cLat ? cLat - 0.35 : i;
+      const phi = (Math.PI * phiIndex) / cLat;
       let localLon = cLonBase;
 
-      if (i === 0 || i === cLat) localLon = 6;
-      else if (i === 1 || i === cLat - 1) localLon = 9;
-      else if (i === 2 || i === cLat - 2) localLon = 13;
+      if (i === 0 || i === cLat) localLon = 8;
+      else if (i === 1 || i === cLat - 1) localLon = 12;
+      else if (i === 2 || i === cLat - 2) localLon = 16;
 
       for (let j = 0; j < localLon; j += 1) {
         const theta = (Math.PI * 2 * j) / localLon + (i % 2) * 0.06;
-        let x = cereCenterX + s * Math.cos(theta) * 1.92;
-        let y = cereCenterY + c * 1.1;
-        let z = cereCenterZ + s * Math.sin(theta) * 1.45;
-
-        if (i === 0 || i === cLat) {
-          const radius = i === 0 ? 0.22 : 0.2;
-          x = cereCenterX + Math.cos(theta) * radius;
-          y = cereCenterY + (i === 0 ? 1.1 : -1.1) + Math.sin(theta * 2) * 0.01;
-          z = cereCenterZ + Math.sin(theta) * radius * 0.78;
-        }
-
-        const nearPole = i <= 2 || i >= cLat - 2;
-        const jitter = nearPole ? 0.016 : 0.06;
-        x += (random() - 0.5) * jitter;
-        y += (random() - 0.5) * jitter * 0.8;
-        z += (random() - 0.5) * jitter;
-
+        const point = cerebellumPoint(phi, theta, i);
         const idx = pts.length;
-        pts.push(p(x, y, z, "cerebellum", i, j));
+        pts.push(p(point.x, point.y, point.z, "cerebellum", i, j));
         row.push(idx);
       }
 
       cereRows.push(row);
     }
 
-    connectRows(cereRows, 18, 4);
+    connectRows(cereRows, 999, 4);
     const cereEnd = pts.length;
 
+    /* ── The brainstem ───────────────────────────────────────────────
+       Midbrain at the top, the pons bellying forward a third of the way
+       down, the medulla tapering on below the cerebellum. Leans back as it
+       descends, and hangs from the underside just ahead of the cerebellum's
+       hollowed front, which is where the peduncles stitch the two together.
+       16 segments, matching the cerebellum; at 10 the silhouette had visible
+       straight runs and read as a faceted post. */
     const stemRows = [];
-    const stemRingCount = 9;
-    /* 16, not 10. At this on-screen size a 10-gon reads as a faceted post
-       rather than a tube -- its silhouette has visible straight runs while the
-       cerebellum beside it is 16 and the shell is far denser. 16 matches the
-       cerebellum so the two sit in the same visual register. */
+    const stemRingCount = 12;
     const stemSegCount = 16;
 
     for (let i = 0; i < stemRingCount; i += 1) {
       const row = [];
       const t = i / (stemRingCount - 1);
-      const cx = 1.28 + t * 0.92;
-      /* Emerges from the cerebellum's lower half rather than its centre, which
-         is where the two grids used to pile up. The taper shortens to match so
-         the tip still lands at -5.15. */
-      const cy = -3.35 - t * 1.8;
-      const cz = 0.18 - t * 0.1;
-      const rx = 0.68 * (1 - t * 0.38);
-      const rz = 0.78 * (1 - t * 0.42);
+      const pons = gauss((t - 0.42) / 0.16);
+      const cx = 1.0 + t * 1.0 - 0.16 * pons;
+      const cy = -3.4 - t * 1.75;
+      const cz = 0.16 - t * 0.1;
+      const taper = 1 - t * 0.42;
+      const rx = 0.6 * taper * (1 + 0.5 * pons);
+      const rz = 0.72 * taper * (1 + 0.32 * pons);
 
       for (let j = 0; j < stemSegCount; j += 1) {
         const angle = (Math.PI * 2 * j) / stemSegCount + i * 0.18;
@@ -6071,8 +6305,12 @@ async function createBrainWireframeScene(mount) {
       }
     }
 
-    nearestEdges(cereStart, cereEnd, 0, innerStart, 0.92, 1);
-    nearestEdges(stemRows[0][0], pts.length, 0, innerStart, 0.98, 1);
+    nearestEdges(cereStart, cereEnd, 0, innerStart, 0.8, 1);
+    /* Only the stem's top ring is stitched to the shell. Stitching every stem
+       point used to be harmless when the underside curved away from it; with
+       the underside flat and close, it hung a tangle of near-vertical edges off
+       the whole upper half of the stem. */
+    nearestEdges(stemRows[0][0], stemRows[0][0] + stemSegCount, 0, innerStart, 0.98, 1);
 
     for (let i = 0; i < pts.length; i += 1) {
       const a = pts[i];
@@ -6087,8 +6325,8 @@ async function createBrainWireframeScene(mount) {
         maxDistance = 1.15;
         maxCount = 2;
       } else if (a.part === "cerebellum") {
-        maxDistance = 1.0;
-        maxCount = 3;
+        maxDistance = 0.7;
+        maxCount = 2;
       } else if (a.part === "stem") {
         maxDistance = 1.08;
         maxCount = 3;
@@ -6237,6 +6475,7 @@ async function createBrainWireframeScene(mount) {
 
       lastBrainRenderWidth = width;
       lastBrainRenderHeight = height;
+      fitCameraDistance();
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
@@ -6352,42 +6591,63 @@ async function createBrainWireframeScene(mount) {
       return { cx: middle.x, cy: middle.y, rx, ry };
     }
 
-    /* The shell only -- where the connector lines should end, because that is
-       the surface they read as plugging into.
+    /* The shell's outline as it lands on screen this frame: its vertices,
+       projected, reduced to the outer radius in each of 60 angular bins around
+       the projected centre. A connector then ends at the bin its pill sits in.
 
-       This passed min(rx, rz) as the horizontal radius until the endpoints
-       started updating per frame. The reasoning was sound while they did not:
-       the group spins about Y forever, the silhouette's width breathes across a
-       38% swing between 5.8 and 4.2, and an endpoint frozen at the last scroll
-       had to survive every pose -- so the narrowest was the safe pick, because a
-       short line reads as plugged in while a long one floats. The cost was that
-       whenever the wide face came round the C++ and HTML lines ran 1.6 local
-       units past the outline, 28% of rx, and looked skewered through it.
+       This replaced an analytic ellipse when the shell stopped being one. The
+       ellipse had already been through two generations -- hand-guessed
+       wrapper fractions, then the ellipsoid's true support radius under the
+       current rotation -- and the second was exact for an ellipsoid; but the
+       temporal lobes, the flattened underside and the fissure between the
+       hemispheres are not one, and a line ending on a fitted ellipse floats
+       off the wireframe wherever the shape departs from it. Reading the
+       vertices themselves costs about a thousand projections a frame and is
+       right for whatever the shell becomes. */
+    const OUTLINE_BINS = 60;
+    const outlineRadii = new Float32Array(OUTLINE_BINS);
+    const outlineVec = new THREE.Vector3();
+    const outlineCenter = new THREE.Vector3();
 
-       updateLanguageNetworkEndpoints now re-projects this every frame, so the
-       honest radius is the correct one. For an ellipsoid diag(r) under rotation
-       R, the extent along a unit direction d is |diag(r) * transpose(R) * d|;
-       for the world X and Y axes transpose(R) * d is just the matching row of R,
-       which is what the element indices below pick out. Checked against a dense
-       surface sampling at six poses: worst error 8e-6 local units. */
-    const shellRotation = new THREE.Matrix4();
     function getShellSilhouette() {
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (!rect.width || !rect.height) {
+        return null;
+      }
+
       group.updateMatrixWorld();
-      shellRotation.extractRotation(group.matrixWorld);
-      const e = shellRotation.elements;
-      const { rx, ry, rz, cy } = BRAIN_SHELL;
+      const toX = (ndcX) => rect.left + (ndcX * 0.5 + 0.5) * rect.width;
+      const toY = (ndcY) => rect.top + (-ndcY * 0.5 + 0.5) * rect.height;
 
-      /* The built mesh sits outside the ideal ellipsoid -- the sine displacement
-         and per-point jitter push each vertex out by up to ~0.13 local units --
-         so the analytic outline lands just inside the wireframe the eye reads.
-         2% is that gap at this radius. */
-      const bulge = 1.02;
+      outlineCenter.set(0, BRAIN_SHELL.cy, 0).applyMatrix4(group.matrixWorld).project(camera);
+      const cx = toX(outlineCenter.x);
+      const cy = toY(outlineCenter.y);
 
-      return projectLocalEllipse(
-        new THREE.Vector3(0, cy, 0),
-        Math.hypot(rx * e[0], ry * e[4], rz * e[8]) * bulge,
-        Math.hypot(rx * e[1], ry * e[5], rz * e[9]) * bulge
-      );
+      outlineRadii.fill(0);
+      let rx = 0;
+      let ry = 0;
+      for (let i = 0; i < shellLocal.length; i += 3) {
+        outlineVec
+          .set(shellLocal[i], shellLocal[i + 1], shellLocal[i + 2])
+          .applyMatrix4(group.matrixWorld)
+          .project(camera);
+        const dx = toX(outlineVec.x) - cx;
+        const dy = toY(outlineVec.y) - cy;
+        const radius = Math.hypot(dx, dy);
+        const bin =
+          ((Math.round((Math.atan2(dy, dx) / (Math.PI * 2)) * OUTLINE_BINS) % OUTLINE_BINS) +
+            OUTLINE_BINS) %
+          OUTLINE_BINS;
+        if (radius > outlineRadii[bin]) outlineRadii[bin] = radius;
+        if (Math.abs(dx) > rx) rx = Math.abs(dx);
+        if (Math.abs(dy) > ry) ry = Math.abs(dy);
+      }
+
+      if (!(rx > 1) || !(ry > 1)) {
+        return null;
+      }
+
+      return { cx, cy, rx, ry, bins: outlineRadii, binCount: OUTLINE_BINS };
     }
 
     /* Everything the group draws, so the shell plus the cerebellum and stem
@@ -6448,97 +6708,138 @@ async function createBrainWireframeScene(mount) {
   }
 }
 
+const INTRO_SEEN_KEY = "eurekaweb:intro-seen";
+
+function hasSeenIntroThisSession() {
+  try {
+    return window.sessionStorage.getItem(INTRO_SEEN_KEY) === "1";
+  } catch (error) {
+    return false;
+  }
+}
+
+function markIntroSeen() {
+  try {
+    window.sessionStorage.setItem(INTRO_SEEN_KEY, "1");
+  } catch (error) {
+    /* Storage blocked: the intro simply plays again next load. */
+  }
+}
+
+/* The opening. A dark curtain with the kicker rising through it, a hairline
+   drawn across the seam, then the curtain parts along that line -- one clean
+   cut -- while the welcome word condenses out of dust underneath. About two
+   seconds, down from three and a half.
+
+   This replaces a title card that had no relationship to the page: "FOR YOU"
+   gathered from random offsets, scattered again, then forty bars slid away on
+   a linear centre-out delay with random jitter, which read as an aliased
+   diamond rather than a shape, and the page underneath opened on... another
+   "FOR YOU". Two things now tie the intro to what follows. The kicker in the
+   overlay is a clone of the real kicker placed on its rect, so when the
+   overlay fades the same letters are already there. And the dust is the
+   welcome word's own crumble system run backwards, so the first thing seen
+   moving is the thing the first scroll takes apart.
+
+   Plays once per session; ?intro in the URL forces it. */
 function runIntroAnimation() {
   const overlay = document.querySelector("#intro-overlay");
-  const textContainer = document.querySelector("#intro-text");
-  const topContainer = document.querySelector("#intro-top");
-  const bottomContainer = document.querySelector("#intro-bottom");
-
   if (!overlay) {
     return Promise.resolve();
   }
 
-  if (shouldReduceMotion()) {
+  const forced = new URLSearchParams(window.location.search).has("intro");
+  if (shouldReduceMotion() || (hasSeenIntroThisSession() && !forced)) {
     overlay.remove();
     return Promise.resolve();
   }
 
-  return new Promise((resolve) => {
-    const rng = createSeededRandom(7788);
+  const textContainer = overlay.querySelector("#intro-text");
+  const seam = overlay.querySelector(".intro-seam");
+  const kicker = welcomeSection?.querySelector(".welcome-kicker") || null;
 
-    const letters = "FOR YOU";
-    for (let i = 0; i < letters.length; i++) {
-      const char = letters[i];
-      if (char === " ") {
-        const spacer = document.createElement("span");
-        spacer.style.width = "0.35em";
-        spacer.style.display = "inline-block";
-        textContainer.appendChild(spacer);
-        continue;
-      }
+  return new Promise((resolve) => {
+    const isCompact = window.innerWidth <= 680;
+    const stagger = isCompact ? 32 : 38;
+    const partDuration = isCompact ? 700 : 820;
+    overlay.style.setProperty("--intro-part", `${partDuration}ms`);
+
+    /* Anchor on the real kicker when it is on screen at load. A reload that
+       restored a mid-page scroll position has nothing to anchor to, so the
+       letters centre instead and the overlay simply fades. */
+    const kickerRect = kicker?.getBoundingClientRect();
+    const anchored = Boolean(
+      kicker &&
+        kickerRect &&
+        kickerRect.width > 0 &&
+        kickerRect.top >= 0 &&
+        kickerRect.bottom <= window.innerHeight
+    );
+
+    let host;
+    if (anchored) {
+      host = kicker.cloneNode(false);
+      host.removeAttribute("id");
+      host.removeAttribute("data-i18n");
+      host.style.left = `${kickerRect.left}px`;
+      host.style.top = `${kickerRect.top}px`;
+      host.style.width = `${kickerRect.width}px`;
+      host.style.height = `${kickerRect.height}px`;
+      textContainer.classList.add("is-anchored");
+    } else {
+      host = document.createElement("p");
+      host.className = "welcome-kicker";
+    }
+    host.classList.add("intro-kicker");
+
+    const text = (kicker?.textContent || getActiveCopy().welcomeKicker || "").trim();
+    Array.from(text).forEach((char, index) => {
       const span = document.createElement("span");
       span.className = "intro-letter";
-      span.textContent = char;
-      span.style.setProperty("--from-x", ((rng() - 0.5) * 50) + "px");
-      span.style.setProperty("--from-y", ((rng() - 0.5) * 35) + "px");
-      span.style.setProperty("--from-r", ((rng() - 0.5) * 25) + "deg");
-      span.style.setProperty("--to-x", ((rng() - 0.5) * 280) + "px");
-      span.style.setProperty("--to-y", ((rng() - 0.5) * 200) + "px");
-      span.style.setProperty("--to-r", ((rng() - 0.5) * 50) + "deg");
-      span.style.setProperty("--delay", (i * 45) + "ms");
-      span.style.setProperty("--scatter-delay", (i * 20) + "ms");
-      textContainer.appendChild(span);
-    }
-
-    const isCompact = window.innerWidth <= 680;
-    const barCount = isCompact ? 10 : 20;
-    const barDelays = [];
-    for (let i = 0; i < barCount; i++) {
-      const center = (barCount - 1) / 2;
-      const maxDelay = isCompact ? 260 : 350;
-      barDelays.push(Math.abs(i - center) / center * maxDelay + rng() * (isCompact ? 50 : 80));
-    }
-
-    for (let i = 0; i < barCount; i++) {
-      const topBar = document.createElement("div");
-      topBar.className = "intro-bar";
-      topBar.style.setProperty("--bar-delay", barDelays[i] + "ms");
-      topContainer.appendChild(topBar);
-
-      const bottomBar = document.createElement("div");
-      bottomBar.className = "intro-bar";
-      bottomBar.style.setProperty("--bar-delay", barDelays[i] + "ms");
-      bottomContainer.appendChild(bottomBar);
-    }
+      span.textContent = char === " " ? "\u00a0" : char;
+      span.style.setProperty("--delay", `${120 + index * stagger}ms`);
+      host.appendChild(span);
+    });
+    textContainer.replaceChildren(host);
 
     root.classList.add("intro-active");
     body.classList.add("intro-active");
 
-    requestAnimationFrame(() => {
-      textContainer.classList.add("is-gathering");
+    const at = (ms, fn) => window.setTimeout(fn, ms);
+    const seamAt = 860;
+    const partAt = seamAt + 220;
+    const doneAt = partAt + partDuration;
+
+    window.requestAnimationFrame(() => {
+      textContainer.classList.add("is-rising");
     });
 
-    setTimeout(() => {
-      textContainer.classList.remove("is-gathering");
-      textContainer.classList.add("is-scattering");
+    at(seamAt, () => {
+      seam?.classList.add("is-drawn");
+    });
 
-      setTimeout(() => {
-        textContainer.style.display = "none";
-        topContainer.classList.add("is-revealing");
-        bottomContainer.classList.add("is-revealing");
+    at(partAt, () => {
+      overlay.classList.add("is-parting");
+    });
 
-        setTimeout(() => {
-          overlay.classList.add("is-done");
+    /* The panels barely move for their first quarter -- that is the tension
+       before the cut -- so the dust would be condensing behind them unseen if
+       it started with them. */
+    at(partAt + 240, () => {
+      runWelcomeEntrance(isCompact ? 880 : 1000);
+    });
 
-          setTimeout(() => {
-            overlay.remove();
-            root.classList.remove("intro-active");
-            body.classList.remove("intro-active");
-            resolve();
-          }, 400);
-        }, 1200);
-      }, 500);
-    }, 1400);
+    at(doneAt, () => {
+      overlay.classList.add("is-done");
+      markIntroSeen();
+
+      at(260, () => {
+        overlay.remove();
+        root.classList.remove("intro-active");
+        body.classList.remove("intro-active");
+        resolve();
+      });
+    });
   });
 }
 
@@ -6960,6 +7261,56 @@ function scheduleBrainSceneLoad() {
   });
 }
 
+/* The dot rail on the right: one dot per section, the one whose middle is
+   in the middle of the viewport lit. Observed rather than measured on scroll
+   so it costs nothing per frame. */
+function initSectionRail() {
+  const rail = document.querySelector(".section-rail");
+  if (!rail || !("IntersectionObserver" in window)) {
+    return;
+  }
+
+  const links = Array.from(rail.querySelectorAll("a[data-rail]"));
+  const targets = links.map((link) => document.getElementById(link.dataset.rail)).filter(Boolean);
+  if (targets.length === 0) {
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+        links.forEach((link) => {
+          link.classList.toggle("is-active", link.dataset.rail === entry.target.id);
+        });
+      });
+    },
+    { rootMargin: "-45% 0px -45% 0px", threshold: 0 }
+  );
+  targets.forEach((target) => observer.observe(target));
+}
+
+/* Every in-page link -- rail, hero actions, footer, wordmark -- scrolls
+   rather than jumps. The welcome screen's own scroll handling is left alone:
+   these all land below it, and "back to top" lands on it, which is the one
+   place a jump is fine. */
+function initJumpLinks() {
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("a[data-jump]");
+    if (!link) {
+      return;
+    }
+    const target = document.getElementById(link.dataset.jump);
+    if (!target) {
+      return;
+    }
+    event.preventDefault();
+    target.scrollIntoView({ behavior: shouldReduceMotion() ? "auto" : "smooth", block: "start" });
+  });
+}
+
 async function initApp() {
   const siteConfig = await loadSiteConfig();
   if (siteConfig.maintenance) {
@@ -7129,6 +7480,9 @@ async function initApp() {
       requestPhotoSceneUpdate();
     }
   });
+
+  initSectionRail();
+  initJumpLinks();
 
   await introPromise;
 }

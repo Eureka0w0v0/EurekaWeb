@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>404 · Eureka Web</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./images/icons/favicon-32.png" />
+    <style>
+      :root { color-scheme: light dark; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        display: grid;
+        place-items: center;
+        min-height: 100svh;
+        padding: 24px;
+        box-sizing: border-box;
+        background: #050505;
+        color: #f5f5f5;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans", "Noto Sans CJK SC", sans-serif;
+        text-align: center;
+      }
+      @media (prefers-color-scheme: light) {
+        body { background: #f7f8fb; color: #10131a; }
+        .kicker, a { color: #2c6ed5; }
+        a { border-color: rgba(44, 110, 213, 0.5); }
+      }
+      .kicker {
+        margin: 0 0 18px;
+        color: #93b8ff;
+        font-size: 0.8125rem;
+        font-weight: 800;
+        letter-spacing: 0.34em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(4.5rem, 18vw, 11rem);
+        font-weight: 700;
+        line-height: 0.9;
+        letter-spacing: -0.04em;
+      }
+      p.lead {
+        margin: 22px auto 34px;
+        max-width: 28ch;
+        font-size: clamp(1.05rem, 2.4vw, 1.4rem);
+        line-height: 1.6;
+        opacity: 0.72;
+      }
+      a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 40px;
+        padding: 0 18px;
+        border-radius: 999px;
+        border: 1px solid rgba(147, 184, 255, 0.5);
+        color: #93b8ff;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-decoration: none;
+      }
+      a:hover { border-color: currentColor; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Lost in space</p>
+      <h1>404</h1>
+      <p class="lead">这一页飞去火星了，外星人猎人还没把它找回来。</p>
+      <a href="./">回到主页</a>
+    </main>
+  </body>
+</html>

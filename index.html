@@ -26,13 +26,16 @@
     <meta property="og:title" content="Eureka Web" />
     <meta property="og:description" content="尤里卡的个人网页：动态交互、编程语言节点、照片剧场。" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://eureka0w0v0.github.io/EurekaWeb/images/icons/assets-myicon.webp" />
+    <meta property="og:image" content="https://eureka0w0v0.github.io/EurekaWeb/images/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:url" content="https://eureka0w0v0.github.io/EurekaWeb/" />
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://eureka0w0v0.github.io/EurekaWeb/images/og-card.png" />
     <!-- three.js now lives in vendor/ and is imported lazily from there when
          the language section scrolls into view, so there is no third-party
          origin left to warm up. -->
-    <link rel="stylesheet" href="./styles.css?v=c5d5b7f3" />
+    <link rel="stylesheet" href="./styles.css?v=1ab09392" />
   </head>
   <body>
     <a class="skip-link" href="#main" data-i18n="skipToContent">跳到主要内容</a>
@@ -45,15 +48,23 @@
       </style>
     </noscript>
     <div class="intro-overlay" id="intro-overlay" aria-hidden="true">
+      <div class="intro-panel is-top"></div>
+      <div class="intro-panel is-bottom"></div>
+      <div class="intro-seam"></div>
       <div class="intro-text" id="intro-text"></div>
-      <div class="intro-top" id="intro-top"></div>
-      <div class="intro-bottom" id="intro-bottom"></div>
     </div>
     <div class="noise"></div>
     <canvas id="grain-canvas" aria-hidden="true"></canvas>
     <div class="theme-wave" aria-hidden="true">
       <div class="theme-wave-core"></div>
     </div>
+    <a class="wordmark" href="#welcome-section" data-jump="welcome-section" aria-label="Eureka Web, back to top">EUREKA</a>
+    <nav class="section-rail" aria-label="页面导航">
+      <a href="#hero-section" data-rail="hero-section" data-jump="hero-section"><span class="rail-label" data-i18n="railHero">你好</span></a>
+      <a href="#language-section" data-rail="language-section" data-jump="language-section"><span class="rail-label" data-i18n="railLanguage">语言</span></a>
+      <a href="#career-section" data-rail="career-section" data-jump="career-section"><span class="rail-label" data-i18n="railCareer">职业</span></a>
+      <a href="#photo-section" data-rail="photo-section" data-jump="photo-section"><span class="rail-label" data-i18n="railPhoto">照片</span></a>
+    </nav>
     <header class="topbar">
       <div class="language-switcher" id="language-switcher">
         <button
@@ -171,11 +182,12 @@
                 <span class="welcome-text-fallback" data-i18n="welcomeWord">Welcome</span>
               </div>
             </div>
+            <div class="welcome-cue" aria-hidden="true"></div>
           </section>
         </div>
       </section>
 
-      <section class="hero" data-hero-section data-theme-section="hero">
+      <section class="hero" id="hero-section" data-hero-section data-theme-section="hero">
         <div class="section-shell hero-shell">
           <div class="hero-copy" data-hero-copy>
             <p class="eyebrow" data-i18n="eyebrow">Eureka Web</p>
@@ -198,7 +210,7 @@
                 </div>
                 <div class="panel-copy">
                   <h2>EUREKA</h2>
-                  <p data-i18n="contactLine">联系方式:******</p>
+                  <p data-i18n="contactLine">联系方式:脑电波</p>
                   <p data-i18n="birthdayLine">生日:****.06.14</p>
                   <p data-i18n="addressLine">住址:火星</p>
                 </div>
@@ -214,7 +226,7 @@
         </div>
       </section>
 
-      <section class="language-section" data-theme-section="language">
+      <section class="language-section" id="language-section" data-theme-section="language">
         <div class="section-shell language-shell">
           <article class="language-universe" id="language-universe">
             <nav class="language-index" aria-label="Language node navigation">
@@ -641,6 +653,16 @@
       </section>
 
     </main>
+    <footer class="site-footer" id="site-footer">
+      <div class="section-shell footer-shell">
+        <p class="footer-line" data-i18n="footerLine">谢谢你看到这里。</p>
+        <ul class="footer-links">
+          <li><a href="https://github.com/Eureka0w0v0" target="_blank" rel="noopener">GitHub ↗</a></li>
+          <li><a href="#welcome-section" data-jump="welcome-section" data-i18n="footerTop">回到顶部</a></li>
+        </ul>
+        <p class="footer-meta">© 2026 Eureka · <span data-i18n="footerBuilt">原生 HTML / CSS / JS，没有框架</span></p>
+      </div>
+    </footer>
 
     <div class="photo-zoom-overlay" id="photo-zoom-overlay" aria-hidden="true" role="dialog" aria-modal="true">
       <div class="photo-zoom-shell">
@@ -669,7 +691,7 @@
       data-cf-beacon='{"token": "PASTE_YOUR_TOKEN_HERE"}'
     ></script>
     -->
-    <script src="./script.js?v=509a84eb"></script>
+    <script src="./script.js?v=b8c2cf95"></script>
     <script>
       /* Registered inline and after load so the worker never competes with the
          intro animation for bandwidth or main-thread time. The relative path

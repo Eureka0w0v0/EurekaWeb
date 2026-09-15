@@ -16,7 +16,7 @@
        matching header override in netlify.toml; this comment exists so the
        next person to touch either one finds the other. */
 
-const VERSION = "2026-08-04-1";
+const VERSION = "2026-09-15-1";
 const SHELL_CACHE = `eureka-shell-${VERSION}`;
 const ASSET_CACHE = `eureka-assets-${VERSION}`;
 
