@@ -289,6 +289,7 @@ const pageTranslations = {
     careerLayer2Title: "外星人猎人",
     careerLayer3Text: "请你在怀疑我的职业之前先想一下你在生活中有亲眼见到过任何外星人吗？",
     themeToggleLabel: "切换浅色或深色模式",
+    photoZoomLabel: "放大的照片",
     languageToggleLabel: "切换语言",
   },
   en: {
@@ -337,6 +338,7 @@ const pageTranslations = {
     careerLayer2Title: "Alien Hunter",
     careerLayer3Text: "Before you doubt my job, ask yourself: have you ever seen an alien with your own eyes in everyday life?",
     themeToggleLabel: "Switch between light and dark mode",
+    photoZoomLabel: "Enlarged photo",
     languageToggleLabel: "Switch language",
   },
   ja: {
@@ -385,6 +387,7 @@ const pageTranslations = {
     careerLayer2Title: "宇宙人ハンター",
     careerLayer3Text: "私の職業を疑う前に、日常生活で宇宙人を自分の目で見たことがあるか、先に考えてみてください。",
     themeToggleLabel: "ライトモードとダークモードを切り替える",
+    photoZoomLabel: "拡大した写真",
     languageToggleLabel: "言語を切り替える",
   },
 };
@@ -962,6 +965,9 @@ function applyTheme(theme, options = {}) {
     deferSystemChrome = false,
   } = options;
   activeTheme = theme;
+  /* The label says what the button does; this says which way it is set, which
+     is the half a screen reader could not otherwise get. */
+  themeToggle?.setAttribute("aria-pressed", `${theme === "dark"}`);
   root.classList.toggle("theme-dark", theme === "dark");
   body.classList.toggle("theme-dark", theme === "dark");
   const rootStyles = getComputedStyle(root);
@@ -1118,6 +1124,7 @@ function syncLanguageChrome(copy, language) {
   languageToggle?.setAttribute("aria-label", copy.languageToggleLabel);
   themeToggle?.setAttribute("aria-label", copy.themeToggleLabel);
   themeToggle?.setAttribute("title", copy.themeToggleLabel);
+  photoZoomOverlay?.setAttribute("aria-label", copy.photoZoomLabel);
 
   languageOptions.forEach((option) => {
     const isActive = option.dataset.language === language;

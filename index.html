@@ -73,7 +73,6 @@
           type="button"
           aria-label="切换语言"
           aria-expanded="false"
-          aria-haspopup="true"
         >
           <svg
             class="language-globe-icon"
@@ -129,22 +128,22 @@
             />
           </svg>
         </button>
-        <div class="language-menu" id="language-menu" role="menu" aria-hidden="true">
-          <button class="language-option" type="button" data-language="zh" role="menuitem">
+        <div class="language-menu" id="language-menu" aria-hidden="true">
+          <button class="language-option" type="button" data-language="zh">
             <span class="language-option-copy">
               <span class="language-option-code">CN</span>
               <span class="language-option-name">中文</span>
             </span>
             <span class="language-option-mark" aria-hidden="true"></span>
           </button>
-          <button class="language-option" type="button" data-language="en" role="menuitem">
+          <button class="language-option" type="button" data-language="en">
             <span class="language-option-copy">
               <span class="language-option-code">EN</span>
               <span class="language-option-name">English</span>
             </span>
             <span class="language-option-mark" aria-hidden="true"></span>
           </button>
-          <button class="language-option" type="button" data-language="ja" role="menuitem">
+          <button class="language-option" type="button" data-language="ja">
             <span class="language-option-copy">
               <span class="language-option-code">JP</span>
               <span class="language-option-name">日本語</span>
@@ -157,6 +156,7 @@
         class="theme-icon-button"
         id="theme-toggle"
         type="button"
+        aria-pressed="false"
         aria-label="切换浅色或深色模式"
         title="切换浅色或深色模式"
       >
@@ -200,7 +200,7 @@
             <div class="orb orb-b"></div>
             <div class="glass-panel tilt-card" id="feature-card">
               <div class="panel-top">
-                <div class="panel-avatar" role="img" aria-label="头像占位">
+                <div class="panel-avatar">
                   <img
                     class="panel-avatar-image"
                     src="./images/icons/assets-myicon.webp?v=aa9d6cb1"
@@ -653,7 +653,14 @@
 
     </main>
 
-    <div class="photo-zoom-overlay" id="photo-zoom-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+    <div
+      class="photo-zoom-overlay"
+      id="photo-zoom-overlay"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-label="放大的照片"
+    >
       <div class="photo-zoom-shell">
         <button class="photo-zoom-close" id="photo-zoom-close" type="button" aria-label="Close enlarged photo"></button>
         <div class="photo-zoom-frame">
@@ -680,7 +687,7 @@
       data-cf-beacon='{"token": "PASTE_YOUR_TOKEN_HERE"}'
     ></script>
     -->
-    <script src="./script.js?v=8d5ceca3"></script>
+    <script src="./script.js?v=9d3da5c8"></script>
     <script>
       /* Registered inline and after load so the worker never competes with the
          intro animation for bandwidth or main-thread time. The relative path
