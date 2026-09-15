@@ -2172,6 +2172,12 @@ html[lang="ja"] .language-section-title {
   overscroll-behavior: contain;
   -webkit-user-select: none;
   user-select: none;
+  /* left/top put the stack's corner at the centre point; this pulls it back
+     by half its own size. It belongs to the stack itself and must not be
+     scoped to a state class -- see the end-state rule below. */
+  transform:
+    translate3d(-50%, calc(-50% + var(--career-card-y) * 1px), 0)
+    scale(var(--career-card-scale));
 }
 
 /* The stack owns the vertical gesture so a swipe steps a card instead of
@@ -2191,6 +2197,9 @@ html[lang="ja"] .language-section-title {
   touch-action: pan-up;
 }
 
+/* Only the overscroll chaining is lifted at the ends. Nothing here may set
+   transform: these selectors outrank both .career-card-layer.is-active and
+   .is-after, so a transform declared here would flatten the whole stack. */
 .career-card-stack.is-at-first,
 .career-card-stack.is-at-last,
 .career-card-stack.is-at-first .career-card-layer,
@@ -2198,9 +2207,6 @@ html[lang="ja"] .language-section-title {
 .career-card-stack.is-at-first .layer-card-scroll,
 .career-card-stack.is-at-last .layer-card-scroll {
   overscroll-behavior: auto;
-  transform:
-    translate3d(-50%, calc(-50% + var(--career-card-y) * 1px), 0)
-    scale(var(--career-card-scale));
 }
 
 /* The stack takes focus so arrows can step through the cards. Offset the
