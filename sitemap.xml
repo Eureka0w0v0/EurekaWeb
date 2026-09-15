@@ -4,13 +4,21 @@
   client-side state on the same document, so listing them as separate entries
   would advertise URLs that do not exist.
 
-  lastmod is stamped by .github/workflows/pages.yml on deploy; editing it by
-  hand here will just be overwritten.
+  lastmod is maintained by hand, in the commit that changes the page. There is
+  deliberately no CI step for it, for the same reason the ?v= stamps are not
+  generated in CI either. Netlify publishes this repository directly with no
+  build command, so anything a GitHub Actions run rewrites would exist on one
+  host and not the other. A date that is only right on half the deploys is
+  worse than one someone has to remember.
+
+  (An earlier version of this comment claimed pages.yml stamped it on deploy.
+  It never did. The workflow has no such step, so the date sat unchanged for
+  six weeks while everyone who read this file believed it was automatic.)
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://eureka0w0v0.github.io/EurekaWeb/</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-09-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
