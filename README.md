@@ -106,3 +106,9 @@ python3 tools/add-photo.py shot.jpg --name kamakura-beach
 
 - preview + medium + full + icons ≈ **11MB**
 - 原始备份 `_originals/` ≈ **72MB**（部署排除）
+
+## 许可
+
+代码（HTML / CSS / JS / Python 脚本）以 [MIT License](LICENSE) 开源。
+
+`images/` 下的照片、头像与插画属于个人作品，**不在 MIT 授权范围内**，保留所有权利，未经许可请勿转载或另作他用。`vendor/` 下的 Three.js 遵循其自身的 MIT 许可。
