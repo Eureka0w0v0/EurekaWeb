@@ -1,114 +1,112 @@
 # Eureka Web
 
-尤里卡的个人网页，使用原生 HTML、CSS、JavaScript 构建，不依赖 Node 环境。
+Eureka's personal website, built with plain HTML, CSS and JavaScript. No Node toolchain required.
 
-## 运行方式
+## Running locally
 
-### 方式 1：VS Code 任务
+### Option 1: VS Code task
 
-运行 `Start Local Web Server` 任务，然后访问：
+Run the `Start Local Web Server` task, then open:
 
 `http://localhost:5500`
 
-### 方式 2：终端
+### Option 2: terminal
 
 ```bash
 python3 -m http.server 5500
 ```
 
-然后在浏览器中打开：
+Then open `http://localhost:5500` in a browser.
 
-`http://localhost:5500`
+## What's inside
 
-## 当前内置效果
+- Intro: the curtain is cut open along a diagonal seam, the kicker stays where it is and becomes body text, and the "Welcome" lettering condenses out of its own dust (plays once per session; `?intro` forces a replay)
+- Theme toggle (light / dark with a ripple transition)
+- Chinese / English / Japanese language switch
+- "Welcome" canvas effect (shatters into dust on scroll)
+- Programming-language nodes + a Three.js wireframe brain (sculpted after real anatomy: longitudinal fissure, temporal lobes, flat base, cerebellar folia, pons; lazy-loaded once in view; connector lines hug the projected silhouette every frame)
+- Career card scroll layers (UFO / alien)
+- Photo theatre: drop-in, carousel, Show All, click to enlarge
+- Wordmark top-left, dot section navigation on the right
+- Glassmorphism cards, 3D tilt, film grain
+- `404.html` and a 1200×630 OG share image (`images/og-card.png`, rendered offline from the brain geometry)
 
-- 开场：幕布沿一条斜缝刀切分开，kicker 就地留下成为正文，Welcome 字从自己的尘埃里凝出来（每个会话只放一次，`?intro` 强制播放）
-- 主题切换（浅色 / 深色波纹过渡）
-- 中 / 英 / 日 三语切换
-- Welcome 文字 canvas 动效（滚动碎裂成尘）
-- 编程语言节点 + Three.js 线框脑模型（按真实解剖雕形：纵裂、颞叶、平底、小脑叶片、脑桥；进入视野后懒加载；连接线每帧贴合投影轮廓）
-- 职业卡片滚动层（UFO / 外星人）
-- 照片剧场：掉落、轮播、Show All、点击放大
-- 左上 wordmark、右侧小圆点节导航
-- 玻璃拟态卡片、3D 倾斜、颗粒噪点
-- `404.html`、1200×630 的 OG 分享图（`images/og-card.png`，由脑模型几何离线渲染）
+## Maintenance scripts
 
-## 维护脚本
+Both scripts depend only on Python 3 and ImageMagick. No Node.
 
-两个脚本都只依赖 Python 3 与 ImageMagick，不引入 Node。
+### Cache-busting stamps (required)
 
-### 缓存版本号（必须）
-
-`netlify.toml` 对 css / js / images 是一年 immutable 缓存，改了文件不换 URL，老访客永远收不到新版本。版本号由内容哈希生成，**改完资源提交前跑一次**：
+`netlify.toml` gives CSS / JS / images a one-year `immutable` cache. If a file changes but its URL does not, returning visitors never receive the new version. The version stamp is a content hash, so **run this once before committing any asset change**:
 
 ```bash
-python3 tools/stamp-assets.py          # 按内容哈希改写 ?v=
-python3 tools/stamp-assets.py --check  # 只检查，过期则退出码 1
+python3 tools/stamp-assets.py          # rewrite ?v= from content hashes
+python3 tools/stamp-assets.py --check  # check only; exit code 1 if stale
 ```
 
-覆盖三个文件：`index.html`、`404.html`、`manifest.webmanifest`。后两个原来是手写日期戳（404 的 favicon 干脆没戳），`--check` 看不见它们，换个图标就会被 immutable 缓存钉死一年。
+It covers three files: `index.html`, `404.html` and `manifest.webmanifest`. The latter two used to carry hand-written date stamps (the 404 favicon had none at all), so `--check` could not see them and a swapped icon would have been pinned by the immutable cache for a year.
 
-`index.html` 引用 `manifest.webmanifest`，而后者自己的戳一改、它的哈希就变了，所以脚本跑的是不动点迭代——改一个图标，一趟就能把 manifest 和 index.html 两层一起收敛。
+`index.html` references `manifest.webmanifest`, and the manifest's own hash changes as soon as its stamps do, so the script iterates to a fixed point: changing one icon converges both the manifest and `index.html` in a single run.
 
-引用了本地资源却**不带** `?v=` 会以退出码 2 报错。唯一豁免是 `sw.js`：service worker 必须保持固定 URL 才能被替换，所以 `netlify.toml` 单独给它 `no-cache`。
+A local asset referenced **without** `?v=` fails with exit code 2. The one exemption is `sw.js`: a service worker must keep a stable URL to be replaceable, so `netlify.toml` gives it `no-cache` separately.
 
-没跑会被 GitHub Actions 拦下（workflow 里有 `--check`）。脚本幂等，没改动的资源不会产生 diff。
+Forgetting to run it is caught by GitHub Actions (the workflow runs `--check`). The script is idempotent; unchanged assets produce no diff.
 
-不在 CI 里自动改写，是因为 Netlify 无构建命令、直接发布仓库内容 —— 版本号必须落在提交里，否则两个站会不一致。
+It is not run automatically in CI because Netlify publishes the repository as-is with no build command. The stamps have to live in the commit, or the two hosts would serve different URLs.
 
-### 加照片
+### Adding a photo
 
 ```bash
 python3 tools/add-photo.py ~/Desktop/IMG_1234.HEIC
 python3 tools/add-photo.py shot.jpg --name kamakura-beach
 ```
 
-自动生成 preview / medium / full 三档 WebP（最长边 640 / 1280 / 1920，q92），**剥除 EXIF**（手机照片带 GPS），文件名统一小写，并打印可直接粘贴的 `<article>` 卡片。
+Generates the preview / medium / full WebP tiers (longest edge 640 / 1280 / 1920, q92), **strips EXIF** (phone photos carry GPS), lowercases the file name, and prints a ready-to-paste `<article>` card.
 
-卡片只打印不自动插入 —— 照片区的 `data-photo-base` 顺序会被 `script.js` 的滚动编排读取，机器改写容易弄坏动画。粘贴完再跑一次 `stamp-assets.py`。
+The card is printed rather than inserted automatically: `script.js` reads the `data-photo-base` order in the photo section to choreograph the scroll animation, and machine edits there break it easily. Run `stamp-assets.py` again after pasting.
 
-## 图片资源分层
+## Image tiers
 
-| 目录 | 用途 | 规格 |
+| Directory | Purpose | Spec |
 |---|---|---|
-| `images/photo-preview/` | 列表预览 | 小图 WebP |
-| `images/medium/` | 放大优先档 | ~1280w WebP |
-| `images/full/` | 放大高清档 | ~1920w WebP |
-| `images/icons/` | 头像 / UFO / 外星人 / favicon | 压缩 WebP/PNG |
-| `images/_originals/` | 原始备份，不参与页面引用 | 原始 JPG/PNG |
+| `images/photo-preview/` | grid previews | small WebP |
+| `images/medium/` | first tier when enlarged | ~1280w WebP |
+| `images/full/` | high-res tier when enlarged | ~1920w WebP |
+| `images/icons/` | avatar / UFO / alien / favicon | compressed WebP/PNG |
+| `images/_originals/` | untouched originals, never referenced by the page | original JPG/PNG |
 
-页面默认只加载预览图；放大时通过 `srcset` 按需取 medium/full。  
-`images/_originals/` 仅作本地/仓库备份，Netlify 与 GitHub Pages 部署时会排除。
+The page loads previews only; enlarging fetches medium/full on demand via `srcset`.  
+`images/_originals/` is a local backup only (git-ignored) and is excluded from both the Netlify and GitHub Pages deploys.
 
-## 维护模式
+## Maintenance mode
 
-配置文件：`site-config.json`
+Config file: `site-config.json`
 
-- 正常运行：`"maintenance": false`
-- 进入维护页：`"maintenance": true`
+- Normal: `"maintenance": false`
+- Maintenance page: `"maintenance": true`
 
-## Netlify 发布
+## Deploying to Netlify
 
-- Build command 留空
-- Publish directory 填 `.`，或直接使用仓库里的 `netlify.toml`
-- 已配置静态资源长缓存与基础安全头
-- `.netlifyignore` 会排除 `images/_originals/`
+- Leave the build command empty
+- Publish directory `.`, or just use the `netlify.toml` in the repo
+- Long-lived caching for static assets and basic security headers are configured there
+- `.netlifyignore` excludes `images/_originals/`
 
-## GitHub Pages 发布
+## Deploying to GitHub Pages
 
-已加入 `.github/workflows/pages.yml`，部署前会自动删掉 `images/_originals/`。发布后地址通常为：
+`.github/workflows/pages.yml` is included; it removes `images/_originals/` before deploying. The site is served at:
 
-`https://<你的 GitHub 用户名>.github.io/<仓库名>/`
+`https://<your-github-username>.github.io/<repo-name>/`
 
-## 部署体积
+## Deploy size
 
-页面实际需要下载的图片大约：
+Images the page actually downloads:
 
-- preview + medium + full + icons ≈ **11MB**
-- 原始备份 `_originals/` ≈ **72MB**（部署排除）
+- preview + medium + full + icons ≈ **11 MB**
+- `_originals/` backup ≈ **72 MB** (excluded from deploys)
 
-## 许可
+## License
 
-代码（HTML / CSS / JS / Python 脚本）以 [MIT License](LICENSE) 开源。
+The code (HTML / CSS / JS / Python scripts) is released under the [MIT License](LICENSE).
 
-`images/` 下的照片、头像与插画属于个人作品，**不在 MIT 授权范围内**，保留所有权利，未经许可请勿转载或另作他用。`vendor/` 下的 Three.js 遵循其自身的 MIT 许可。
+The photos, avatar and illustrations under `images/` are personal work and are **not** covered by the MIT License. All rights reserved; please do not repost or reuse them without permission. Three.js under `vendor/` is distributed under its own MIT license.
