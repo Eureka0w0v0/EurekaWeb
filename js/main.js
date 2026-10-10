@@ -85,7 +85,7 @@ import {
   tiltCard,
   updateHeroParallax,
 } from "./sections/hero.js?v=55fd101c";
-import { runIntroAnimation } from "./sections/intro.js?v=6d0db08a";
+import { runIntroAnimation } from "./sections/intro.js?v=da5f831e";
 import {
   activeLanguageNode,
   bindLanguageUniverseMotion,
@@ -105,7 +105,7 @@ import {
   drawWelcome,
   requestWelcomeRender,
   requestWelcomeScatterUpdate,
-} from "./sections/welcome.js?v=eec85c78";
+} from "./sections/welcome.js?v=2229accf";
 import {
   activeTheme,
   commitThemeState,

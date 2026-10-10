@@ -16,38 +16,36 @@ let welcomeLayers = [];
 let welcomeEntrance = 1;
 let welcomeEntranceFrame = 0;
 
-function buildWelcomeLayer(wordElement, canvasElement, context, text) {
-  if (!wordElement || !canvasElement || !context) {
-    return null;
-  }
-
+/* The word's measured box and font, plus the padding around it that the
+   crumble particles fly out into without hitting a hard canvas edge. */
+function measureWelcomeText(wordElement) {
   const rect = wordElement.getBoundingClientRect();
-  const dpr = 1;
   const contentWidth = Math.max(320, Math.round(rect.width));
   const contentHeight = Math.max(160, Math.round(rect.height));
-  /* Extra room so crumble particles can fly out without hitting a hard box edge. */
   const padX = Math.round(Math.max(160, contentWidth * 0.55));
   const padY = Math.round(Math.max(140, contentHeight * 0.85));
-  const width = contentWidth + padX * 2;
-  const height = contentHeight + padY * 2;
-  const originX = padX;
-  const originY = padY;
-  const sampleCanvas = document.createElement("canvas");
-  const sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
   const style = getComputedStyle(wordElement);
   const fontSize = parseFloat(style.fontSize);
-  const fontFamily = style.fontFamily;
-  const fontWeight = style.fontWeight;
   const letterSpacing = parseFloat(style.letterSpacing);
-  const font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-  const textColor = getComputedStyle(body).getPropertyValue("--welcome-text").trim();
+  return {
+    contentWidth,
+    contentHeight,
+    width: contentWidth + padX * 2,
+    height: contentHeight + padY * 2,
+    originX: padX,
+    originY: padY,
+    fontSize,
+    letterSpacing,
+    font: `${style.fontWeight} ${fontSize}px ${style.fontFamily}`,
+    textColor: getComputedStyle(body).getPropertyValue("--welcome-text").trim(),
+  };
+}
 
-  canvasElement.width = Math.round(width * dpr);
-  canvasElement.height = Math.round(height * dpr);
-  canvasElement.style.width = `${width}px`;
-  canvasElement.style.height = `${height}px`;
-  context.setTransform(dpr, 0, 0, dpr, 0, 0);
-
+/* The word drawn black on an unpadded canvas, read back for its alpha. */
+function sampleWelcomeText(metrics, text) {
+  const { contentWidth, contentHeight, font, fontSize, letterSpacing } = metrics;
+  const sampleCanvas = document.createElement("canvas");
+  const sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
   sampleCanvas.width = contentWidth;
   sampleCanvas.height = contentHeight;
   sampleCtx.clearRect(0, 0, contentWidth, contentHeight);
@@ -57,72 +55,92 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
   sampleCtx.fillStyle = "#000";
   sampleCtx.letterSpacing = `${letterSpacing}px`;
   sampleCtx.fillText(text, contentWidth / 2, contentHeight / 2 + fontSize * 0.05);
+  return sampleCtx.getImageData(0, 0, contentWidth, contentHeight);
+}
 
-  const imageData = sampleCtx.getImageData(0, 0, contentWidth, contentHeight);
+const WELCOME_NEIGHBOUR_OFFSETS = [
+  [-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1],
+];
+
+/* How many of a sample point's eight neighbours, one grid step away, are
+   inside the glyphs: few means the point is on an edge. */
+function countSolidNeighbours(imageData, metrics, x, y, gap) {
+  const { contentWidth, contentHeight } = metrics;
+  let neighbors = 0;
+  WELCOME_NEIGHBOUR_OFFSETS.forEach(([stepX, stepY]) => {
+    const nextX = x + stepX * gap;
+    const nextY = y + stepY * gap;
+    if (nextX < 0 || nextX >= contentWidth || nextY < 0 || nextY >= contentHeight) {
+      return;
+    }
+
+    const neighborAlpha = imageData.data[(nextY * contentWidth + nextX) * 4 + 3];
+    if (neighborAlpha > 96) {
+      neighbors += 1;
+    }
+  });
+  return neighbors;
+}
+
+/* Two or three dust particles for one solid sample point. Points on a
+   glyph's edge, and points near the middle of the word, get the shortest
+   delays and leave first; each particle gets its own drift, sway, shimmer
+   and weight. */
+function spawnWelcomeParticles(points, metrics, x, y, gap, edgeFactor) {
+  const { contentWidth, contentHeight, originX, originY } = metrics;
+  const maxDistance = Math.hypot(contentWidth / 2, contentHeight / 2);
+  const radialFactor =
+    Math.hypot(x - contentWidth / 2, y - contentHeight / 2) / Math.max(maxDistance, 1);
+  const baseAngle = Math.atan2(y - contentHeight / 2, x - contentWidth / 2);
+  const baseDelay = Math.max(0, (1 - edgeFactor) * 0.48 + radialFactor * 0.22);
+  const spawnCount = 2 + Math.floor(Math.random() * 2);
+  for (let s = 0; s < spawnCount; s += 1) {
+    const angle = baseAngle + (Math.random() - 0.5) * 1.6;
+    const force = 60 + Math.random() * 220;
+    points.push({
+      x: originX + x + (Math.random() - 0.5) * gap,
+      y: originY + y + (Math.random() - 0.5) * gap,
+      size: 0.6 + Math.random() * 1.4,
+      driftX: Math.cos(angle) * force + (Math.random() - 0.5) * 50,
+      driftY: Math.sin(angle) * force + (Math.random() - 0.5) * 50 + Math.random() * 20,
+      wave: (Math.random() - 0.5) * 5,
+      delay: baseDelay + Math.random() * 0.1,
+      edgeFactor,
+      shimmer: Math.random() * Math.PI * 2,
+      orbit: Math.random() * Math.PI * 2,
+      spread: 3 + Math.random() * 10,
+      gravity: 0.1 + Math.random() * 0.3,
+      windResistance: 0.4 + Math.random() * 0.6,
+    });
+  }
+}
+
+/* Walk the sample on a grid sized to the font and seed dust at every point
+   inside the glyphs. */
+function collectWelcomeParticles(imageData, metrics) {
+  const { contentWidth, contentHeight, fontSize } = metrics;
   const area = contentWidth * contentHeight;
   const densityScale = area > 220000 ? 1.3 : 1;
   const gap = Math.max(2, Math.round((fontSize / 48) * densityScale));
   const points = [];
-  const maxDistance = Math.hypot(contentWidth / 2, contentHeight / 2);
 
   for (let y = 0; y < contentHeight; y += gap) {
     for (let x = 0; x < contentWidth; x += gap) {
       const alpha = imageData.data[(y * contentWidth + x) * 4 + 3];
       if (alpha > 96) {
-        let neighbors = 0;
-        const offsets = [
-          [-gap, 0],
-          [gap, 0],
-          [0, -gap],
-          [0, gap],
-          [-gap, -gap],
-          [gap, -gap],
-          [-gap, gap],
-          [gap, gap],
-        ];
-
-        offsets.forEach(([offsetX, offsetY]) => {
-          const nextX = x + offsetX;
-          const nextY = y + offsetY;
-          if (nextX < 0 || nextX >= contentWidth || nextY < 0 || nextY >= contentHeight) {
-            return;
-          }
-
-          const neighborAlpha = imageData.data[(nextY * contentWidth + nextX) * 4 + 3];
-          if (neighborAlpha > 96) {
-            neighbors += 1;
-          }
-        });
-
-        const edgeFactor = 1 - neighbors / 8;
-        const radialFactor =
-          Math.hypot(x - contentWidth / 2, y - contentHeight / 2) / Math.max(maxDistance, 1);
-        const baseAngle = Math.atan2(y - contentHeight / 2, x - contentWidth / 2);
-        const baseDelay = Math.max(0, (1 - edgeFactor) * 0.48 + radialFactor * 0.22);
-        const spawnCount = 2 + Math.floor(Math.random() * 2);
-        for (let s = 0; s < spawnCount; s += 1) {
-          const angle = baseAngle + (Math.random() - 0.5) * 1.6;
-          const force = 60 + Math.random() * 220;
-          points.push({
-            x: originX + x + (Math.random() - 0.5) * gap,
-            y: originY + y + (Math.random() - 0.5) * gap,
-            size: 0.6 + Math.random() * 1.4,
-            driftX: Math.cos(angle) * force + (Math.random() - 0.5) * 50,
-            driftY: Math.sin(angle) * force + (Math.random() - 0.5) * 50 + Math.random() * 20,
-            wave: (Math.random() - 0.5) * 5,
-            delay: baseDelay + Math.random() * 0.1,
-            edgeFactor,
-            shimmer: Math.random() * Math.PI * 2,
-            orbit: Math.random() * Math.PI * 2,
-            spread: 3 + Math.random() * 10,
-            gravity: 0.1 + Math.random() * 0.3,
-            windResistance: 0.4 + Math.random() * 0.6,
-          });
-        }
+        const edgeFactor = 1 - countSolidNeighbours(imageData, metrics, x, y, gap) / 8;
+        spawnWelcomeParticles(points, metrics, x, y, gap, edgeFactor);
       }
     }
   }
+  return points;
+}
 
+/* The word itself in the theme's colour, on a padded canvas. */
+function paintWelcomeTexture(metrics, text) {
+  const {
+    width, height, originX, originY, contentWidth, contentHeight, font, fontSize, letterSpacing, textColor,
+  } = metrics;
   const textureCanvas = document.createElement("canvas");
   const textureCtx = textureCanvas.getContext("2d");
   textureCanvas.width = width;
@@ -132,33 +150,45 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
   textureCtx.textAlign = "center";
   textureCtx.textBaseline = "middle";
   textureCtx.letterSpacing = `${letterSpacing}px`;
-
   textureCtx.fillStyle = textColor;
-  textureCtx.fillText(
-    text,
-    originX + contentWidth / 2,
-    originY + contentHeight / 2 + fontSize * 0.05
-  );
+  textureCtx.fillText(text, originX + contentWidth / 2, originY + contentHeight / 2 + fontSize * 0.05);
+  return textureCanvas;
+}
 
+function buildWelcomeLayer(wordElement, canvasElement, context, text) {
+  if (!wordElement || !canvasElement || !context) {
+    return null;
+  }
+
+  const metrics = measureWelcomeText(wordElement);
+  const { width, height } = metrics;
+  const dpr = 1;
+  canvasElement.width = Math.round(width * dpr);
+  canvasElement.height = Math.round(height * dpr);
+  canvasElement.style.width = `${width}px`;
+  canvasElement.style.height = `${height}px`;
+  context.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const points = collectWelcomeParticles(sampleWelcomeText(metrics, text), metrics);
+  const texture = paintWelcomeTexture(metrics, text);
   const dustCanvas = document.createElement("canvas");
   dustCanvas.width = width;
   dustCanvas.height = height;
-  const dustCtx = dustCanvas.getContext("2d");
 
   return {
     canvas: canvasElement,
     context,
     width,
     height,
-    font,
-    fontSize,
-    letterSpacing,
+    font: metrics.font,
+    fontSize: metrics.fontSize,
+    letterSpacing: metrics.letterSpacing,
     text,
-    textColor,
+    textColor: metrics.textColor,
     points,
-    texture: textureCanvas,
+    texture,
     dustCanvas,
-    dustCtx,
+    dustCtx: dustCanvas.getContext("2d"),
   };
 }
 
@@ -218,81 +248,90 @@ export function drawWelcome() {
   }
 
   welcomeLayers.forEach((layer) => {
-    const { context, width, height, texture, points, textColor, type } = layer;
-    context.clearRect(0, 0, width, height);
+    paintWelcomeWord(layer, eased, crumble);
+    if (eased >= 0.08) {
+      paintWelcomeDust(layer, eased, crumble);
+    }
+  });
+}
 
-    const textOpacity = Math.max(0, 1 - eased * (type === "primary" ? 1.08 : 1.18));
-    const textShiftX = eased * (type === "primary" ? 18 : 10);
-    const textShiftY = -eased * (type === "primary" ? 10 : 6);
-    context.save();
-    context.globalAlpha = textOpacity;
-    context.translate(textShiftX, textShiftY);
-    context.drawImage(texture, 0, 0);
+/* The word, shifted and fading as it goes, with the particles that have
+   already left cut out of it. */
+function paintWelcomeWord(layer, eased, crumble) {
+  const { context, width, height, texture, points, type } = layer;
+  context.clearRect(0, 0, width, height);
 
-    context.globalCompositeOperation = "destination-out";
-    points.forEach((point) => {
-      const threshold = point.delay * 0.78 + (1 - point.edgeFactor) * 0.18;
-      const localProgress = Math.max(
-        0,
-        Math.min(1, (crumble - threshold) / Math.max(1 - threshold, 0.001))
-      );
-      if (localProgress <= 0) {
-        return;
-      }
+  const textOpacity = Math.max(0, 1 - eased * (type === "primary" ? 1.08 : 1.18));
+  const textShiftX = eased * (type === "primary" ? 18 : 10);
+  const textShiftY = -eased * (type === "primary" ? 10 : 6);
+  context.save();
+  context.globalAlpha = textOpacity;
+  context.translate(textShiftX, textShiftY);
+  context.drawImage(texture, 0, 0);
 
-      const cutSize = point.size * (1.1 + localProgress * 2.4);
-      const smearX = point.driftX * localProgress * 0.16;
-      const smearY = point.driftY * localProgress * 0.12;
-      const cutW = cutSize * (0.6 + Math.sin(point.shimmer * 3) * 0.4);
-      const cutH = cutSize * (0.6 + Math.cos(point.shimmer * 2) * 0.4);
-      context.save();
-      context.translate(point.x + smearX, point.y + smearY);
-      context.rotate(point.shimmer);
-      context.fillRect(-cutW / 2, -cutH / 2, cutW, cutH);
-      context.restore();
-    });
-    context.globalCompositeOperation = "source-over";
-    context.restore();
-
-    if (eased < 0.08) {
+  context.globalCompositeOperation = "destination-out";
+  points.forEach((point) => {
+    const threshold = point.delay * 0.78 + (1 - point.edgeFactor) * 0.18;
+    const localProgress = Math.max(
+      0,
+      Math.min(1, (crumble - threshold) / Math.max(1 - threshold, 0.001))
+    );
+    if (localProgress <= 0) {
       return;
     }
 
-    const { dustCanvas, dustCtx } = layer;
-    dustCtx.clearRect(0, 0, width, height);
-    dustCtx.fillStyle = textColor;
-
-    points.forEach((point) => {
-      const localProgress = Math.max(
-        0,
-        Math.min(1, (crumble - point.delay) / Math.max(1 - point.delay, 0.001))
-      );
-      if (localProgress <= 0) {
-        return;
-      }
-
-      const t = 1 - (1 - localProgress) * (1 - localProgress);
-      const gravityPull = point.gravity * t * t * 40;
-      const sway = Math.sin(t * Math.PI * 1.6 + point.shimmer) * point.wave * (1 - t * 0.5);
-      const x = point.x + point.driftX * t * point.windResistance + sway;
-      const y = point.y + point.driftY * t * point.windResistance + gravityPull;
-      const radius = point.size * (0.8 + t * 1.2);
-      const alpha = Math.max(0, (1 - t * 0.7) * 1.0 - eased * 0.04);
-
-      dustCtx.globalAlpha = alpha;
-      dustCtx.fillRect(x - radius * 0.5, y - radius * 0.5, radius, radius);
-    });
-
-    const blurRadius = Math.min(4, 0.8 + eased * 3.2);
+    const cutSize = point.size * (1.1 + localProgress * 2.4);
+    const smearX = point.driftX * localProgress * 0.16;
+    const smearY = point.driftY * localProgress * 0.12;
+    const cutW = cutSize * (0.6 + Math.sin(point.shimmer * 3) * 0.4);
+    const cutH = cutSize * (0.6 + Math.cos(point.shimmer * 2) * 0.4);
     context.save();
-    context.filter = `blur(${blurRadius.toFixed(1)}px)`;
-    context.globalAlpha = 1.0;
-    context.drawImage(dustCanvas, 0, 0);
-    context.filter = "none";
-    context.globalAlpha = 0.75;
-    context.drawImage(dustCanvas, 0, 0);
+    context.translate(point.x + smearX, point.y + smearY);
+    context.rotate(point.shimmer);
+    context.fillRect(-cutW / 2, -cutH / 2, cutW, cutH);
     context.restore();
   });
+  context.globalCompositeOperation = "source-over";
+  context.restore();
+}
+
+/* The particles in flight, drawn to their own canvas and blended back
+   through a blur that grows as the word disperses. */
+function paintWelcomeDust(layer, eased, crumble) {
+  const { context, width, height, points, textColor, dustCanvas, dustCtx } = layer;
+  dustCtx.clearRect(0, 0, width, height);
+  dustCtx.fillStyle = textColor;
+
+  points.forEach((point) => {
+    const localProgress = Math.max(
+      0,
+      Math.min(1, (crumble - point.delay) / Math.max(1 - point.delay, 0.001))
+    );
+    if (localProgress <= 0) {
+      return;
+    }
+
+    const t = 1 - (1 - localProgress) * (1 - localProgress);
+    const gravityPull = point.gravity * t * t * 40;
+    const sway = Math.sin(t * Math.PI * 1.6 + point.shimmer) * point.wave * (1 - t * 0.5);
+    const x = point.x + point.driftX * t * point.windResistance + sway;
+    const y = point.y + point.driftY * t * point.windResistance + gravityPull;
+    const radius = point.size * (0.8 + t * 1.2);
+    const alpha = Math.max(0, (1 - t * 0.7) * 1.0 - eased * 0.04);
+
+    dustCtx.globalAlpha = alpha;
+    dustCtx.fillRect(x - radius * 0.5, y - radius * 0.5, radius, radius);
+  });
+
+  const blurRadius = Math.min(4, 0.8 + eased * 3.2);
+  context.save();
+  context.filter = `blur(${blurRadius.toFixed(1)}px)`;
+  context.globalAlpha = 1.0;
+  context.drawImage(dustCanvas, 0, 0);
+  context.filter = "none";
+  context.globalAlpha = 0.75;
+  context.drawImage(dustCanvas, 0, 0);
+  context.restore();
 }
 
 /* Condenses the welcome word out of dust by running the scroll crumble in
