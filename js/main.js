@@ -182,9 +182,10 @@ function handleVisualViewportResize() {
   syncViewportHeightVar();
 }
 
-async function initApp() {
-  /* Order matters: listeners run in subscription order, and this is the
-     order applyLanguage used to call these sections in. */
+/* Order matters: listeners run in subscription order, and this is the order
+   applyLanguage used to call these sections in. Subscribed before anything
+   can emit. */
+function bindSectionReactions() {
   bindLanguageMenuReactions();
   bindPhotoReactions();
   bindLanguageUniverseReactions();
@@ -194,11 +195,9 @@ async function initApp() {
   bindCareerReactions();
   bindTiltReactions();
   bindLanguageUniverseMotion();
+}
 
-  redirectIfInMaintenance();
-
-  const introPromise = runIntroAnimation();
-
+function wireLanguageControls() {
   languageToggle?.addEventListener("click", () => {
     toggleLanguageMenu();
   });
@@ -232,7 +231,9 @@ async function initApp() {
   languageUniverse?.addEventListener("mouseleave", resetLanguageUniverseParallax);
 
   revealLanguageUniverse();
+}
 
+function wireThemeToggle() {
   themeToggle?.addEventListener("click", async (event) => {
     /* Mirror the guard inside triggerThemeWave so the stored preference
        never flips while the wave silently refuses to run. */
@@ -248,31 +249,38 @@ async function initApp() {
     safeStorageSet(storageKey, nextTheme);
     await triggerThemeWave(originX, originY, nextTheme);
   });
+}
 
+function handleGlobalKeydown(event) {
+  if (event.key === "Escape") {
+    if (isPhotoZoomOpen()) {
+      closePhotoZoom();
+      return;
+    }
+    closeLanguageMenu();
+  }
+
+  /* aria-modal="true" tells a screen reader that nothing outside the dialog
+     exists, so Tab leaving it puts the two in disagreement: focus lands on
+     something the user has just been told is not there. The dialog holds
+     exactly one focusable element, so trapping is simply keeping it. */
+  if (isPhotoZoomOpen() && event.key === "Tab") {
+    event.preventDefault();
+    photoZoomCloseButton?.focus({ preventScroll: true });
+  }
+}
+
+/* Page-wide listeners. Several share an event (resize, scroll), and
+   listeners on one target run in the order they were added -- which decides
+   the order their rAF callbacks run within a frame -- so this order is kept. */
+function wireGlobalListeners() {
   window.addEventListener("pointermove", handlePointerMove, { passive: true });
   window.addEventListener("click", (event) => {
     if (!languageSwitcher?.contains(event.target)) {
       closeLanguageMenu();
     }
   });
-  window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      if (isPhotoZoomOpen()) {
-        closePhotoZoom();
-        return;
-      }
-      closeLanguageMenu();
-    }
-
-    /* aria-modal="true" tells a screen reader that nothing outside the dialog
-       exists, so Tab leaving it puts the two in disagreement: focus lands on
-       something the user has just been told is not there. The dialog holds
-       exactly one focusable element, so trapping is simply keeping it. */
-    if (isPhotoZoomOpen() && event.key === "Tab") {
-      event.preventDefault();
-      photoZoomCloseButton?.focus({ preventScroll: true });
-    }
-  });
+  window.addEventListener("keydown", handleGlobalKeydown);
   tiltCard?.addEventListener("mouseleave", resetTilt);
   window.addEventListener("resize", handleWindowResize, { passive: true });
   window.visualViewport?.addEventListener("resize", handleVisualViewportResize);
@@ -283,6 +291,9 @@ async function initApp() {
   window.addEventListener("scroll", requestLanguageNetworkSync, { passive: true });
   window.addEventListener("hashchange", requestCareerSceneUpdate);
   window.addEventListener("load", requestLanguageNetworkSync);
+}
+
+function wireSectionGestures() {
   careerCardStack?.addEventListener("wheel", handleCareerLayerWheel, { passive: false, capture: true });
   careerCardStack?.addEventListener("touchstart", handleCareerLayerTouchStart, { passive: true, capture: true });
   careerCardStack?.addEventListener("touchmove", handleCareerLayerTouchMove, { passive: false, capture: true });
@@ -310,7 +321,11 @@ async function initApp() {
   careerCardStack?.addEventListener("keydown", handleCareerLayerKeydown);
   window.addEventListener("resize", measureMagnetChars, { passive: true });
   document.fonts?.ready?.then(requestLanguageNetworkSync);
+}
 
+/* The first full render: the copy and the theme are settled before the
+   scenes that draw with them. */
+async function renderFirstFrame() {
   syncViewportHeightVar();
   applyLanguage(resolveLanguage());
   setActiveLanguageNode(activeLanguageNode);
@@ -322,16 +337,9 @@ async function initApp() {
   updateCareerScene();
   updatePhotoScene();
   requestLanguageNetworkSync();
+}
 
-  /* Initialize visual effects */
-  initCinematicParallax();
-  initGrainCanvas();
-  initPhotoCardHoverGlow();
-  initMarsClock();
-
-  /* Bound before the intro is awaited. The intro runs ~3.5s, and until these
-     exist a backgrounded tab keeps the photo rAF and the brain scene running;
-     anything throwing above would have skipped them entirely. */
+function wireLifecycle() {
   mediaQuery.addEventListener("change", (event) => {
     if (getStoredTheme()) {
       return;
@@ -355,6 +363,30 @@ async function initApp() {
       requestPhotoSceneUpdate();
     }
   });
+}
+
+async function initApp() {
+  bindSectionReactions();
+  redirectIfInMaintenance();
+
+  const introPromise = runIntroAnimation();
+
+  wireLanguageControls();
+  wireThemeToggle();
+  wireGlobalListeners();
+  wireSectionGestures();
+  await renderFirstFrame();
+
+  /* Initialize visual effects */
+  initCinematicParallax();
+  initGrainCanvas();
+  initPhotoCardHoverGlow();
+  initMarsClock();
+
+  /* Bound before the intro is awaited. The intro runs ~3.5s, and until these
+     exist a backgrounded tab keeps the photo rAF and the brain scene running;
+     anything throwing above would have skipped them entirely. */
+  wireLifecycle();
 
   initSectionRail();
   initJumpLinks();
