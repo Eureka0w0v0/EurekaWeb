@@ -5,7 +5,7 @@ import { pageEvents } from "./core/events.js?v=8c4a4d4a";
 import { createMachine } from "./core/machine.js?v=73a7d34e";
 import { waitForFrames, waitMilliseconds } from "./core/frames.js?v=0b68ae2a";
 import { safeStorageGet } from "./core/storage.js?v=55891515";
-import { isTouchFirst } from "./core/viewport.js?v=71b5eb94";
+import { isTouchFirst } from "./core/viewport.js?v=c7860737";
 
 export const themeToggle = document.querySelector("#theme-toggle");
 export const themeWave = document.querySelector(".theme-wave");

@@ -1,7 +1,7 @@
 /* The hero: parallax, the tilt card and the magnetic heading. */
 
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
-import { isTouchFirst, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=71b5eb94";
+import { isTouchFirst, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
 
 export const tiltCard = document.querySelector("#feature-card");
 const heroSection = document.querySelector("[data-hero-section]");

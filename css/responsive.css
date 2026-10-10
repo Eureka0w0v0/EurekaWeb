@@ -1,0 +1,897 @@
+/* ---------------------------------------------------------------------------
+   Breakpoints
+   ---------------------------------------------------------------------------
+   The CSS is desktop-first: base rules describe the wide layout and the
+   max-width blocks narrow it down. The widths in use, and what each one
+   is actually for:
+
+     max-width: 1160px   the language section only — the brain canvas and the
+                         insight panel stop fitting side by side
+     max-width:  920px   hero drops from two columns to one
+     max-width:  680px   the main phone layout (largest block, 58 rules)
+     max-width:  480px   small-phone corrections on top of 680 (52 rules)
+     min-width: 1024px   topbar spacing and the hero's 3D perspective, which
+                         are desktop-only affordances
+     min-width:  781px   the brain's fixed 660px sizing, floored where that
+                         stops fitting inside .language-section
+     max-width:  900px   the section rail only, hidden below this and on any
+                         touch device (paired with the coarse-pointer clause)
+
+   Several blocks read `(max-width: 680px), (hover: none) and (pointer: coarse)`.
+   That second clause is deliberate: a large touchscreen gets the phone
+   treatment (bigger targets, no hover affordances) regardless of its width.
+   Do not "simplify" it away to a plain width query.
+
+   1024 and 1160 overlap between 1024-1160px, but their selectors are disjoint
+   (topbar/hero vs language section), so nothing fights. Verified: no gaps and
+   no conflicting overrides across the whole range.
+
+   Most of these blocks are in this file, after every feature file. A few
+   small ones sit beside the rules they adjust instead: the 1024px block in
+   hero.css, the 900px one in chrome.css, and the reduced-motion and
+   coarse-pointer blocks throughout.
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 1160px) {
+  .language-section {
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: var(--space-24) 0 var(--space-56);
+  }
+
+  .language-universe {
+    min-height: 860px;
+    grid-template-columns: 1fr;
+    gap: var(--space-24);
+    padding: var(--space-28) 0;
+  }
+
+  .language-index {
+    grid-template-columns: repeat(5, auto);
+    justify-content: center;
+    gap: var(--space-20);
+  }
+
+  .language-stage {
+    width: 100%;
+    min-height: 650px;
+  }
+
+  .language-heading {
+    max-width: 540px;
+    margin: 0 auto;
+    text-align: center;
+    justify-items: center;
+    padding: 0;
+    border-left: 0;
+  }
+
+  .brain-wrap {
+    left: 50%;
+    top: 64%;
+    width: min(600px, 92vw);
+  }
+
+  .language-insight {
+    justify-self: center;
+    width: min(420px, calc(100% - 40px));
+    transform: none;
+  }
+}
+
+@media (max-width: 920px) {
+  .hero-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-shell {
+    padding: var(--space-32) 0 var(--space-40);
+    align-content: center;
+  }
+
+  .hero-visual {
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 680px) {
+  :root {
+    --topbar-gap: 10px;
+    --topbar-top: max(10px, calc(env(safe-area-inset-top, 0px) + 4px));
+    --topbar-right: max(12px, env(safe-area-inset-right, 0px));
+    --topbar-button-size: 48px;
+  }
+
+  .section-shell {
+    width: min(1180px, calc(100% - 24px));
+  }
+
+  .first-screen-shell {
+    gap: 0;
+    padding-top: 0;
+  }
+
+  #language-switcher .language-globe-icon {
+    width: 21px;
+    height: 21px;
+  }
+
+  #language-switcher .language-menu {
+    min-width: min(180px, calc(100vw - 28px));
+    padding: 10px;
+  }
+
+  #language-switcher .language-option {
+    padding: 12px 14px;
+    border-radius: 18px;
+  }
+
+  #language-switcher .language-option-name {
+    font-size: var(--fs-md);
+  }
+
+  .welcome-word {
+    height: clamp(150px, 42vw, 220px);
+    font-size: clamp(3.9rem, 20vw, 6.4rem);
+  }
+
+  h1 {
+    font-size: clamp(2.6rem, 15vw, 4rem);
+    max-width: 10ch;
+  }
+
+  .hero-shell {
+    gap: var(--space-24);
+    padding: var(--space-28) 0 var(--space-32);
+  }
+
+  .hero-copy {
+    max-width: min(100%, 520px);
+    justify-items: center;
+    text-align: center;
+    margin: 0 auto;
+  }
+
+  .hero-text {
+    margin: 14px 0 0;
+    max-width: 12ch;
+    font-size: clamp(1.95rem, 9vw, 3.2rem);
+    line-height: 1.06;
+  }
+
+  html[lang="en"] .hero-text,
+  html[lang="ja"] .hero-text {
+    max-width: 16ch;
+    font-size: clamp(1.65rem, 7.4vw, 2.8rem);
+  }
+
+  .glass-panel {
+    padding: var(--space-20);
+    border-radius: 24px;
+  }
+
+  .language-section {
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: 10px 0 58px;
+  }
+
+  .language-section-title {
+    max-width: 11ch;
+    font-size: clamp(1.95rem, 8.8vw, 3rem);
+    line-height: 1.05;
+  }
+
+  .language-universe {
+    min-height: 820px;
+    padding: var(--space-20) 0;
+  }
+
+  .language-universe::after {
+    width: 300px;
+    height: 300px;
+  }
+
+  .language-stage {
+    min-height: 620px;
+  }
+
+  .language-index {
+    gap: 18px;
+  }
+
+  .language-index-item {
+    min-width: 36px;
+    font-size: var(--fs-xs);
+  }
+
+  .brain-wrap {
+    left: 50%;
+    width: min(500px, 98vw);
+    top: 62%;
+  }
+
+  .language-node {
+    min-width: 78px;
+    min-height: 40px;
+    padding: 0 13px;
+  }
+
+  .node-cpp {
+    left: 13%;
+    top: 60%;
+  }
+
+  .node-html {
+    left: 87%;
+    right: auto;
+    top: 60%;
+  }
+
+  .node-css {
+    left: 24%;
+    bottom: auto;
+    top: 78%;
+  }
+
+  .node-js {
+    left: 76%;
+    right: auto;
+    bottom: auto;
+    top: 78%;
+  }
+
+  .node-py {
+    left: 50%;
+    top: 42%;
+  }
+
+  .language-insight {
+    padding: 16px 18px;
+  }
+
+  .career-section {
+    --career-scene-offset-y: clamp(20px, 5.5vh, 52px);
+    min-height: 170vh;
+    min-height: 170svh;
+    min-height: 170dvh;
+    padding-bottom: var(--space-96);
+  }
+
+  .career-sticky {
+    padding: 18px 18px 104px;
+  }
+
+  .career-scene {
+    min-height: calc(var(--app-height, 100dvh) - 36px);
+    padding-bottom: var(--space-96);
+  }
+
+  .career-ufo {
+    top: 13%;
+    width: clamp(132px, 44vw, 210px);
+  }
+
+  .career-card-stack {
+    top: 48%;
+    --career-card-height: 190px;
+    max-width: calc(100% - 34px);
+  }
+
+  .career-card-layer {
+    align-content: center;
+    padding: 26px 24px;
+  }
+
+  .career-title-primary {
+    font-size: clamp(4rem, 15vw, 6rem);
+    line-height: 0.98;
+  }
+
+  .career-title-medium {
+    max-width: 100%;
+    font-size: clamp(2.08rem, 8.2vw, 3.55rem);
+    line-height: 1.08;
+  }
+
+  .career-statement {
+    max-width: 23ch;
+    font-size: clamp(1.02rem, 4.7vw, 1.42rem);
+    line-height: 1.46;
+  }
+
+  html[lang="en"] .career-statement,
+  html[lang="ja"] .career-statement {
+    max-width: 25ch;
+    font-size: clamp(0.98rem, 4.35vw, 1.3rem);
+    line-height: 1.44;
+  }
+
+  .career-alien {
+    top: 67%;
+    width: clamp(72px, 24vw, 118px);
+  }
+
+  .language-section,
+  .career-section {
+    overflow-x: hidden;
+  }
+
+  .photo-section {
+    --photo-queue-final-bottom: clamp(74px, 12vh, 140px);
+    --photo-queue-final-y: clamp(28px, 4.5vh, 84px);
+    min-height: 250vh;
+    min-height: 250svh;
+    min-height: 250dvh;
+  }
+
+  .photo-sticky {
+    padding: 0;
+  }
+
+  .photo-shell {
+    min-height: inherit;
+    height: auto;
+  }
+
+  .photo-title {
+    font-size: clamp(2.7rem, 15vw, 4.4rem);
+  }
+
+  .photo-fixed-title {
+    top: 64px;
+  }
+
+  .photo-stage {
+    min-height: 0;
+    height: var(--app-height, 100dvh);
+    margin-top: 0;
+    overflow: visible;
+  }
+
+  .photo-queue {
+    top: auto;
+    --photo-queue-bottom-offset: 0px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--photo-queue-final-bottom) - var(--photo-queue-bottom-offset));
+    gap: 6px;
+    width: calc(100vw - 24px);
+  }
+
+  .photo-card {
+    width: clamp(163px, 34.8vw, 229px);
+    border-radius: 16px;
+    box-shadow:
+      0 12px 26px color-mix(in srgb, var(--text) 3.2%, transparent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .photo-floating-card {
+    box-shadow:
+      0 var(--photo-card-depth) 28px color-mix(in srgb, var(--text) var(--photo-card-shadow-strength), transparent);
+  }
+
+  html.theme-dark .photo-card {
+    box-shadow:
+      0 16px 32px rgba(0, 0, 0, 0.34);
+  }
+
+  .panel-top {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .panel-avatar {
+    width: 100%;
+    max-width: 220px;
+    height: 150px;
+  }
+
+  .panel-avatar-image {
+    object-position: center calc(50% - 25px);
+  }
+
+  .panel-copy h2 {
+    margin: 0 0 var(--space-8);
+    font-size: clamp(1.4rem, 7vw, 1.9rem);
+  }
+
+  .panel-copy p {
+    font-size: var(--fs-base);
+    line-height: 1.6;
+  }
+
+  .panel-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-8);
+    margin-top: var(--space-16);
+  }
+
+  .panel-grid span {
+    padding: 11px 12px;
+  }
+
+}
+
+@media (max-width: 480px) {
+  :root {
+    --topbar-gap: 8px;
+    --topbar-top: max(8px, calc(env(safe-area-inset-top, 0px) + 2px));
+    --topbar-right: max(10px, env(safe-area-inset-right, 0px));
+    --topbar-button-size: 44px;
+  }
+
+  .section-shell {
+    width: min(1180px, calc(100% - 18px));
+  }
+
+  .first-screen-shell {
+    gap: 0;
+    padding-top: 0;
+  }
+
+  #language-switcher .language-globe-icon {
+    width: 19px;
+    height: 19px;
+  }
+
+  #language-switcher .language-menu {
+    min-width: min(168px, calc(100vw - 22px));
+    padding: var(--space-8);
+    border-radius: 24px;
+  }
+
+  #language-switcher .language-option {
+    padding: 11px 12px;
+    border-radius: 16px;
+  }
+
+  #language-switcher .language-option-code {
+    font-size: var(--fs-2xs);
+  }
+
+  #language-switcher .language-option-name {
+    font-size: var(--fs-sm);
+  }
+
+  .welcome-stage {
+    min-height: 100%;
+  }
+
+  .welcome-word {
+    height: clamp(136px, 40vw, 180px);
+    font-size: clamp(3.1rem, 18vw, 4.8rem);
+  }
+
+  .hero-shell {
+    gap: 18px;
+    padding-top: 22px;
+  }
+
+  .hero-visual {
+    min-height: 340px;
+  }
+
+  .orb-a {
+    width: 132px;
+    height: 132px;
+    top: 18px;
+    left: 10px;
+  }
+
+  .orb-b {
+    width: 164px;
+    height: 164px;
+    right: 6px;
+    bottom: 40px;
+  }
+
+  .glass-panel {
+    padding: 18px;
+  }
+
+  .language-section {
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: 0 0 var(--space-48);
+  }
+
+  .language-universe {
+    min-height: 780px;
+    padding: 14px 0;
+  }
+
+  .language-stage {
+    min-height: 580px;
+  }
+
+  .brain-wrap {
+    left: 50%;
+    width: min(390px, 96vw);
+    top: 61%;
+  }
+
+  .language-heading {
+    padding: 0 var(--space-8);
+  }
+
+  .language-node {
+    min-width: 68px;
+    min-height: 38px;
+    padding: 0 10px;
+  }
+
+  .node-index {
+    display: none;
+  }
+
+  .node-cpp {
+    left: 13%;
+    top: 60%;
+  }
+
+  .node-html {
+    left: 87%;
+    right: auto;
+    top: 60%;
+  }
+
+  .node-css {
+    left: 24%;
+    bottom: auto;
+    top: 78%;
+  }
+
+  .node-js {
+    left: 76%;
+    right: auto;
+    bottom: auto;
+    top: 78%;
+  }
+
+  .node-py {
+    left: 50%;
+    top: 42%;
+  }
+
+  .node-label {
+    font-size: var(--fs-sm);
+  }
+
+  .language-insight {
+    width: calc(100% - 28px);
+    border-radius: 18px;
+  }
+
+  .career-section {
+    min-height: 168vh;
+    min-height: 168svh;
+    min-height: 168dvh;
+    padding-bottom: 86px;
+  }
+
+  .career-orbit-a {
+    width: 118vw;
+    height: 66vw;
+  }
+
+  .career-orbit-b {
+    width: 82vw;
+    height: 48vw;
+  }
+
+  .language-section,
+  .career-section {
+    overflow-x: hidden;
+  }
+
+  .career-card-stack {
+    width: min(calc(100% - 34px), calc(100vw - 34px));
+    max-width: calc(100% - 34px);
+    --career-card-height: 184px;
+  }
+
+  .career-card-layer {
+    padding: 26px 22px;
+  }
+
+  .photo-section {
+    --photo-queue-final-bottom: clamp(66px, 11.5vh, 122px);
+    --photo-queue-final-y: clamp(22px, 4vh, 72px);
+    min-height: 250vh;
+    min-height: 250svh;
+    min-height: 250dvh;
+  }
+
+  .photo-sticky {
+    padding-top: 0;
+  }
+
+  .photo-heading {
+    gap: var(--space-8);
+  }
+
+  .photo-fixed-title {
+    top: 64px;
+    gap: var(--space-8);
+  }
+
+  .photo-stage {
+    min-height: 0;
+    height: var(--app-height, 100dvh);
+    margin-top: 0;
+    overflow: visible;
+  }
+
+  .photo-queue {
+    top: auto;
+    --photo-queue-bottom-offset: 0px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--photo-queue-final-bottom) - var(--photo-queue-bottom-offset));
+    gap: var(--space-4);
+  }
+
+  .photo-card {
+    width: clamp(128px, 38.7vw, 171px);
+    border-radius: 17px;
+  }
+
+  .career-title-primary {
+    font-size: clamp(3.35rem, 15.5vw, 4.8rem);
+    line-height: 1;
+  }
+
+  .career-title-medium {
+    max-width: 100%;
+    font-size: clamp(1.72rem, 7.9vw, 2.72rem);
+    line-height: 1.1;
+  }
+
+  .career-statement {
+    max-width: 24ch;
+    font-size: clamp(0.94rem, 4.35vw, 1.16rem);
+    line-height: 1.48;
+  }
+
+  html[lang="en"] .career-statement,
+  html[lang="ja"] .career-statement {
+    max-width: 25ch;
+    font-size: clamp(0.86rem, 3.95vw, 1.04rem);
+    line-height: 1.45;
+  }
+
+  [data-language-insight-text] {
+    font-size: var(--fs-sm);
+    line-height: 1.55;
+  }
+
+  .panel-avatar {
+    max-width: 196px;
+    height: 132px;
+  }
+
+  .panel-copy h2 {
+    font-size: clamp(1.3rem, 6.6vw, 1.65rem);
+  }
+
+  .panel-copy p {
+    font-size: var(--fs-md);
+    line-height: 1.5;
+  }
+
+  .panel-grid {
+    gap: 7px;
+    margin-top: 14px;
+  }
+
+  .panel-grid span {
+    padding: 10px 11px;
+    font-size: var(--fs-md);
+  }
+}
+
+@media (max-width: 680px), (hover: none) and (pointer: coarse) {
+  .tilt-card#feature-card {
+    transform: none !important;
+    transform-style: flat;
+    transition-property:
+      color,
+      background-color,
+      border-color,
+      box-shadow;
+    transition-duration:
+      260ms,
+      320ms,
+      320ms,
+      320ms;
+    transition-timing-function: ease;
+    will-change: auto;
+  }
+
+  html.theme-snapshot-active .glass-panel {
+    transition-property:
+      color,
+      background-color,
+      border-color,
+      box-shadow,
+      text-shadow;
+    transition-duration:
+      260ms,
+      320ms,
+      320ms,
+      320ms,
+      320ms;
+    transition-timing-function: ease;
+  }
+
+  .career-card-stack .career-card-layer,
+  .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(245, 248, 255, 0.9));
+    border-color: rgba(74, 89, 111, 0.18);
+    box-shadow:
+      0 24px 58px rgba(45, 58, 78, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.64);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .career-card-stack .career-card-layer.is-active,
+  .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.995), rgba(245, 248, 255, 0.975));
+    box-shadow:
+      0 26px 62px rgba(45, 58, 78, 0.13),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  }
+
+  html.theme-dark .career-card-stack .career-card-layer,
+  html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
+    background:
+      linear-gradient(145deg, rgba(24, 24, 24, 0.94), rgba(12, 12, 12, 0.91));
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow:
+      0 24px 58px rgba(0, 0, 0, 0.38),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  }
+
+  html.theme-dark .career-card-stack .career-card-layer.is-active,
+  html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
+    background:
+      linear-gradient(145deg, rgba(24, 24, 24, 0.992), rgba(14, 14, 14, 0.985));
+    box-shadow:
+      0 26px 62px rgba(0, 0, 0, 0.44),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  .career-card-stack .career-card-layer {
+    contain: style;
+    filter: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    will-change: transform, opacity;
+    transition-property: transform, opacity;
+    transition-duration: 360ms, 360ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1), cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .career-card-stack .layer-card-scroll {
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+  }
+
+  .career-card-stack .career-card-layer.is-active,
+  .career-card-stack .career-card-layer.is-before,
+  .career-card-stack .career-card-layer.is-after,
+  .career-card-stack[data-active-layer="3"] .career-card-layer.is-before,
+  .career-card-stack[data-active-layer="3"] .career-card-layer:not(.is-active) {
+    filter: none;
+  }
+
+  .career-card-stack.is-switching-forward .career-card-layer.is-active,
+  .career-card-stack.is-switching-back .career-card-layer.is-active,
+  .career-card-stack[data-active-layer="3"].is-switching-back .career-card-layer-3.is-active {
+    animation: none;
+  }
+
+  .career-card-stack.is-theme-locking {
+    animation: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+
+  html.theme-snapshot-active .career-card-stack .career-card-layer,
+  .career-card-stack.is-theme-locking .career-card-layer {
+    animation: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+
+  html.theme-snapshot-active .career-card-stack[data-active-layer="1"] .career-card-layer-3,
+  .career-card-stack.is-theme-locking[data-active-layer="1"] .career-card-layer-3 {
+    animation: none !important;
+  }
+
+  .career-card-layer.is-after + .career-card-layer.is-after,
+  .career-card-stack[data-active-layer="1"] .career-card-layer-3 {
+    opacity: 0.38;
+    transform: translate3d(0, -22px, -26px) rotateX(-5deg) scale(0.975);
+  }
+
+  .career-card-stack[data-active-layer="3"]::before {
+    opacity: 0;
+  }
+
+  .career-card-stack[data-active-layer="3"] .career-card-layer.is-before {
+    opacity: 0;
+    visibility: hidden;
+    box-shadow: none;
+  }
+
+  .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
+  }
+
+  html.theme-dark .career-card-stack[data-active-layer="3"]::before {
+    opacity: 0;
+  }
+
+  html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
+    background:
+      linear-gradient(145deg, rgba(24, 24, 24, 0.995), rgba(18, 18, 18, 0.99));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  .brain-wrap {
+    width: min(500px, 98vw);
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+/* Both of these need the width floor, and both need to exist.
+   (hover: hover) and (pointer: fine) is the media query; is-desktop-input is
+   the class js/core/viewport.js sets from navigator.maxTouchPoints === 0. A touchscreen
+   laptop matches the query but not the class, so neither is redundant.
+
+   The floor is 781px because that is where this layout stops fitting, not
+   because of any other breakpoint: 660px of brain shifted 59px left by
+   --brain-wrap-offset-x needs about 780px of viewport before its left edge
+   passes .language-section's, and the section is overflow: clip, so past that
+   point the brain is silently cropped rather than overflowing visibly.
+   Measured at 20px steps -- 780px sits exactly on the edge, 760px is 9px over.
+
+   Below the floor the base .brain-wrap rule takes back over with
+   clamp(540px, 54vw, 720px) and no offset, which centres and fits; below
+   680px the phone rule's min(500px, 98vw) takes over from that. It was these
+   two blocks being unbounded that broke it -- they are later in the file than
+   the phone rule and carry min-width: 660px, so at 600px wide with a mouse
+   they won and forced a 660px brain into a 600px window. */
+@media (hover: hover) and (pointer: fine) and (min-width: 781px) {
+  .brain-wrap {
+    width: 660px;
+    min-width: 660px;
+    max-width: 660px;
+  }
+}
+
+@media (min-width: 781px) {
+  html.is-desktop-input .brain-wrap {
+    width: 660px;
+    min-width: 660px;
+    max-width: 660px;
+    --brain-wrap-offset-x: -59px;
+  }
+
+  html.is-desktop-input .brain-three-mount {
+    width: 766px;
+    min-width: 766px;
+    max-width: 766px;
+    height: 403px;
+    min-height: 403px;
+    max-height: 403px;
+    justify-self: center;
+  }
+}

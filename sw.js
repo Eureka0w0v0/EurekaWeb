@@ -36,10 +36,11 @@ const ASSET_CACHE = "eureka-assets-2";
    caching so a first visit does not stall on a multi-megabyte install.
 
    Nothing with a ?v= stamp belongs in this list. caches.match compares full
-   URLs including the query, so a bare "./styles.css" here can never answer the
-   "./styles.css?v=4c94b6f9" the page actually asks for -- it would just be
-   downloaded on every install and never read. Both files are cached correctly
-   at runtime by cacheFirst, under the URL that gets requested.
+   URLs including the query, so a bare "./css/base.css" here can never answer
+   the "./css/base.css?v=b8c10228" the page actually asks for -- it would
+   just be downloaded on every install and never read. Stamped assets are
+   cached correctly at runtime by cacheFirst, under the URL that gets
+   requested.
 
    Making this list carry the stamped URLs instead would take a warm cache one
    visit earlier, but only by having stamp-assets.py rewrite this file too --

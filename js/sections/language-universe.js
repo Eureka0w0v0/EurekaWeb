@@ -1,9 +1,9 @@
 /* The programming-language section: pills, connector lines, insight panel. */
 
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
-import { isCompactLayout, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=71b5eb94";
-import { getActiveCopy } from "../i18n/language.js?v=c4a9e128";
-import { brainMount, brainSceneController, brainWrap } from "./brain.js?v=1045da2d";
+import { isCompactLayout, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
+import { getActiveCopy } from "../i18n/language.js?v=651a14fb";
+import { brainMount, brainSceneController, brainWrap } from "./brain.js?v=944d5227";
 
 export const languageUniverse = document.querySelector("#language-universe");
 const languageStage = document.querySelector(".language-stage");

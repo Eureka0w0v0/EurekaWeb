@@ -8,8 +8,8 @@ import {
   syncInputDeviceClass,
   syncViewportHeightVar,
   visualViewportWidthChanged,
-} from "./core/viewport.js?v=71b5eb94";
-import { initGrainCanvas } from "./effects/grain.js?v=70366064";
+} from "./core/viewport.js?v=c7860737";
+import { initGrainCanvas } from "./effects/grain.js?v=1b1ff6c7";
 import {
   applyLanguage,
   bindLanguageMenuReactions,
@@ -20,15 +20,15 @@ import {
   resolveLanguage,
   switchLanguageWithAnimation,
   toggleLanguageMenu,
-} from "./i18n/language.js?v=c4a9e128";
-import { initJumpLinks, initSectionRail } from "./nav.js?v=2f0ea05b";
-import { initPhotoQueueCards } from "./photo/cards.js?v=3742a350";
+} from "./i18n/language.js?v=651a14fb";
+import { initJumpLinks, initSectionRail } from "./nav.js?v=2bf12000";
+import { initPhotoQueueCards } from "./photo/cards.js?v=f9b5c68e";
 import {
   handlePhotoCarouselTouchEnd,
   handlePhotoCarouselTouchMove,
   handlePhotoCarouselTouchStart,
   handlePhotoCarouselWheel,
-} from "./photo/carousel.js?v=75cfa7fb";
+} from "./photo/carousel.js?v=1d3e910b";
 import {
   photoSection,
   photoShowAllButton,
@@ -36,16 +36,16 @@ import {
   photoZoomCloseButton,
   photoZoomOverlay,
 } from "./photo/dom.js?v=64ce044a";
-import { bindPhotoReactions, togglePhotoAllExpanded } from "./photo/expand.js?v=1dc6ef87";
-import { initPhotoCardHoverGlow } from "./photo/hover-glow.js?v=18fbb765";
+import { bindPhotoReactions, togglePhotoAllExpanded } from "./photo/expand.js?v=41907812";
+import { initPhotoCardHoverGlow } from "./photo/hover-glow.js?v=a03d1150";
 import {
   handlePhotoCardKeydown,
   handlePhotoMainCardClick,
   handlePhotoMainCardPointerPreload,
   handlePhotoMainCardTouchPreload,
-} from "./photo/interaction.js?v=84ee121e";
-import { invalidatePhotoLayoutCaches } from "./photo/layout.js?v=6166abf4";
-import { updatePhotoScene } from "./photo/scene.js?v=3355d386";
+} from "./photo/interaction.js?v=e3afb3c5";
+import { invalidatePhotoLayoutCaches } from "./photo/layout.js?v=c9fe971e";
+import { updatePhotoScene } from "./photo/scene.js?v=a3c8cae7";
 import {
   cancelPhotoSceneFrame,
   isPhotoZoomOpen,
@@ -56,13 +56,13 @@ import {
   handlePhotoZoomClosePointerDown,
   handlePhotoZoomOverlayPointerDown,
   stopPhotoZoomScroll,
-} from "./photo/zoom.js?v=5d4a4ded";
+} from "./photo/zoom.js?v=c883e1e6";
 import {
   bindBrainReactions,
   brainSceneController,
   brainSceneOnScreen,
   scheduleBrainSceneLoad,
-} from "./sections/brain.js?v=1045da2d";
+} from "./sections/brain.js?v=944d5227";
 import {
   bindCareerReactions,
   careerCardStack,
@@ -74,7 +74,7 @@ import {
   requestCareerSceneUpdate,
   updateCareerLayerClasses,
   updateCareerScene,
-} from "./sections/career.js?v=381f3878";
+} from "./sections/career.js?v=f0ee8cbd";
 import {
   bindHeroReactions,
   bindTiltReactions,
@@ -84,8 +84,8 @@ import {
   resetTilt,
   tiltCard,
   updateHeroParallax,
-} from "./sections/hero.js?v=55fd101c";
-import { runIntroAnimation } from "./sections/intro.js?v=da5f831e";
+} from "./sections/hero.js?v=443e4818";
+import { runIntroAnimation } from "./sections/intro.js?v=c8870d8a";
 import {
   activeLanguageNode,
   bindLanguageUniverseMotion,
@@ -97,7 +97,7 @@ import {
   resetLanguageUniverseParallax,
   revealLanguageUniverse,
   setActiveLanguageNode,
-} from "./sections/language-universe.js?v=43d01398";
+} from "./sections/language-universe.js?v=60d26975";
 import { initMarsClock } from "./sections/mars-clock.js?v=060a7c24";
 import {
   bindWelcomeReactions,
@@ -105,7 +105,7 @@ import {
   drawWelcome,
   requestWelcomeRender,
   requestWelcomeScatterUpdate,
-} from "./sections/welcome.js?v=2229accf";
+} from "./sections/welcome.js?v=842ffdae";
 import {
   activeTheme,
   commitThemeState,
@@ -116,7 +116,7 @@ import {
   storageKey,
   themeToggle,
   triggerThemeWave,
-} from "./theme.js?v=ad29e4e7";
+} from "./theme.js?v=29c3a7f7";
 
 syncInputDeviceClass();
 

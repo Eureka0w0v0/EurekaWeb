@@ -1,0 +1,64 @@
+/* Decorative effects drawn over the page: the scroll-velocity grain canvas
+   and the photo cards' hover glow. */
+
+/* ───────────────────────────────────────────────────────────
+   Scroll-velocity grain canvas
+   ─────────────────────────────────────────────────────────── */
+
+#grain-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  opacity: 0.03;
+  mix-blend-mode: overlay;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 680px), (hover: none) and (pointer: coarse) {
+  #grain-canvas {
+    display: none;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────
+   Photo card hover glow
+   ─────────────────────────────────────────────────────────── */
+
+.photo-card-hover-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at var(--hover-x, 50%) var(--hover-y, 50%),
+    rgba(255, 255, 255, 0.18),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 300ms ease;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.photo-card:hover .photo-card-hover-glow {
+  opacity: 1;
+}
+
+.photo-card .photo-card-image {
+  transition: filter 400ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .photo-card:hover .photo-card-image {
+    filter: brightness(1.08) contrast(1.04) saturate(1.1);
+  }
+}
+
+html.theme-dark .photo-card-hover-glow {
+  background: radial-gradient(
+    circle at var(--hover-x, 50%) var(--hover-y, 50%),
+    rgba(255, 255, 255, 0.12),
+    transparent 60%
+  );
+}

@@ -1,0 +1,186 @@
+/* The document itself: box sizing, html and body, the backdrop gradient,
+   the lists of what transitions during a theme change, and the noise
+   texture. */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  background-color: var(--chrome-bg);
+  transition: background-color 320ms ease;
+}
+
+/* The script already checks shouldReduceMotion() before every scroll it drives
+   (see initJumpLinks), but the skip link is a plain hash href handled by the
+   browser, so that path needs the CSS side turned off too. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+html.theme-syncing,
+html.theme-syncing body,
+html.theme-syncing main,
+html.theme-syncing section,
+html.theme-syncing .topbar,
+html.theme-syncing button,
+html.theme-syncing .photo-card,
+html.theme-syncing .language-insight,
+html.theme-syncing .language-node {
+  transition:
+    color 260ms ease,
+    background 320ms ease,
+    background-color 320ms ease,
+    border-color 320ms ease,
+    box-shadow 320ms ease,
+    text-shadow 320ms ease,
+    opacity 260ms ease;
+}
+
+html.theme-vt-lock,
+html.theme-vt-lock body,
+html.theme-vt-lock body::before,
+html.theme-vt-lock main,
+html.theme-vt-lock section,
+html.theme-vt-lock .page-shell,
+html.theme-vt-lock .topbar,
+html.theme-vt-lock button,
+html.theme-vt-lock .first-screen,
+html.theme-vt-lock .welcome-section,
+html.theme-vt-lock .photo-section,
+html.theme-vt-lock .career-section,
+html.theme-vt-lock .glass-panel,
+html.theme-vt-lock .photo-card,
+html.theme-vt-lock .career-card-layer,
+html.theme-vt-lock .language-insight,
+html.theme-vt-lock .language-node {
+  transition: none !important;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100lvh;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  font-family:
+    "PingFang SC",
+    "PingFang TC",
+    "SF Pro SC",
+    "Hiragino Sans GB",
+    "Heiti SC",
+    "Microsoft YaHei",
+    sans-serif;
+  color: var(--text);
+  background-color: var(--chrome-bg);
+  background:
+    radial-gradient(circle at top left, var(--bg-radial-a), transparent 28%),
+    radial-gradient(circle at 85% 18%, var(--bg-radial-b), transparent 24%),
+    linear-gradient(135deg, var(--bg), var(--bg-accent));
+  transition: background 300ms ease, color 300ms ease;
+  position: relative;
+  overscroll-behavior-x: none;
+}
+
+@supports (overflow: clip) {
+  html,
+  body {
+    overflow-x: clip;
+  }
+}
+
+@media (max-width: 680px), (hover: none) and (pointer: coarse) {
+  body {
+    /* pan-y alone also removes pinch-zoom, which is not a gesture this page
+       has any business taking: the viewport meta deliberately does not set
+       user-scalable=no, and a reader who needs to magnify the text has no
+       other way in. Naming pinch-zoom explicitly keeps the horizontal-pan
+       suppression this rule is actually for. */
+    touch-action: pan-y pinch-zoom;
+  }
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: -18lvh 0 -18lvh 0;
+  z-index: var(--z-backdrop);
+  pointer-events: none;
+  transform: translateZ(0);
+  background:
+    radial-gradient(circle at top left, var(--bg-radial-a), transparent 28%),
+    radial-gradient(circle at 85% 18%, var(--bg-radial-b), transparent 24%),
+    linear-gradient(135deg, var(--bg), var(--bg-accent));
+  transition: background 320ms ease;
+}
+
+body,
+.glass-panel,
+.language-universe,
+.language-insight,
+.panel-grid span,
+.theme-icon-button,
+#language-switcher .language-toggle,
+#language-switcher .language-menu,
+#language-switcher .language-option,
+.panel-avatar,
+.orb,
+.theme-icon-moon::after {
+  transition:
+    background 320ms ease,
+    background-color 320ms ease,
+    color 260ms ease,
+    border-color 260ms ease,
+    box-shadow 320ms ease,
+    opacity 260ms ease;
+}
+
+.eyebrow,
+.hero-text,
+.panel-copy p,
+.welcome-kicker {
+  transition: color 260ms ease, opacity 260ms ease;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.noise,
+.theme-wave {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.noise {
+  z-index: var(--z-noise);
+  opacity: 0.035;
+  background-image:
+    linear-gradient(rgba(70, 82, 104, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(70, 82, 104, 0.045) 1px, transparent 1px);
+  background-size: 120px 120px;
+  mask-image: radial-gradient(circle at center, black 32%, transparent 86%);
+}
+
+html.theme-dark .noise {
+  opacity: 0.08;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+}

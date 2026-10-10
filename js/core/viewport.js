@@ -10,8 +10,8 @@ export function syncInputDeviceClass() {
 export const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 /* Three questions about the viewport, each answered in exactly one place and
-   each mirroring a media query in styles.css (see "Breakpoints" at the top of
-   that file):
+   each mirroring a media query in the CSS (see "Breakpoints" at the top of
+   css/responsive.css):
 
      isCompactLayout()  width <= 680px            (max-width: 680px)
                         the phone layout: geometry, sizes, positions

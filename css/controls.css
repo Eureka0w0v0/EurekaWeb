@@ -1,0 +1,271 @@
+/* The topbar controls: the language menu and the theme toggle. */
+
+#language-switcher {
+  position: relative;
+  pointer-events: auto;
+}
+
+#language-switcher .language-toggle,
+#language-switcher .language-option {
+  all: unset;
+  box-sizing: border-box;
+}
+
+#language-switcher .language-toggle {
+  width: var(--topbar-button-size);
+  height: var(--topbar-button-size);
+  display: grid;
+  place-items: center;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--toggle-bg);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  cursor: pointer;
+  position: relative;
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    background 220ms ease;
+}
+
+#language-switcher .language-toggle:hover {
+  transform: translateY(-2px) scale(1.03);
+  border-color: rgba(255, 255, 255, 0.36);
+}
+
+#language-switcher .language-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+
+#language-switcher .language-globe-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  overflow: visible;
+  color: currentColor;
+}
+
+#language-switcher .language-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 210px;
+  padding: var(--space-12);
+  display: none;
+  gap: var(--space-8);
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.16), transparent 58%),
+    color-mix(in srgb, var(--toggle-bg) 94%, transparent);
+  box-shadow:
+    0 24px 48px rgba(24, 44, 78, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  opacity: 0;
+  transform: translateY(-8px);
+  z-index: 16;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+#language-switcher .language-menu[aria-hidden="true"] {
+  display: none !important;
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+#language-switcher.is-open .language-menu,
+#language-switcher .language-menu[aria-hidden="false"] {
+  display: grid;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#language-switcher .language-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 20px;
+  padding: 14px 16px;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.12), transparent 65%),
+    rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 10px 22px rgba(24, 44, 78, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+#language-switcher .language-option-copy {
+  display: grid;
+  gap: 3px;
+}
+
+#language-switcher .language-option-code {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--primary-text);
+}
+
+#language-switcher .language-option-name {
+  font-size: var(--fs-base);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+#language-switcher .language-option-mark {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+#language-switcher .language-option:hover,
+#language-switcher .language-option:focus-visible {
+  background: color-mix(in srgb, var(--surface-strong) 86%, transparent);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 14px 28px rgba(24, 44, 78, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+#language-switcher .language-option.is-active {
+  background: color-mix(in srgb, var(--primary) 18%, var(--surface-strong));
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--primary) 34%, transparent);
+}
+
+#language-switcher .language-option.is-active .language-option-mark {
+  /* --primary is 2.99:1 on the light background and this sits on a tinted
+     chip, so it reads lower still; --primary-text clears 1.4.11 both ways.
+     Not the only cue for the selection -- the chip is tinted and aria-pressed
+     is set -- but it is the one that is meant to be seen. */
+  background: var(--primary-text);
+  transform: scale(1.08);
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--primary) 16%, transparent),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+
+.theme-icon-button {
+  width: var(--topbar-button-size);
+  height: var(--topbar-button-size);
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--toggle-bg);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    background 220ms ease;
+}
+
+.theme-icon-button:hover {
+  transform: translateY(-2px) scale(1.03);
+  border-color: rgba(255, 255, 255, 0.36);
+}
+
+.theme-icon-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+
+.theme-icon {
+  position: relative;
+  width: 24px;
+  height: 24px;
+}
+
+.theme-icon-sun,
+.theme-icon-moon {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  transition:
+    transform 300ms ease,
+    opacity 300ms ease;
+}
+
+.theme-icon-sun {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  color: #f7a531;
+  box-shadow:
+    0 -12px 0 -8px currentColor,
+    0 12px 0 -8px currentColor,
+    12px 0 0 -8px currentColor,
+    -12px 0 0 -8px currentColor,
+    8px 8px 0 -8px currentColor,
+    -8px -8px 0 -8px currentColor,
+    8px -8px 0 -8px currentColor,
+    -8px 8px 0 -8px currentColor;
+}
+
+.theme-icon-moon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #f0f6ff;
+  transform: scale(0.35) rotate(-30deg);
+  opacity: 0;
+}
+
+.theme-icon-moon::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  top: -2px;
+  left: 6px;
+  background: var(--toggle-bg);
+}
+
+html.theme-dark .theme-icon-sun {
+  transform: scale(0.35) rotate(90deg);
+  opacity: 0;
+}
+
+html.theme-dark .theme-icon-moon {
+  transform: scale(1) rotate(0deg);
+  opacity: 1;
+}

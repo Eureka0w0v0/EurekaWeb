@@ -1,0 +1,459 @@
+/* The career section: the stack of cards, the UFO and the alien. */
+
+.career-section {
+  --career-ufo-y: -60;
+  --career-ufo-opacity: 1;
+  --career-ufo-scale: 1;
+  --career-card-y: 180;
+  --career-card-opacity: 0;
+  --career-card-scale: 0.94;
+  --career-alien-y: 64;
+  --career-alien-opacity: 0;
+  --career-alien-scale: 0.78;
+  --career-scene-offset-y: clamp(28px, 5vh, 72px);
+  position: relative;
+  min-height: 108vh;
+  min-height: 108svh;
+  min-height: 108dvh;
+  padding-bottom: clamp(12px, 2vh, 28px);
+  overflow: clip;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--text) 7%, transparent), transparent 34%),
+    radial-gradient(circle at 68% 62%, color-mix(in srgb, var(--secondary) 8%, transparent), transparent 30%),
+    transparent;
+}
+
+.career-sticky {
+  position: relative;
+  top: auto;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(24px, 5vw, 56px) clamp(24px, 5vw, 56px) clamp(92px, 11vh, 140px);
+}
+
+.career-scene {
+  position: relative;
+  width: min(100%, 1120px);
+  min-height: min(760px, calc(var(--app-height, 100dvh) - 56px));
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+  padding-bottom: clamp(52px, 8vh, 96px);
+  transform: translate3d(0, var(--career-scene-offset-y), 0);
+}
+
+.career-orbit {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-12deg);
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.career-orbit-a {
+  width: min(74vw, 620px);
+  height: min(42vw, 340px);
+}
+
+.career-orbit-b {
+  width: min(52vw, 430px);
+  height: min(30vw, 250px);
+  transform: translate(-50%, -50%) rotate(18deg);
+  opacity: 0.42;
+}
+
+.career-ufo,
+.career-alien,
+.career-card-stack {
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.career-ufo {
+  left: 50%;
+  top: 9%;
+  width: clamp(156px, 22vw, 270px);
+  z-index: 6;
+  opacity: var(--career-ufo-opacity);
+  transform:
+    translate3d(-50%, calc(var(--career-ufo-y) * 1px), 0)
+    scale(var(--career-ufo-scale));
+  filter: drop-shadow(0 22px 28px color-mix(in srgb, var(--text) 18%, transparent));
+}
+
+.career-ufo-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  animation: careerFloat 5.8s ease-in-out infinite;
+}
+
+.career-card-stack {
+  --career-card-height: 267px;
+  left: 50%;
+  top: 47%;
+  width: min(630px, calc(100vw - 88px));
+  height: var(--career-card-height);
+  min-height: var(--career-card-height);
+  border-radius: 28px;
+  z-index: 4;
+  opacity: var(--career-card-opacity);
+  perspective: 1100px;
+  transform-style: preserve-3d;
+  isolation: isolate;
+  cursor: ns-resize;
+  touch-action: none;
+  overscroll-behavior: contain;
+  -webkit-user-select: none;
+  user-select: none;
+  /* left/top put the stack's corner at the centre point; this pulls it back
+     by half its own size. It belongs to the stack itself and must not be
+     scoped to a state class -- see the end-state rule below. */
+  transform:
+    translate3d(-50%, calc(-50% + var(--career-card-y) * 1px), 0)
+    scale(var(--career-card-scale));
+}
+
+/* The stack owns the vertical gesture so a swipe steps a card instead of
+   scrolling -- but only between the ends. On the first card a downward pan
+   is handed back to the browser, on the last an upward one, so the page can
+   leave the section in that direction while the other direction still steps.
+   touch-action is decided at touch start, so this has to be set by state
+   ahead of the gesture; and the contain above would keep even a native pan
+   from chaining out to the page, so it is lifted at the ends as well. Before
+   this, a phone visitor whose thumb landed on the last card could not scroll
+   past it at all. */
+.career-card-stack.is-at-first {
+  touch-action: pan-down;
+}
+
+.career-card-stack.is-at-last {
+  touch-action: pan-up;
+}
+
+/* Only the overscroll chaining is lifted at the ends. Nothing here may set
+   transform: these selectors outrank both .career-card-layer.is-active and
+   .is-after, so a transform declared here would flatten the whole stack. */
+.career-card-stack.is-at-first,
+.career-card-stack.is-at-last,
+.career-card-stack.is-at-first .career-card-layer,
+.career-card-stack.is-at-last .career-card-layer,
+.career-card-stack.is-at-first .layer-card-scroll,
+.career-card-stack.is-at-last .layer-card-scroll {
+  overscroll-behavior: auto;
+}
+
+/* The stack takes focus so arrows can step through the cards. Offset the
+   ring outward so it clears the rounded card edge instead of sitting on it. */
+.career-card-stack:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 6px;
+  border-radius: 28px;
+}
+
+.career-card-stack::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-strong) 88%, transparent), color-mix(in srgb, var(--surface) 66%, transparent));
+  opacity: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+html.theme-dark .career-card-stack::before {
+  opacity: 0.92;
+}
+
+.career-card-stack[data-active-layer="3"]::before {
+  opacity: 0;
+}
+
+html.theme-dark .career-card-stack[data-active-layer="3"]::before {
+  opacity: 0;
+}
+
+.career-card-layer {
+  position: absolute;
+  inset: -2px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  min-height: 0;
+  padding: clamp(26px, 4vw, 42px);
+  border: 1px solid color-mix(in srgb, var(--line) 84%, transparent);
+  border-radius: 26px;
+  overflow: hidden;
+  background-clip: padding-box;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-strong) 88%, transparent), color-mix(in srgb, var(--surface) 66%, transparent));
+  box-shadow:
+    0 30px 70px color-mix(in srgb, var(--text) 10%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  transform-origin: 50% 18%;
+  will-change: transform, opacity, filter;
+  overscroll-behavior: contain;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 420ms ease,
+    box-shadow 420ms ease,
+    color 260ms ease,
+    background 320ms ease,
+    background-color 320ms ease,
+    border-color 320ms ease;
+}
+
+.layer-card-scroll {
+  max-height: calc(var(--career-card-height) + 4px);
+  overflow-y: auto;
+  /* auto, not contain. The card is a scroll container even where it has
+     nothing to scroll (phones set it to overflow hidden), and contain stops
+     the browser chaining a touch or wheel that starts on it out to the page.
+     The stack's own handlers decide when to hold the page -- they cancel the
+     event when they step a card -- so at either end, when they let the event
+     through, the page has to be allowed to move. With contain it was not,
+     and a phone visitor whose thumb landed on the last card was stuck there. */
+  overscroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.layer-card-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.career-card-layer::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background:
+    linear-gradient(115deg, color-mix(in srgb, white 18%, transparent), transparent 46%),
+    radial-gradient(circle at 70% 14%, color-mix(in srgb, var(--text) 7%, transparent), transparent 34%);
+  pointer-events: none;
+}
+
+.career-card-layer::before {
+  z-index: 1;
+}
+
+.career-card-layer > * {
+  position: relative;
+  z-index: 2;
+  transition: opacity 240ms ease;
+}
+
+.career-card-layer.is-active {
+  z-index: 6;
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, 0, 34px) rotateX(0deg) scale(1);
+}
+
+.career-card-layer:not(.is-active) > * {
+  opacity: 0;
+}
+
+.career-card-layer.is-before {
+  z-index: 2;
+  opacity: 0.34;
+  filter: blur(0.5px);
+  transform: translate3d(0, 24px, -34px) rotateX(7deg) scale(0.97);
+}
+
+.career-card-stack[data-active-layer="3"] .career-card-layer.is-before {
+  opacity: 0;
+  visibility: hidden;
+  box-shadow: none;
+  transform: translate3d(0, -20px, -34px) rotateX(-5deg) scale(0.97);
+}
+
+.career-card-stack[data-active-layer="3"] .career-card-layer:not(.is-active) {
+  opacity: 0.001;
+  visibility: visible;
+  box-shadow: none;
+}
+
+.career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-strong) 88%, transparent), color-mix(in srgb, var(--surface) 66%, transparent));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
+}
+
+html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
+  background:
+    linear-gradient(145deg, rgba(24, 24, 24, 0.995), rgba(18, 18, 18, 0.99));
+  background-clip: border-box;
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer:not(.is-active) {
+    opacity: 0.001;
+    visibility: visible;
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transition: none;
+  }
+}
+
+.career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active::before {
+  display: block;
+  opacity: 1;
+  background:
+    linear-gradient(115deg, color-mix(in srgb, white 18%, transparent), transparent 46%),
+    radial-gradient(circle at 70% 14%, color-mix(in srgb, var(--text) 7%, transparent), transparent 34%);
+}
+
+.career-card-layer.is-after {
+  z-index: 4;
+  opacity: 0.62;
+  filter: blur(0.2px);
+  transform: translate3d(0, -15px, -18px) rotateX(-5deg) scale(0.985);
+}
+
+.career-card-layer.is-after + .career-card-layer.is-after,
+.career-card-stack[data-active-layer="1"] .career-card-layer-3 {
+  z-index: 3;
+  opacity: 0.42;
+  transform: translate3d(0, -30px, -36px) rotateX(-8deg) scale(0.965);
+}
+
+.career-card-stack.is-switching-forward .career-card-layer.is-active {
+  animation: careerLayerForwardIn 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.career-card-stack.is-switching-back .career-card-layer.is-active {
+  animation: careerLayerBackIn 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.career-card-stack[data-active-layer="3"].is-switching-back .career-card-layer-3.is-active {
+  animation: careerLayerForwardIn 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.career-kicker {
+  margin: 0 0 var(--space-12);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.career-card-layer h2 {
+  margin: 0;
+  color: var(--text);
+  line-height: 0.95;
+  letter-spacing: 0;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.career-title-primary {
+  font-size: clamp(5.2rem, 8.6vw, 8.2rem);
+  font-weight: 900;
+}
+
+.career-title-medium {
+  max-width: 100%;
+  font-size: clamp(2.8rem, 5.4vw, 4.8rem);
+  font-weight: 850;
+  line-height: 1.04;
+  white-space: nowrap;
+}
+
+.career-statement {
+  max-width: 24ch;
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.45rem, 2.6vw, 2.35rem);
+  font-weight: 800;
+  line-height: 1.36;
+  letter-spacing: 0;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-break: strict;
+}
+
+html[lang="en"] .career-statement {
+  word-break: break-word;
+}
+
+.career-alien {
+  left: 50%;
+  top: 68%;
+  width: clamp(86px, 14vw, 150px);
+  z-index: 5;
+  opacity: var(--career-alien-opacity);
+  transform:
+    translate3d(-50%, calc(var(--career-alien-y) * 1px), 0)
+    scale(var(--career-alien-scale));
+  filter: drop-shadow(0 18px 34px color-mix(in srgb, var(--text) 18%, transparent));
+}
+
+.career-alien-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 32%;
+  animation: careerAlienFloat 6.4s ease-in-out infinite;
+}
+
+@keyframes careerFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-2deg);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0) rotate(2deg);
+  }
+}
+
+@keyframes careerAlienFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
+@keyframes careerLayerForwardIn {
+  from {
+    opacity: 0.45;
+    transform: translate3d(0, 36px, -28px) rotateX(-14deg) scale(0.97);
+  }
+}
+
+@keyframes careerLayerBackIn {
+  from {
+    opacity: 0.45;
+    transform: translate3d(0, -36px, -28px) rotateX(14deg) scale(0.97);
+  }
+}

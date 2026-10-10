@@ -3,7 +3,7 @@
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
 import { waitForNextAnimationFrame } from "../core/frames.js?v=0b68ae2a";
 import { safeStorageGet, safeStorageSet } from "../core/storage.js?v=55891515";
-import { isTouchFirst, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=71b5eb94";
+import { isTouchFirst, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
 import { pageTranslations } from "./translations.js?v=2ea6af69";
 
 export const languageSwitcher = document.querySelector("#language-switcher");

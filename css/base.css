@@ -1,0 +1,216 @@
+/* ---------------------------------------------------------------------------
+   Stylesheets
+   ---------------------------------------------------------------------------
+   The site's CSS is split by feature into the files under css/, linked
+   from index.html in this order:
+
+     base.css         tokens, the focus ring, the skip link, dark tokens
+     intro.css        the intro curtain
+     page.css         html, body and the backdrop, what transitions during
+                      a theme change, the noise texture
+     transitions.css  the theme wave and its view transition, the
+                      letter-by-letter language switch, and the shared
+                      reduced-motion overrides
+     layout.css       page and section shells, the first screen, the topbar
+     controls.css     the language menu and the theme toggle
+     hero.css         the welcome word, the hero, the profile panel
+     language.css     the language universe and the brain
+     career.css       the career cards
+     photo.css        the photo theatre and its lightbox
+     responsive.css   the width breakpoints (see Breakpoints there)
+     effects.css      the grain canvas and the photo hover glow
+     chrome.css       the wordmark and the section rail
+
+   The link order is the cascade order, and it is the order of the single
+   stylesheet these were cut from: a rule may rely on overriding one in an
+   earlier file, and responsive.css relies on coming after the feature
+   files it narrows down. A new rule goes in its feature's file; a new
+   file needs its link in the right place.
+
+   Stacking layers
+   ---------------------------------------------------------------------------
+   Everything that stacks against the page as a whole takes its z-index from a
+   --z-* token on :root, lowest first:
+
+     --z-backdrop           -1   body::before gradient
+     --z-noise               1   .noise texture
+     --z-grain               2   #grain-canvas
+     --z-content             3   .page-shell
+     --z-chrome             24   topbar, wordmark, section rail
+     --z-photo-title        30   the photo section's fixed title
+     --z-theme-wave         40   the theme-change ripple
+     --z-photo-controls   1400   Show All: above the photo cards, which
+                                 js/photo/layout.js stacks at up to z-index 1040
+     --z-lightbox         1900   the photo lightbox
+     --z-theme-wave-mobile 9999  the mobile ripple variants
+     --z-intro           99999   the intro curtain
+     --z-skip-link      100000   the keyboard skip link, above even the intro
+
+   A new page-level layer gets a token here, not a bigger number. The small
+   numbers inside a component (0-7) only order that component's own children
+   within its stacking context, and stay plain values.
+   --------------------------------------------------------------------------- */
+
+@property --snapshot-wave-radius {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+:root {
+  color-scheme: light dark;
+  /* Stacking layers -- see "Stacking layers" at the top of this file. */
+  --z-backdrop: -1;
+  --z-noise: 1;
+  --z-grain: 2;
+  --z-content: 3;
+  --z-chrome: 24;
+  --z-photo-title: 30;
+  --z-theme-wave: 40;
+  --z-photo-controls: 1400;
+  --z-lightbox: 1900;
+  --z-theme-wave-mobile: 9999;
+  --z-intro: 99999;
+  --z-skip-link: 100000;
+  --app-height: 100dvh;
+  --wave-x: calc(100% - 52px);
+  --wave-y: 52px;
+  --snapshot-wave-radius: 0px;
+  --bg: #f7f8fb;
+  --bg-accent: #eef3f8;
+  --surface: rgba(255, 255, 255, 0.68);
+  --surface-strong: rgba(255, 255, 255, 0.9);
+  --text: #172033;
+  --muted: #607084;
+  --line: rgba(74, 89, 111, 0.14);
+  --primary: #4f8ff7;
+  /* Small text needs 4.5:1 to pass AA. --primary only reaches 2.99:1 on
+     --bg, so anything set at label size uses this darker step instead. */
+  --primary-text: #2c6ed5;
+  --secondary: #c47b6a;
+  --shadow: 0 28px 60px rgba(45, 58, 78, 0.12);
+  --bg-radial-a: rgba(92, 142, 210, 0.1);
+  --bg-radial-b: rgba(196, 123, 106, 0.07);
+  --chrome-bg: #f2f5f8;
+  --dark-bg: #050505;
+  --dark-bg-soft: #0a0a0a;
+  --toggle-bg: rgba(255, 255, 255, 0.6);
+  --welcome-text: #000000;
+  --topbar-gap: 12px;
+  --topbar-top: max(12px, calc(env(safe-area-inset-top, 0px) + 6px));
+  --topbar-right: max(clamp(10px, 2vw, 24px), env(safe-area-inset-right, 0px));
+  --topbar-button-size: 56px;
+  --focus-ring: var(--primary-text);
+
+  /* UI type scale. Only the fixed sizes live here — every display-level size
+     on this site is a per-language clamp() (the en/ja hero and title variants
+     are tuned separately because the two scripts set at different widths), so
+     those stay hand-calibrated rather than being forced onto these steps.
+     1px increments through the middle, which is the useful resolution for
+     small UI text. --fs-2xs is 12px because that is the floor for readable
+     body-adjacent text; the old 0.66/0.7/0.72rem labels sat below it. */
+  --fs-2xs: 0.75rem;    /* 12px */
+  --fs-xs: 0.8125rem;   /* 13px */
+  --fs-sm: 0.875rem;    /* 14px */
+  --fs-md: 0.9375rem;   /* 15px */
+  --fs-base: 1rem;      /* 16px */
+  --fs-lg: 1.0625rem;   /* 17px */
+  --fs-xl: 1.375rem;    /* 22px */
+
+  /* Spacing, on a 4px grid. Only the declarations that already sat exactly on
+     the grid were converted, so introducing these moved nothing on screen.
+     Roughly half the stylesheet's spacing is still off-grid (10/14/18/26px
+     and friends) — those were eyeballed against the visuals and snapping them
+     would be a real design change, not a refactor, so they stay literal. */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-56: 56px;
+  --space-96: 96px;
+}
+
+/* Keyboard focus fallback. Uses :where() so it stays at zero specificity and
+   any component that needs a bespoke ring can override it without !important.
+   Pointer users never see this — :focus-visible only fires for keyboard nav. */
+:where(a, button, [tabindex], summary, input, select, textarea):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: inherit;
+}
+
+/* #main carries tabindex="-1" purely so the skip link can move focus there.
+   It is not interactive, so it must not pick up the ring above. */
+:where([tabindex="-1"]):focus-visible {
+  outline: none;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: var(--z-skip-link); /* above .intro-overlay (99999) */
+  padding: 12px 22px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0 0 12px 12px;
+  background: var(--surface-strong);
+  color: var(--primary-text);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow);
+  transform: translate(-50%, -110%);
+  transition: transform 180ms ease;
+}
+
+/* Deliberately :focus, not :focus-visible — a skip link must appear on any
+   focus, including programmatic and assistive-tech focus, not just keyboard. */
+.skip-link:focus {
+  transform: translate(-50%, 0);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+}
+
+html.theme-dark,
+html.theme-dark body {
+  --bg: var(--dark-bg);
+  --bg-accent: var(--dark-bg-soft);
+  --surface: rgba(18, 18, 18, 0.62);
+  --surface-strong: rgba(10, 10, 10, 0.9);
+  --text: #f5f5f5;
+  --muted: rgba(255, 255, 255, 0.65);
+  --line: rgba(255, 255, 255, 0.14);
+  /* Was #f5f5f5 for both, which is identical to --text — accents became
+     indistinguishable from body copy in dark mode. These are the light-mode
+     blues lifted for a near-black ground (9:1 and 11:1 on --dark-bg). */
+  --primary: #7aa9ff;
+  --primary-text: #93b8ff;
+  --secondary: #b8b8b8;
+  --shadow: 0 30px 60px rgba(0, 0, 0, 0.42);
+  --bg-radial-a: rgba(255, 255, 255, 0.055);
+  --bg-radial-b: rgba(255, 255, 255, 0.028);
+  --chrome-bg: var(--dark-bg);
+  --toggle-bg: rgba(10, 10, 10, 0.68);
+  --welcome-text: #f5f5f5;
+}
+
+html.theme-dark,
+html.theme-dark body,
+html.theme-dark main,
+html.theme-dark section {
+  background-color: var(--dark-bg);
+}

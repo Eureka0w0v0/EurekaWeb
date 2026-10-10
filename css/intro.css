@@ -1,0 +1,150 @@
+/* The intro curtain: two panels parting on a tilted seam, and the kicker
+   rising through it. Shown once per session; see js/sections/intro.js. */
+
+.intro-overlay {
+  --intro-curtain: #101012;
+  /* Seam rise across the full width, per side. 2.6vw each way is a 5.2vw
+     rise over 100vw: atan(0.052) = 2.98deg, which is what .intro-seam rotates
+     by so the hairline and the cut are the same line. */
+  --intro-seam-drop: 2.6vw;
+  --intro-part: 820ms;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-intro);
+  display: block;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.intro-overlay.is-done {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+html.intro-active,
+html.intro-active body {
+  overflow: hidden !important;
+}
+
+/* The curtain: two panels meeting on one tilted seam. The polygons overlap by
+   3px so no sliver of page shows through the seam before the cut -- at 1px the
+   anti-aliased fringes of the two diagonal edges left a dotted line of page
+   visible on high-DPR narrow viewports -- and the inset overshoot does the same
+   at the outer edges. Always dark whatever the
+   theme -- both kicker colours read on it, and it is the colour the old bars
+   were, so the first painted frame is unchanged. */
+.intro-panel {
+  position: absolute;
+  inset: -2px;
+  background: var(--intro-curtain);
+  will-change: transform;
+  transition: transform var(--intro-part) cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.intro-panel.is-top {
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(50% + var(--intro-seam-drop) + 3px),
+    0 calc(50% - var(--intro-seam-drop) + 3px)
+  );
+}
+
+.intro-panel.is-bottom {
+  clip-path: polygon(
+    0 calc(50% - var(--intro-seam-drop)),
+    100% calc(50% + var(--intro-seam-drop)),
+    100% 100%,
+    0 100%
+  );
+}
+
+.intro-overlay.is-parting .intro-panel.is-top {
+  transform: translateY(-104%);
+}
+
+.intro-overlay.is-parting .intro-panel.is-bottom {
+  transform: translateY(104%);
+}
+
+/* The blade: drawn left to right along the seam just before the panels part,
+   gone before they have finished. */
+.intro-seam {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 102vw;
+  height: 1px;
+  margin-left: -51vw;
+  background: rgba(255, 255, 255, 0.55);
+  transform-origin: 0 50%;
+  transform: rotate(2.98deg) scaleX(0);
+  z-index: 1;
+  will-change: transform, opacity;
+}
+
+.intro-seam.is-drawn {
+  transition: transform 300ms cubic-bezier(0.65, 0, 0.35, 1);
+  transform: rotate(2.98deg) scaleX(1);
+}
+
+.intro-overlay.is-parting .intro-seam {
+  transition: opacity 240ms ease;
+  opacity: 0;
+}
+
+/* The kicker, rising through the curtain. It is a clone of the real kicker
+   placed on the real kicker's rect, so it carries that element's font, colour
+   and tracking by class, and there is nothing to hand off when the overlay
+   goes: the same letters are already underneath. Centred instead when the
+   page did not load at the top and the real kicker is off screen. */
+.intro-text {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.intro-text.is-anchored {
+  display: block;
+}
+
+.intro-kicker {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.intro-text.is-anchored .intro-kicker {
+  position: absolute;
+}
+
+.intro-letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.55em);
+  filter: blur(6px);
+  will-change: transform, opacity, filter;
+}
+
+.intro-text.is-rising .intro-letter {
+  animation: introRise 640ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--delay, 0ms);
+}
+
+@keyframes introRise {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-overlay {
+    display: none;
+  }
+}

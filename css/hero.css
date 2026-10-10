@@ -1,0 +1,373 @@
+/* The first screen's content: the welcome word, the hero heading and copy,
+   the type scale, and the profile panel with its Mars clock. */
+
+.welcome-section {
+  position: relative;
+  min-height: 0;
+  display: grid;
+  align-items: stretch;
+  justify-items: stretch;
+  margin-top: 0;
+  padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  overflow: visible;
+}
+
+.hero {
+  position: relative;
+  min-height: 100lvh;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  min-height: var(--app-height, 100dvh);
+}
+
+.hero-shell {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: var(--space-32);
+  align-items: center;
+  min-height: inherit;
+  padding: 0;
+  position: relative;
+}
+
+.hero-copy,
+.hero-visual {
+  will-change: transform, opacity;
+}
+
+.hero-copy {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: clamp(14px, 1.8vw, 22px);
+  max-width: 660px;
+}
+
+/* system-ui leads only on this heading. PingFang is a static family — measured
+   across 17 weight steps it renders just 5 distinct widths and nothing at all
+   above 600 — so the sweep needs a variable face for Latin. CJK still falls
+   through to PingFang, where weight is inert and the scale carries the effect. */
+.hero-copy h1.has-magnet {
+  font-family: system-ui, "PingFang SC", "PingFang TC", "Hiragino Sans GB", sans-serif;
+}
+
+.hero-copy h1.has-magnet .magnet-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.hero-copy h1.has-magnet .magnet-char {
+  display: inline-block;
+  -webkit-text-stroke-color: currentColor;
+  /* font-weight used to be transitioned here too. It cannot be: weight changes
+     a glyph's advance width, and with every char inline-block that reflowed the
+     whole heading on every pointer move. Stroke width has no layout effect. */
+  transition: -webkit-text-stroke-width 240ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-copy h1.has-magnet .magnet-char {
+    transition: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --topbar-gap: 14px;
+    --topbar-top: max(18px, calc(env(safe-area-inset-top, 0px) + 10px));
+    --topbar-right: max(16px, calc((100vw - min(1180px, calc(100vw - 32px))) / 2 - 192px), env(safe-area-inset-right, 0px));
+  }
+
+  .hero-visual {
+    perspective: 1400px;
+  }
+}
+
+.welcome-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 14px;
+  pointer-events: none;
+  padding: 0;
+  overflow: visible;
+}
+
+.welcome-kicker {
+  margin: 0;
+  text-align: center;
+  opacity: calc(1 - var(--welcome-progress, 0) * 1.25);
+  transform: translateY(calc(var(--welcome-progress, 0) * -28px));
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.34em;
+  font-size: var(--fs-sm);
+  color: var(--primary-text);
+}
+
+.welcome-word {
+  position: relative;
+  width: min(100%, 1100px);
+  height: clamp(170px, 26vw, 300px);
+  font-family: inherit;
+  font-size: clamp(5.4rem, 19vw, 13rem);
+  line-height: 0.84;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+  overflow: visible;
+}
+
+#welcome-canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.welcome-text-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: transparent;
+  user-select: none;
+}
+
+.eyebrow,
+h1,
+h2,
+h3 {
+  font-family: inherit;
+}
+
+.eyebrow {
+  margin: 0;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--primary-text);
+  font-size: var(--fs-xs);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(3rem, 7vw, 6rem);
+  line-height: 0.95;
+  max-width: 11ch;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.hero-text {
+  max-width: 13ch;
+  margin: 0;
+  font-size: clamp(2.15rem, 4.8vw, 4.7rem);
+  line-height: 1.04;
+  color: var(--muted);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+html[lang="en"] h1 {
+  max-width: 12ch;
+}
+
+html[lang="en"] .hero-text {
+  max-width: 17ch;
+  font-size: clamp(1.95rem, 4vw, 4.2rem);
+}
+
+html[lang="ja"] h1 {
+  max-width: 12ch;
+}
+
+html[lang="ja"] .hero-text {
+  max-width: 16ch;
+  font-size: clamp(2rem, 4.3vw, 4.3rem);
+}
+
+html[lang="zh-CN"] .hero-text {
+  max-width: none;
+  white-space: nowrap;
+}
+
+
+.glass-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  will-change: transform;
+}
+
+.hero-visual {
+  position: relative;
+  min-height: 540px;
+  display: grid;
+  place-items: center;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(10px);
+  animation: float 8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb {
+    animation: none;
+  }
+}
+
+.orb-a {
+  width: 180px;
+  height: 180px;
+  background: color-mix(in srgb, var(--primary) 62%, transparent);
+  top: 40px;
+  left: 40px;
+}
+
+.orb-b {
+  width: 220px;
+  height: 220px;
+  background: color-mix(in srgb, var(--secondary) 52%, transparent);
+  right: 20px;
+  bottom: 70px;
+  animation-delay: -3s;
+}
+
+.glass-panel {
+  position: relative;
+  width: min(100%, 440px);
+  border-radius: 28px;
+  padding: var(--space-24);
+  transform-style: preserve-3d;
+  transition:
+    transform 180ms ease,
+    color 260ms ease,
+    background 320ms ease,
+    background-color 320ms ease,
+    border-color 320ms ease,
+    box-shadow 320ms ease;
+}
+
+.panel-top {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.panel-avatar {
+  width: 160px;
+  height: 142px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.14)),
+    linear-gradient(145deg, color-mix(in srgb, var(--primary) 42%, white), color-mix(in srgb, var(--secondary) 48%, transparent));
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36);
+  overflow: hidden;
+}
+
+.panel-avatar::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.panel-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.panel-copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.panel-copy h2 {
+  margin: 6px 0 10px;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.08;
+}
+
+.panel-copy p {
+  margin: 0;
+  font-size: var(--fs-lg);
+  line-height: 1.75;
+  color: var(--muted);
+}
+
+/* The address line carries a live clock after it, so it is a flex row that is
+   allowed to wrap: at the narrowest card width the time drops to its own line
+   rather than pushing the address out of the card. */
+.panel-address {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-8);
+}
+
+.mars-clock {
+  /* tabular-nums is the whole reason this is not just a span: without it the
+     digits have different widths, so a ticking clock visibly jitters and drags
+     the text around it a pixel at a time.
+
+     Solid --muted, not a color-mix dilution of it. Diluting to 72% reads 2.94:1
+     on the light theme, and this is 13px text that wants 4.5 -- the same trap
+     three other rules in this file fell into and were pulled back out of. */
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: var(--space-20);
+}
+
+.panel-grid span {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  text-align: center;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -18px, 0);
+  }
+}

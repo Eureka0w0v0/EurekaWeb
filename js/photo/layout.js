@@ -10,7 +10,7 @@ import {
   mapScrollSegment,
   smootherStep,
 } from "../core/math.js?v=54e566c4";
-import { shouldReduceMotion } from "../core/viewport.js?v=71b5eb94";
+import { shouldReduceMotion } from "../core/viewport.js?v=c7860737";
 import {
   DESKTOP_CENTER_SCALE,
   PHOTO_INTRO_PHASES,

@@ -1,8 +1,8 @@
 /* The film-grain overlay canvas: a 128x128 noise tile scaled up behind the
    page, brighter while the page scrolls and fading back to a faint base. */
 
-import { isTouchFirst, shouldReduceMotion } from "../core/viewport.js?v=71b5eb94";
-import { activeTheme } from "../theme.js?v=ad29e4e7";
+import { isTouchFirst, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
+import { activeTheme } from "../theme.js?v=29c3a7f7";
 
 const GRAIN_W = 128;
 const GRAIN_H = 128;

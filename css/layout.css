@@ -1,0 +1,75 @@
+/* The page frame: the page and section shells, the first screen and the
+   topbar. */
+
+.page-shell {
+  position: relative;
+  z-index: var(--z-content);
+  width: 100%;
+  min-height: 100lvh;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  min-height: var(--app-height, 100dvh);
+  padding: 0;
+}
+
+.section-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.first-screen {
+  min-height: 100lvh;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  min-height: var(--app-height, 100dvh);
+  overflow: visible;
+}
+
+.first-screen-shell {
+  min-height: inherit;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0;
+  padding-top: 0;
+  overflow: visible;
+}
+
+.first-screen,
+.first-screen-shell,
+.welcome-section,
+.welcome-stage {
+  background: transparent;
+  background-color: transparent;
+}
+
+html.theme-dark .first-screen,
+html.theme-dark .first-screen-shell,
+html.theme-dark .welcome-section,
+html.theme-dark .welcome-stage {
+  background: transparent;
+  background-color: transparent;
+}
+
+html.theme-syncing .first-screen,
+html.theme-syncing .first-screen-shell,
+html.theme-syncing .welcome-section,
+html.theme-syncing .welcome-stage {
+  background: transparent;
+  background-color: transparent;
+  transition-property: color, opacity, transform;
+}
+
+.topbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: var(--topbar-gap);
+  position: fixed;
+  top: var(--topbar-top);
+  right: var(--topbar-right);
+  z-index: var(--z-chrome);
+  pointer-events: none;
+}

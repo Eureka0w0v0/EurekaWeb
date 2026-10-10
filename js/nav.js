@@ -1,6 +1,6 @@
 /* The section rail and in-page jump links. */
 
-import { shouldReduceMotion } from "./core/viewport.js?v=71b5eb94";
+import { shouldReduceMotion } from "./core/viewport.js?v=c7860737";
 
 /* The dot rail on the right: one dot per section, the one whose middle is
    in the middle of the viewport lit. Observed rather than measured on scroll
@@ -60,7 +60,7 @@ export function initJumpLinks() {
        carries tabindex="-1") already lands focus correctly.
 
        tabindex="-1" makes a non-interactive section focusable without putting
-       it in the Tab order, and styles.css already suppresses the ring on
+       it in the Tab order, and css/base.css already suppresses the ring on
        :where([tabindex="-1"]):focus-visible so nothing visible changes. */
     target.setAttribute("tabindex", "-1");
     target.focus({ preventScroll: true });

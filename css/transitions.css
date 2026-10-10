@@ -1,0 +1,322 @@
+/* Animated changes of state: the theme wave and the view-transition
+   snapshot it reveals, the letter-by-letter language switch, and the
+   reduced-motion overrides that turn the page's motion off. */
+
+.theme-wave {
+  z-index: var(--z-theme-wave);
+  opacity: 0;
+  overflow: hidden;
+  visibility: hidden;
+  contain: strict;
+  will-change: opacity;
+  transform: translateZ(0);
+}
+
+.theme-wave.is-active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.theme-wave.is-outline {
+  opacity: 1;
+  visibility: visible;
+}
+
+.theme-wave-core {
+  position: absolute;
+  left: var(--wave-visual-x, var(--wave-x, calc(100% - 52px)));
+  top: var(--wave-visual-y, var(--wave-y, 52px));
+  width: var(--wave-visual-diameter, var(--wave-diameter, 0px));
+  height: var(--wave-visual-diameter, var(--wave-diameter, 0px));
+  border-radius: 50%;
+  transform: translate3d(-50%, -50%, 0) scale(0);
+  transform-origin: center center;
+  contain: paint;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 48px rgba(0, 0, 0, 0.12);
+}
+
+.theme-wave-core::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  opacity: 0.55;
+  box-shadow:
+    inset 0 0 38px rgba(255, 255, 255, 0.05),
+    0 0 32px rgba(255, 255, 255, 0.04);
+}
+
+.theme-wave.theme-light-wave .theme-wave-core {
+  background:
+    radial-gradient(circle at top left, rgba(30, 144, 255, 0.18), transparent 28%),
+    radial-gradient(circle at 85% 18%, rgba(255, 138, 91, 0.14), transparent 24%),
+    linear-gradient(135deg, #f3f7ff, #dbe8ff);
+}
+
+.theme-wave.theme-dark-wave .theme-wave-core {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.055), transparent 28%),
+    radial-gradient(circle at 85% 18%, rgba(255, 255, 255, 0.028), transparent 24%),
+    linear-gradient(135deg, var(--dark-bg), var(--dark-bg-soft));
+}
+
+.theme-wave.is-mobile-wave .theme-wave-core {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 0 36px rgba(0, 0, 0, 0.1);
+}
+
+.theme-wave.is-mobile-wave .theme-wave-core::after {
+  border-color: rgba(255, 255, 255, 0.12);
+  opacity: 0.34;
+  box-shadow:
+    inset 0 0 28px rgba(255, 255, 255, 0.035),
+    0 0 22px rgba(255, 255, 255, 0.026);
+}
+
+.theme-wave.is-mobile-wave.theme-light-wave .theme-wave-core {
+  background:
+    radial-gradient(circle at 24% 20%, rgba(255, 255, 255, 0.34), transparent 34%),
+    radial-gradient(circle at 86% 18%, rgba(88, 134, 200, 0.12), transparent 28%),
+    linear-gradient(135deg, rgba(245, 248, 255, 0.72), rgba(232, 239, 249, 0.9));
+}
+
+.theme-wave.is-mobile-wave.theme-dark-wave .theme-wave-core {
+  background:
+    radial-gradient(circle at 24% 20%, rgba(255, 255, 255, 0.08), transparent 32%),
+    radial-gradient(circle at 86% 18%, rgba(255, 255, 255, 0.04), transparent 28%),
+    linear-gradient(135deg, rgba(8, 8, 8, 0.72), rgba(8, 8, 8, 0.9));
+}
+
+.theme-wave.is-outline .theme-wave-core {
+  background: transparent !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 0 42px rgba(255, 255, 255, 0.08),
+    0 0 64px rgba(30, 144, 255, 0.08);
+}
+
+.theme-wave.is-outline.theme-light-wave .theme-wave-core,
+.theme-wave.is-outline.theme-dark-wave .theme-wave-core {
+  background: transparent !important;
+}
+
+.theme-wave.is-outline .theme-wave-core::after {
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  opacity: 0.94;
+  box-shadow:
+    inset 0 0 24px rgba(255, 255, 255, 0.06),
+    0 0 22px rgba(255, 255, 255, 0.1);
+}
+
+.theme-wave.is-outline.is-mobile-wave {
+  z-index: var(--z-theme-wave-mobile);
+}
+
+.theme-wave.is-outline.is-mobile-wave .theme-wave-core {
+  background: transparent;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 0 42px rgba(255, 255, 255, 0.08),
+    0 0 64px rgba(30, 144, 255, 0.08);
+}
+
+.theme-wave.is-outline.is-mobile-wave .theme-wave-core::after {
+  border-color: rgba(255, 255, 255, 0.42);
+  opacity: 0.94;
+  box-shadow:
+    inset 0 0 24px rgba(255, 255, 255, 0.06),
+    0 0 22px rgba(255, 255, 255, 0.1);
+}
+
+.theme-wave.is-outline.is-mobile-wave.theme-light-wave .theme-wave-core {
+  background: transparent;
+  box-shadow:
+    0 0 0 1px rgba(79, 143, 247, 0.22),
+    0 0 36px rgba(79, 143, 247, 0.16),
+    0 0 74px rgba(255, 255, 255, 0.2);
+}
+
+.theme-wave.is-outline.is-mobile-wave.theme-dark-wave .theme-wave-core {
+  background: transparent;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.26),
+    0 0 38px rgba(255, 255, 255, 0.13),
+    0 0 76px rgba(255, 255, 255, 0.08);
+}
+
+.theme-wave.is-mobile-clip-wave {
+  z-index: var(--z-theme-wave-mobile);
+  opacity: 1;
+  visibility: visible;
+  clip-path: circle(0px at var(--wave-x) var(--wave-y));
+  will-change: clip-path, opacity;
+}
+
+.theme-wave.is-mobile-clip-wave.theme-light-wave {
+  background:
+    radial-gradient(circle at top left, rgba(92, 142, 210, 0.1), transparent 30%),
+    radial-gradient(circle at 85% 18%, rgba(196, 123, 106, 0.07), transparent 26%),
+    linear-gradient(135deg, #f7f8fb, #eef3f8);
+}
+
+.theme-wave.is-mobile-clip-wave.theme-dark-wave {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.055), transparent 28%),
+    radial-gradient(circle at 85% 18%, rgba(255, 255, 255, 0.028), transparent 24%),
+    linear-gradient(135deg, var(--dark-bg), var(--dark-bg-soft));
+}
+
+.theme-wave.is-mobile-clip-wave .theme-wave-core {
+  display: none;
+}
+
+[data-i18n].is-kinetic-language-text {
+  display: inline-block;
+  vertical-align: inherit;
+  overflow: hidden;
+  contain: layout paint;
+}
+
+.kinetic-char {
+  display: inline-block;
+  white-space: pre;
+  transform: translate3d(0, 0, 0);
+  transform-origin: 50% 62%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-i18n].is-kinetic-language-text {
+    display: revert;
+    min-width: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .kinetic-char {
+    display: inline;
+    transform: none;
+  }
+
+  .language-network,
+  .language-node,
+  .brain-wrap {
+    opacity: 1;
+    transition: none;
+  }
+
+  .network-line {
+    stroke-dashoffset: 0;
+  }
+
+  .brain-wrap,
+  .language-node {
+    animation: none;
+  }
+
+  .career-section {
+    --career-ufo-y: 0;
+    --career-ufo-opacity: 1;
+    --career-ufo-scale: 1;
+    --career-card-y: 0;
+    --career-card-opacity: 1;
+    --career-card-scale: 1;
+    --career-alien-y: 0;
+    --career-alien-opacity: 1;
+    --career-alien-scale: 1;
+  }
+
+  .career-ufo-img,
+  .career-alien-img,
+  .career-card-layer,
+  .career-card-stack.is-switching-forward .career-card-layer.is-active,
+  .career-card-stack.is-switching-back .career-card-layer.is-active {
+    animation: none;
+  }
+
+  .career-card-layer {
+    transition: none;
+  }
+
+  .photo-section {
+    --photo-insert-progress: 1;
+  }
+
+  .photo-card,
+  .photo-floating-card {
+    transition: none;
+  }
+}
+
+::view-transition-group(root),
+::view-transition-image-pair(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-group(root),
+::view-transition-image-pair(root) {
+  isolation: isolate;
+}
+
+::view-transition-old(root) {
+  z-index: 8;
+}
+
+::view-transition-new(root) {
+  z-index: 9;
+  clip-path: circle(0px at var(--wave-x) var(--wave-y));
+  will-change: clip-path;
+  contain: paint;
+}
+
+html.theme-mask-reveal::view-transition-new(root) {
+  clip-path: none !important;
+  -webkit-mask-image:
+    radial-gradient(
+      circle at var(--wave-x) var(--wave-y),
+      #000 0 var(--snapshot-wave-radius),
+      transparent calc(var(--snapshot-wave-radius) + 1px)
+    );
+  mask-image:
+    radial-gradient(
+      circle at var(--wave-x) var(--wave-y),
+      #000 0 var(--snapshot-wave-radius),
+      transparent calc(var(--snapshot-wave-radius) + 1px)
+    );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  will-change: -webkit-mask-image, mask-image;
+}
+
+@media (max-width: 680px), (hover: none) and (pointer: coarse) {
+  ::view-transition-group(root),
+  ::view-transition-image-pair(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+
+  ::view-transition-new(root) {
+    will-change: clip-path;
+    contain: paint;
+  }
+
+  ::view-transition-group(root),
+  ::view-transition-image-pair(root) {
+    contain: paint;
+    isolation: isolate;
+  }
+
+}

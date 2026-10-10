@@ -1,6 +1,6 @@
 /* Stepping the carousel: wheel, swipe, settling and the touch gesture. */
 
-import { isCompactLayout, isTouchFirst } from "../core/viewport.js?v=71b5eb94";
+import { isCompactLayout, isTouchFirst } from "../core/viewport.js?v=c7860737";
 import { photoCarouselCards, photoQueueAnchor } from "./dom.js?v=64ce044a";
 import {
   carousel,
@@ -13,7 +13,7 @@ import {
   photoCardSlotMap,
   requestPhotoSceneUpdate,
 } from "./state.js?v=b4cbf01b";
-import { preloadNearbyPhotoZoomImages } from "./zoom.js?v=5d4a4ded";
+import { preloadNearbyPhotoZoomImages } from "./zoom.js?v=c883e1e6";
 
 export function navigatePhotoCarouselToSlot(slot) {
   if (!isCarouselEnabled() || expandTarget() > 0 || expand.progress > 0.01) {

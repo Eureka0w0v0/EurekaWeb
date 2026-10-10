@@ -3,7 +3,7 @@
 import { root } from "../core/dom.js?v=5057c320";
 import { waitForNextAnimationFrame } from "../core/frames.js?v=0b68ae2a";
 import { setAttributeIfChanged } from "../core/style-writes.js?v=d4be61ed";
-import { isTouchFirst, stableMobileAppHeight } from "../core/viewport.js?v=71b5eb94";
+import { isTouchFirst, stableMobileAppHeight } from "../core/viewport.js?v=c7860737";
 import {
   photoZoomCloseButton,
   photoZoomImage,

@@ -1,0 +1,551 @@
+/* The language section: the index, the ring of language nodes, the
+   connector lines and the wireframe brain. */
+
+.language-section {
+  min-height: 100lvh;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  min-height: var(--app-height, 100dvh);
+  padding: 48px 0 86px;
+  position: relative;
+  overflow: clip;
+  color: var(--text);
+  background: transparent;
+}
+
+.language-section::before,
+.language-section::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.language-section::before {
+  background-image:
+    radial-gradient(circle, color-mix(in srgb, var(--text) 24%, transparent) 0 1px, transparent 1.8px),
+    radial-gradient(circle, color-mix(in srgb, var(--text) 10%, transparent) 0 1px, transparent 1.8px);
+  background-size: 86px 86px, 132px 132px;
+  background-position: 18px 28px, 62px 44px;
+  mask-image: radial-gradient(circle at 48% 50%, black 8%, transparent 74%);
+  opacity: 0;
+}
+
+.language-section::after {
+  background:
+    linear-gradient(115deg, transparent 0 42%, color-mix(in srgb, var(--text) 5%, transparent) 42.3%, transparent 43%),
+    linear-gradient(22deg, transparent 0 58%, color-mix(in srgb, var(--text) 4%, transparent) 58.2%, transparent 59%);
+  opacity: 0;
+}
+
+html.theme-dark .language-section::before {
+  opacity: 0.5;
+}
+
+html.theme-dark .language-section::after {
+  opacity: 0.62;
+}
+
+.language-shell {
+  min-height: inherit;
+  display: grid;
+  place-items: center;
+}
+
+.language-universe {
+  --universe-x: 0;
+  --universe-y: 0;
+  position: relative;
+  width: min(100%, 1180px);
+  min-height: min(800px, calc(var(--app-height, 100dvh) - 80px));
+  display: grid;
+  grid-template-columns: 56px minmax(660px, 1fr) minmax(300px, 360px);
+  align-items: center;
+  gap: clamp(24px, 4.4vw, 56px);
+  padding: clamp(28px, 5vw, 52px) 0;
+  background:
+    radial-gradient(circle at 43% 52%, color-mix(in srgb, var(--text) 6%, transparent), transparent 36%),
+    radial-gradient(circle at 70% 42%, color-mix(in srgb, var(--text) 3%, transparent), transparent 30%);
+  isolation: isolate;
+  overflow: visible;
+}
+
+.language-universe::before {
+  content: "";
+  position: absolute;
+  inset: 8% 8% 6%;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--text) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--text) 4%, transparent) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(circle at 44% 50%, black 12%, transparent 72%);
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: -2;
+}
+
+.language-universe::after {
+  content: "";
+  position: absolute;
+  width: min(58vw, 660px);
+  height: min(58vw, 660px);
+  left: 44%;
+  top: 54%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--text) 8%, transparent), color-mix(in srgb, var(--text) 2.6%, transparent) 48%, transparent 72%);
+  opacity: 0.42;
+  pointer-events: none;
+  z-index: -1;
+}
+
+html.theme-dark .language-universe::before {
+  opacity: 0.72;
+}
+
+html.theme-dark .language-universe::after {
+  opacity: 1;
+}
+
+.language-index {
+  display: grid;
+  gap: 18px;
+  justify-items: start;
+  z-index: 5;
+}
+
+.language-index-item {
+  all: unset;
+  box-sizing: border-box;
+  position: relative;
+  min-width: 44px;
+  padding: var(--space-8) 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 800;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.16em;
+  transition:
+    color 200ms ease,
+    transform 200ms ease;
+}
+
+.language-index-item::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 2px;
+  width: 22px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.36;
+  transform-origin: left center;
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+}
+
+.language-index-item.is-active {
+  color: var(--text);
+  transform: translateX(4px);
+  outline: none;
+}
+
+.language-index-item:hover {
+  color: var(--text);
+}
+
+.language-index-item:focus-visible {
+  color: var(--text);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+
+.language-index-item.is-active::after {
+  opacity: 0.9;
+  transform: scaleX(1.7);
+}
+
+.language-stage {
+  position: relative;
+  min-height: 660px;
+  z-index: 2;
+  overflow: visible;
+  transform: translate3d(
+    calc(var(--universe-x) * -8px),
+    calc(var(--universe-y) * -8px),
+    0
+  );
+  transition: transform 180ms ease;
+}
+
+.language-heading {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  max-width: 520px;
+  z-index: 5;
+  padding: 0 0 0 18px;
+  border-left: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  transform: translate3d(
+    calc(var(--universe-x) * -5px),
+    calc(var(--universe-y) * -5px),
+    0
+  );
+  transition: transform 180ms ease;
+}
+
+.language-section-title {
+  margin: 0;
+  max-width: 11ch;
+  font-size: clamp(2.35rem, 4.5vw, 4.5rem);
+  line-height: 1;
+  color: var(--text);
+  text-shadow: 0 12px 34px color-mix(in srgb, var(--text) 8%, transparent);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+html[lang="en"] .language-section-title {
+  max-width: 12ch;
+  font-size: clamp(2.25rem, 4.2vw, 4.25rem);
+}
+
+html[lang="ja"] .language-section-title {
+  max-width: 13ch;
+  font-size: clamp(2.2rem, 4.1vw, 4.1rem);
+}
+
+.language-network {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 6;
+  pointer-events: none;
+  overflow: visible;
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+.network-line {
+  stroke: color-mix(in srgb, var(--text) 74%, transparent);
+  stroke-width: 0.36;
+  stroke-linecap: round;
+  opacity: 0.74;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--text) 18%, transparent));
+  transition:
+    opacity 220ms ease,
+    stroke 220ms ease,
+    stroke-width 220ms ease;
+}
+
+.language-universe.active-cpp .line-cpp,
+.language-universe.active-html .line-html,
+.language-universe.active-css .line-css,
+.language-universe.active-js .line-js,
+.language-universe.active-py .line-py {
+  opacity: 0.95;
+  stroke: var(--text);
+  stroke-width: 0.48;
+  filter:
+    drop-shadow(0 0 8px color-mix(in srgb, var(--text) 36%, transparent));
+}
+
+.brain-wrap {
+  position: absolute;
+  left: 50%;
+  top: 64%;
+  width: clamp(540px, 54vw, 720px);
+  --brain-wrap-offset-x: 0px;
+  aspect-ratio: 2 / 1;
+  display: grid;
+  place-items: center;
+  transform:
+    translate(calc(-50% + var(--brain-wrap-offset-x)), -50%)
+    translate3d(calc(var(--universe-x) * 8px), calc(var(--universe-y) * 8px), 0)
+    scale(1);
+  opacity: 1;
+  transition: transform 180ms ease;
+  z-index: 3;
+  animation: brainFloat 9s ease-in-out infinite;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: visible;
+}
+
+.language-universe.active-cpp .brain-wrap,
+.language-universe.active-html .brain-wrap,
+.language-universe.active-css .brain-wrap,
+.language-universe.active-js .brain-wrap,
+.language-universe.active-py .brain-wrap {
+  filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.12));
+}
+
+.brain-three-mount {
+  position: relative;
+  width: 116%;
+  height: 122%;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.brain-three-mount::before {
+  content: none;
+}
+
+.brain-three-mount canvas {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  pointer-events: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.language-node-field {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+}
+
+.language-node {
+  all: unset;
+  box-sizing: border-box;
+  position: absolute;
+  min-width: clamp(94px, 9vw, 136px);
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-16);
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-strong) 92%, transparent), color-mix(in srgb, var(--surface) 70%, transparent));
+  box-shadow:
+    0 18px 34px color-mix(in srgb, var(--text) 8%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 1;
+  translate: 0 0;
+  transform:
+    translate(-50%, -50%)
+    translate3d(
+      calc(var(--universe-x) * var(--node-depth-x, 10px)),
+      calc(var(--universe-y) * var(--node-depth-y, 10px)),
+      0
+    )
+    scale(1);
+  transition:
+    transform 220ms ease,
+    opacity 420ms ease,
+    color 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    background 220ms ease;
+  animation: none;
+}
+
+.node-label {
+  position: relative;
+  z-index: 1;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-size: clamp(0.9rem, 1.35vw, 1.02rem);
+}
+
+.node-index {
+  position: relative;
+  z-index: 1;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.language-node.is-active {
+  color: var(--text);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-strong) 100%, white 12%), color-mix(in srgb, var(--surface) 80%, transparent));
+  border-color: color-mix(in srgb, var(--text) 58%, transparent);
+  box-shadow:
+    0 18px 42px color-mix(in srgb, var(--text) 10%, transparent),
+    0 0 0 7px color-mix(in srgb, var(--text) 5%, transparent),
+    0 0 22px color-mix(in srgb, var(--text) 10%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 22%, transparent);
+  outline: none;
+}
+
+.language-node:hover,
+.language-node:focus-visible {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--text) 58%, transparent);
+  box-shadow:
+    0 18px 42px color-mix(in srgb, var(--text) 10%, transparent),
+    0 0 0 7px color-mix(in srgb, var(--text) 5%, transparent),
+    0 0 22px color-mix(in srgb, var(--text) 10%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 22%, transparent);
+  transform:
+    translate(-50%, -50%)
+    translate3d(
+      calc(var(--universe-x) * var(--node-depth-x, 10px)),
+      calc(var(--universe-y) * var(--node-depth-y, 10px)),
+      0
+    )
+    scale(1.06);
+}
+
+/* The shared hover/focus treatment above is a glow, which reads as ambience
+   rather than "you are here". Keyboard focus gets an explicit ring on top. */
+.language-node:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+
+.node-cpp {
+  left: 14%;
+  top: 60%;
+  --node-depth-x: -15px;
+  --node-depth-y: -9px;
+  animation-delay: -0.6s;
+  transition-delay: 180ms;
+}
+
+.node-html {
+  left: 86%;
+  top: 60%;
+  --node-depth-x: 13px;
+  --node-depth-y: -14px;
+  animation-delay: -1.2s;
+  transition-delay: 250ms;
+}
+
+.node-css {
+  left: 28%;
+  top: 78%;
+  --node-depth-x: -11px;
+  --node-depth-y: 16px;
+  animation-delay: -2.1s;
+  transition-delay: 320ms;
+}
+
+.node-js {
+  left: 72%;
+  top: 78%;
+  --node-depth-x: 16px;
+  --node-depth-y: 12px;
+  animation-delay: -2.7s;
+  transition-delay: 390ms;
+}
+
+.node-py {
+  left: 50%;
+  top: 40%;
+  --node-depth-x: 0px;
+  --node-depth-y: 18px;
+  animation-delay: -3.1s;
+  transition-delay: 460ms;
+}
+
+.language-insight {
+  position: relative;
+  width: 100%;
+  padding: 26px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 22px;
+  background:
+    linear-gradient(150deg, color-mix(in srgb, var(--surface-strong) 88%, transparent), color-mix(in srgb, var(--surface) 68%, transparent)),
+    color-mix(in srgb, var(--surface) 72%, transparent);
+  box-shadow:
+    0 28px 56px color-mix(in srgb, var(--text) 7%, transparent),
+    0 0 38px color-mix(in srgb, var(--text) 4%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  transform: translate3d(
+    calc(var(--universe-x) * 5px),
+    calc(var(--universe-y) * 5px),
+    0
+  );
+  z-index: 4;
+  transition: transform 180ms ease;
+}
+
+.language-insight-kicker {
+  margin: 0 0 var(--space-8);
+  color: color-mix(in srgb, var(--text) 72%, transparent);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.language-insight h3 {
+  margin: 0;
+  font-size: var(--fs-xl);
+  line-height: 1.1;
+  color: var(--text);
+}
+
+[data-language-insight-text] {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: var(--fs-md);
+  line-height: 1.65;
+}
+
+.language-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-top: 18px;
+}
+
+.language-tags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 44%, transparent);
+  color: color-mix(in srgb, var(--text) 78%, transparent);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+@keyframes brainFloat {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  25% {
+    translate: 5px -5px;
+  }
+  50% {
+    translate: -4px -10px;
+  }
+  75% {
+    translate: 4px -4px;
+  }
+}

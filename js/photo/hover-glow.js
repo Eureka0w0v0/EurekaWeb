@@ -1,6 +1,6 @@
 /* The glow that follows the pointer across a photo card. */
 
-import { isTouchFirst } from "../core/viewport.js?v=71b5eb94";
+import { isTouchFirst } from "../core/viewport.js?v=c7860737";
 
 /* ═══════════════════════════════════════════════════════════════
    Effect 3: Photo Card Hover Glow (JS portion)

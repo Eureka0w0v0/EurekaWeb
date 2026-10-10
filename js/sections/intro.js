@@ -1,9 +1,9 @@
 /* The once-per-session intro curtain. */
 
 import { root } from "../core/dom.js?v=5057c320";
-import { isCompactLayout, shouldReduceMotion } from "../core/viewport.js?v=71b5eb94";
-import { getActiveCopy } from "../i18n/language.js?v=c4a9e128";
-import { runWelcomeEntrance, welcomeSection } from "./welcome.js?v=2229accf";
+import { isCompactLayout, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
+import { getActiveCopy } from "../i18n/language.js?v=651a14fb";
+import { runWelcomeEntrance, welcomeSection } from "./welcome.js?v=842ffdae";
 
 const INTRO_SEEN_KEY = "eurekaweb:intro-seen";
 
