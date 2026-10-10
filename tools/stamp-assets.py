@@ -7,12 +7,24 @@ tracked by hand, which means a deploy is one forgotten edit away from shipping
 a stylesheet nobody will ever see.
 
 Both hosts serve the committed files -- GitHub Pages uploads the checkout and
-tools/deploy.py syncs the main site from it -- so the stamped index.html has
-to be the committed one. Run this before committing; CI runs it with --check
-and fails if the file on disk disagrees.
+tools/deploy.py syncs the main site from it -- so the stamped files have to be
+the committed ones. Run this before committing; CI runs it with --check and
+fails if the files on disk disagree.
 
 Stamps are the first 8 hex chars of the file's SHA-256, so re-running without
 changing an asset is a no-op and the diff stays quiet.
+
+The JavaScript is a graph of ES modules under js/, and their import
+specifiers carry stamps too: a module's URL has to change when any module it
+imports changes, or a visitor holding the old one would run it against new
+neighbours. Every module's stamp therefore depends on its imports' stamps,
+which is the same fixed-point problem the manifest already posed. It also
+keeps every import of a given file on one URL -- two different stamps for the
+same module would make the browser instantiate it twice.
+
+index.html carries a generated block of <link rel="modulepreload"> tags, one
+per module reachable from js/main.js, so the browser fetches the whole graph
+in parallel instead of discovering it one import level at a time.
 
     python3 tools/stamp-assets.py            # rewrite in place
     python3 tools/stamp-assets.py --check    # exit 1 if stale, touch nothing
@@ -27,6 +39,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+MODULE_ROOT = ROOT / "js"
+ENTRY_MODULE = MODULE_ROOT / "main.js"
 
 # Every document that references a long-cached asset by URL. index.html is the
 # obvious one; the other two were stamped by hand until they drifted.
@@ -40,7 +54,9 @@ ROOT = Path(__file__).resolve().parent.parent
 # maintenance/index.html was outside this list, so its stylesheet, script and
 # favicon went out unstamped under the same year-long immutable header: a
 # visitor who ever saw the maintenance page kept that version of it forever.
-SOURCES = ("index.html", "404.html", "manifest.webmanifest", "maintenance/index.html")
+#
+# The modules under js/ are added at run time.
+DOCUMENTS = ("index.html", "404.html", "manifest.webmanifest", "maintenance/index.html")
 
 # A local reference with no ?v= is normally a mistake, because these paths are
 # served immutable for a year. sw.js is the deliberate exception: a service
@@ -48,38 +64,62 @@ SOURCES = ("index.html", "404.html", "manifest.webmanifest", "maintenance/index.
 # deploy/nginx gives that one file no-cache instead.
 UNSTAMPED_OK = frozenset({ROOT / "sw.js"})
 
-# Matches any "./path/file.ext?v=STAMP" wherever it appears, rather than keying
-# off an attribute name. That matters: the photo cards carry their real URLs in
-# data-full-src, data-preview-src and data-full-srcset, and srcset packs two
-# URLs into one attribute with a " 1280w," descriptor between them -- so a
-# pattern anchored on `src="..."` silently skips exactly the URLs that get
-# fetched when someone opens a photo.
+# Matches any "./path/file.ext?v=STAMP" wherever it appears in a document,
+# rather than keying off an attribute name. That matters: the photo cards carry
+# their real URLs in data-full-src, data-preview-src and data-full-srcset, and
+# srcset packs two URLs into one attribute with a " 1280w," descriptor between
+# them -- so a pattern anchored on `src="..."` silently skips exactly the URLs
+# that get fetched when someone opens a photo.
 #
-# The stamp is terminated by any character that cannot be in one, which is the
-# closing quote in an attribute and the space before the width descriptor in a
-# srcset.
 # Paths are relative to the document that holds them -- "./" or "../" -- so a
-# page in a subdirectory resolves its own references correctly.
-REF = re.compile(r'(?P<path>(?:\.\.?/)+[A-Za-z0-9._/-]+\.(?:css|js|png|webp|webmanifest))\?v=(?P<stamp>[A-Za-z0-9._-]+)')
+# page in a subdirectory resolves its own references correctly. The lookahead
+# stops ".js" matching the front of ".json". The stamp is optional here so an
+# unstamped reference is reported rather than silently skipped.
+ANY_REF = re.compile(r'(?P<path>(?:\.\.?/)+[A-Za-z0-9._/-]+\.(?:css|js|png|webp|webmanifest))(?![A-Za-z0-9])(?P<query>\?v=[A-Za-z0-9._-]+)?')
 
-# Same paths, but with the stamp optional, so an unstamped reference can be
-# reported rather than silently skipped by REF.
-ANY_REF = re.compile(r'(?P<path>(?:\.\.?/)+[A-Za-z0-9._/-]+\.(?:css|js|png|webp|webmanifest))(?P<query>\?v=[A-Za-z0-9._-]+)?')
+# In a module only real import specifiers count -- static `from "..."`,
+# side-effect `import "..."` and dynamic `import("...")` -- never a path that
+# happens to be mentioned in a comment.
+JS_IMPORT = re.compile(r"""(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(["'])(?P<spec>\.\.?/[^"'\s]+)\1""")
+JS_STATIC_IMPORT = re.compile(r"""(?:\bfrom\s*|^\s*import\s+)(["'])(?P<spec>\.\.?/[^"'\s]+)\1""", re.MULTILINE)
+
+PRELOAD_START = "<!-- modulepreload:start -- generated by tools/stamp-assets.py -->"
+PRELOAD_END = "<!-- modulepreload:end -->"
+PRELOAD_BLOCK = re.compile(re.escape(PRELOAD_START) + r".*?" + re.escape(PRELOAD_END), re.DOTALL)
+
+
+def module_documents() -> list[str]:
+    if not MODULE_ROOT.is_dir():
+        return []
+    return sorted(p.relative_to(ROOT).as_posix() for p in MODULE_ROOT.rglob("*.js"))
+
 
 def resolve(document: str, rel: str) -> Path:
     """Absolute path of a reference, read relative to the document holding it."""
-    return ((ROOT / document).parent / rel).resolve()
+    return ((ROOT / document).parent / rel.split("?", 1)[0]).resolve()
+
+
+def references(document: str, text: str):
+    """(start, end, path, stamp-or-None) for every local asset reference."""
+    if document.endswith(".js"):
+        for match in JS_IMPORT.finditer(text):
+            path, _, query = match.group("spec").partition("?")
+            stamp = query[2:] if query.startswith("v=") else None
+            yield match.start("spec"), match.end("spec"), path, stamp
+        return
+    for match in ANY_REF.finditer(text):
+        query = match.group("query")
+        yield match.start(), match.end(), match.group("path"), query[3:] if query else None
 
 
 def digest(path: Path, pending: dict[Path, str]) -> str:
     """SHA-256 prefix of a file, preferring this run's rewritten copy of it.
 
-    One of the documents being stamped is itself a stamped asset: index.html
-    references ./manifest.webmanifest, whose own bytes change the moment its
-    icon stamps are rewritten. Hashing the version on disk would therefore
-    stamp index.html with a hash that is stale before the run finishes -- one
-    pass would leave the tree in a state --check rejects. Reading from the
-    in-progress text closes that loop.
+    Several of the files being stamped are themselves stamped assets --
+    index.html references ./manifest.webmanifest, and every module is imported
+    by another -- so hashing the version on disk would stamp a reference with
+    a hash that is stale before the run finishes. Reading from the in-progress
+    text closes that loop.
     """
     if path in pending:
         return hashlib.sha256(pending[path].encode("utf-8")).hexdigest()[:8]
@@ -87,29 +127,62 @@ def digest(path: Path, pending: dict[Path, str]) -> str:
 
 
 def rewrite(document: str, text: str, pending: dict[Path, str]) -> str:
-    """Return text with every ?v= stamp set from the referenced file's content."""
+    """Return text with every existing ?v= stamp set from the referenced file's content."""
+    out, last = [], 0
+    for start, end, path, stamp in references(document, text):
+        target = resolve(document, path)
+        # Unstamped references and missing files are reported, not rewritten.
+        if stamp is None or not target.is_file():
+            continue
+        out.append(text[last:start])
+        out.append(f"{path}?v={digest(target, pending)}")
+        last = end
+    out.append(text[last:])
+    return "".join(out)
 
-    def replace(match: re.Match[str]) -> str:
-        rel = match.group("path")
-        target = resolve(document, rel)
-        # A reference to something that is not on disk is a broken link, not a
-        # stale stamp. Leave it exactly as-is and let the caller notice.
-        if not target.is_file():
-            return match.group(0)
-        return f"{rel}?v={digest(target, pending)}"
 
-    return REF.sub(replace, text)
+def module_graph() -> list[Path]:
+    """Every module statically reachable from js/main.js, entry excluded."""
+    seen: set[Path] = set()
+
+    def visit(path: Path) -> None:
+        for match in JS_STATIC_IMPORT.finditer(path.read_text(encoding="utf-8")):
+            target = (path.parent / match.group("spec").split("?", 1)[0]).resolve()
+            if target.is_relative_to(MODULE_ROOT) and target.is_file() and target not in seen:
+                seen.add(target)
+                visit(target)
+
+    if ENTRY_MODULE.is_file():
+        visit(ENTRY_MODULE)
+    return sorted(seen, key=lambda p: p.relative_to(ROOT).as_posix())
+
+
+def with_preload_block(html: str) -> str:
+    """index.html with its modulepreload block regenerated. Stamps already
+    present are kept; new entries start at 0 for the fixed point to fill in."""
+    if PRELOAD_START not in html:
+        return html
+    indent = re.search(r"([ \t]*)" + re.escape(PRELOAD_START), html).group(1)
+    existing = dict(re.findall(r'href="(\./js/[^"?]+)\?v=([A-Za-z0-9._-]+)"', html))
+    lines = [PRELOAD_START]
+    for module in module_graph():
+        rel = f"./{module.relative_to(ROOT).as_posix()}"
+        lines.append(f'<link rel="modulepreload" href="{rel}?v={existing.get(rel, "0")}" />')
+    lines.append(PRELOAD_END)
+    return PRELOAD_BLOCK.sub(lambda _: f"\n{indent}".join(lines), html, count=1)
 
 
 def stamp_all(documents: dict[str, str]) -> dict[str, str]:
     """Rewrite every document until the stamps stop moving.
 
-    The dependency chain is index.html -> manifest.webmanifest -> icons, so a
-    single pass in the wrong order settles only part of it. Iterating to a
-    fixpoint keeps this correct no matter what order SOURCES happens to list,
-    and without hard-coding which document references which.
+    The dependency chains -- index.html -> manifest -> icons, and module ->
+    module -> ... -> leaf -- mean a single pass in the wrong order settles
+    only part of them. Iterating to a fixpoint keeps this correct no matter
+    the order, without hard-coding which document references which.
     """
     pending = dict(documents)
+    if "index.html" in pending:
+        pending["index.html"] = with_preload_block(pending["index.html"])
     for _ in range(len(documents) + 2):
         by_path = {(ROOT / name).resolve(): text for name, text in pending.items()}
         nxt = {name: rewrite(name, text, by_path) for name, text in pending.items()}
@@ -119,69 +192,50 @@ def stamp_all(documents: dict[str, str]) -> dict[str, str]:
     raise RuntimeError("cache stamps did not converge; check for a reference cycle")
 
 
-def missing_targets(document: str, text: str) -> list[str]:
-    return [m.group("path") for m in REF.finditer(text) if not resolve(document, m.group("path")).is_file()]
-
-
-def unstamped_refs(document: str, text: str) -> list[str]:
-    """Local asset references carrying no ?v= at all, sw.js aside."""
-    out = []
-    for match in ANY_REF.finditer(text):
-        rel = match.group("path")
-        target = resolve(document, rel)
-        if match.group("query") or target in UNSTAMPED_OK:
-            continue
-        if target.is_file():
-            out.append(rel)
-    return out
+def problems(documents: dict[str, str]) -> list[str]:
+    found = []
+    for name, text in documents.items():
+        for _, _, path, stamp in references(name, text):
+            target = resolve(name, path)
+            if not target.is_file():
+                found.append(f"{name} references a file that does not exist: {path}")
+            elif stamp is None and target not in UNSTAMPED_OK:
+                found.append(f"{name} references {path} with no ?v= stamp")
+    return found
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true", help="report staleness, change nothing")
     args = parser.parse_args()
 
-    documents = {name: (ROOT / name).read_text(encoding="utf-8") for name in SOURCES}
+    names = list(DOCUMENTS) + module_documents()
+    documents = {name: (ROOT / name).read_text(encoding="utf-8") for name in names}
 
-    failed = False
-    for name, text in documents.items():
-        for rel in missing_targets(name, text):
-            print(f"{name} references a file that does not exist: {rel}", file=sys.stderr)
-            failed = True
-        for rel in unstamped_refs(name, text):
-            print(f"{name} references {rel} with no ?v= stamp", file=sys.stderr)
-            failed = True
-    if failed:
+    found = problems(documents)
+    if found:
+        for problem in found:
+            print(problem, file=sys.stderr)
         return 2
 
     stamped = stamp_all(documents)
-    total = sum(len(REF.findall(text)) for text in documents.values())
+    changed = [name for name in names if stamped[name] != documents[name]]
+    total = sum(1 for name in names for _, _, _, stamp in references(name, stamped[name]) if stamp)
 
-    changes: list[tuple[str, str, str, str]] = []
-    for name, text in documents.items():
-        before = dict(REF.findall(text))
-        after = dict(REF.findall(stamped[name]))
-        for rel, old in before.items():
-            if after.get(rel) != old:
-                changes.append((name, rel, old, after[rel]))
-
-    if not changes:
+    if not changed:
         print(f"all {total} asset stamps are current")
         return 0
 
     if args.check:
-        print("stale cache stamps:", file=sys.stderr)
-        for name, rel, old, new in changes:
-            print(f"  {name}: {rel}  {old} -> {new}", file=sys.stderr)
+        print("stale cache stamps or modulepreload list in:", file=sys.stderr)
+        for name in changed:
+            print(f"  {name}", file=sys.stderr)
         print("\nrun: python3 tools/stamp-assets.py", file=sys.stderr)
         return 1
 
-    for name in SOURCES:
-        if stamped[name] != documents[name]:
-            (ROOT / name).write_text(stamped[name], encoding="utf-8")
-    print(f"updated {len(changes)} stamp(s):")
-    for name, rel, old, new in changes:
-        print(f"  {name}: {rel}  {old} -> {new}")
+    for name in changed:
+        (ROOT / name).write_text(stamped[name], encoding="utf-8")
+    print(f"updated {len(changed)} file(s): {', '.join(changed)}")
     return 0
 
 
