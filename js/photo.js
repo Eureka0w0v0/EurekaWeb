@@ -3,6 +3,7 @@
 import { root } from "./core/dom.js?v=5057c320";
 import { pageEvents } from "./core/events.js?v=8c4a4d4a";
 import { waitForNextAnimationFrame } from "./core/frames.js?v=0b68ae2a";
+import { createMachine } from "./core/machine.js?v=73a7d34e";
 import {
   clamp01,
   coerceNumber,
@@ -42,13 +43,27 @@ export const photoZoomOverlay = document.querySelector("#photo-zoom-overlay");
 const photoZoomImage = document.querySelector("#photo-zoom-image");
 export const photoZoomCloseButton = document.querySelector("#photo-zoom-close");
 const photoZoomLoading = document.querySelector("#photo-zoom-loading");
-export let photoZoomActive = false;
-let photoZoomOpenToken = 0;
-let photoZoomTriggerCard = null;
-const photoZoomPreloadCache = new Map();
-const photoZoomPreloadQueue = [];
-let photoZoomPreloadActiveCount = 0;
-let photoZoomPreloadLastActiveSlot = 0;
+/* The lightbox. openToken is bumped by every open and close, so an image that
+   finishes decoding after the visitor has moved on can tell it is stale. */
+const zoom = {
+  phase: createMachine("photo lightbox", {
+    initial: "closed",
+    states: {
+      closed: { open: "open" },
+      open: { open: "open", close: "closed" },
+    },
+  }),
+  openToken: 0,
+  triggerCard: null,
+  preloadCache: new Map(),
+  preloadQueue: [],
+  preloadActiveCount: 0,
+  preloadLastActiveSlot: 0,
+};
+
+export function isPhotoZoomOpen() {
+  return zoom.phase.is("open");
+}
 
 export function initPhotoQueueCards() {
   if (!photoStage) {
@@ -62,10 +77,16 @@ export function initPhotoQueueCards() {
   });
 }
 let photoFrame = 0;
-let photoTargetProgress = 0;
-let photoVisualProgress = 0;
-let photoProgressVelocity = 0;
-let photoLastFrameTime = 0;
+
+/* Scroll progress through the drop-in, 0 to 1. target is where the scroll
+   position says it should be; visual follows it with a speed and an
+   acceleration limit, which is what makes the drop feel weighted. */
+const progressState = {
+  target: 0,
+  visual: 0,
+  velocity: 0,
+  lastFrameTime: 0,
+};
 const PHOTO_INTRO_PHASES = {
   /* Desktop was 2.5 viewports of scroll for the drop; 2.2 tightens the run-up
      where only the title is on screen without changing the sequence, which is
@@ -120,43 +141,96 @@ const getPhotoDropStartProgress = (isCompact) => {
       durationVh
   );
 };
-let photoCarouselEnabled = false;
-let photoCarouselTargetIndex = 0;
-let photoCarouselVisualIndex = 0;
-let photoCarouselPreviousIndex = 0;
-let photoCarouselTransitionDirection = 0;
-let photoCarouselMinIndex = 0;
-let photoCarouselMaxIndex = 0;
-let photoCarouselSettling = false;
-let photoCarouselHasInteracted = false;
-let photoSelectedSlot = null;
+/* The carousel at the end of the drop-in.
+
+     inactive     the drop-in is still running, or the section is off screen
+     active       the cards are a carousel: wheel, swipe, click to step
+     settling     active, and gliding to the nearest card after a gesture
+     reinserting  scrolled back up after using the carousel: the chosen card
+                  glides back into the queue (one floating card only)
+     reinserted   ...and has arrived, while the drop-in runs backwards
+
+   Every frame updatePhotoScene decides between enable, replay and reset from
+   the scroll position; gestures settle and step; the visual index arriving
+   at its target converges. hasInteracted outlives the phases: it is what
+   makes scrolling back up replay the chosen card instead of resetting. */
+const carousel = {
+  phase: createMachine("photo carousel", {
+    initial: "inactive",
+    states: {
+      inactive: { enable: "active", replay: "reinserting", reset: "inactive" },
+      active: { replay: "reinserting", reset: "inactive", settle: "settling", step: "active" },
+      settling: { replay: "reinserting", reset: "inactive", settle: "settling", step: "active", converge: "active" },
+      reinserting: { enable: "active", replay: "reinserting", reset: "inactive", converge: "reinserted" },
+      reinserted: { enable: "active", replay: "reinserting", reset: "inactive" },
+    },
+  }),
+  hasInteracted: false,
+  targetIndex: 0,
+  visualIndex: 0,
+  previousIndex: 0,
+  transitionDirection: 0,
+  minIndex: 0,
+  maxIndex: 0,
+  selectedSlot: null,
+  selectedSourceCard: null,
+  hitRectCache: null,
+  wheelDelta: 0,
+  wheelDirection: 0,
+  lastStepTime: 0,
+  boundaryDelta: 0,
+  boundaryDirection: 0,
+};
 const photoCardSlotMap = new Map();
-let photoSelectedSourceCard = null;
-let photoReinsertActive = false;
-let photoAllExpanded = false;
-let photoAllExpandedTarget = 0;
-let photoAllExpandedProgress = 0;
-let photoAllExpandedAnimating = false;
-let photoAllExpandedAnimationStart = 0;
-let photoAllExpandedAnimationDirection = 0;
-let photoAllExpandedDuration = 880;
-const photoAllExpandedLayouts = new Map();
-let photoExpandedScrollExtraPx = 0;
+
+const isCarouselEnabled = () => carousel.phase.is("active", "settling");
+const isCarouselSettling = () => carousel.phase.is("settling", "reinserting");
+const isCarouselReinserting = () => carousel.phase.is("reinserting", "reinserted");
+
+/* Show All. progress runs 0 (carousel) to 1 (grid) while expanding and back
+   while collapsing; layouts holds each card's position at the moment of the
+   toggle, so a reversal mid-animation starts from where the card really is. */
+const expand = {
+  phase: createMachine("photo show all", {
+    initial: "collapsed",
+    states: {
+      collapsed: { toggle: "expanding", reset: "collapsed" },
+      expanding: { toggle: "collapsing", finish: "expanded", reset: "collapsed" },
+      expanded: { toggle: "collapsing", reset: "collapsed" },
+      collapsing: { toggle: "expanding", finish: "collapsed", reset: "collapsed" },
+    },
+  }),
+  progress: 0,
+  animationStart: 0,
+  duration: 880,
+  layouts: new Map(),
+  scrollExtraPx: 0,
+};
+
+const isExpandTargeted = () => expand.phase.is("expanding", "expanded");
+const expandTarget = () => (isExpandTargeted() ? 1 : 0);
+const isExpandAnimating = () => expand.phase.is("expanding", "collapsing");
+
+/* A touch on the carousel: deciding whether it is a swipe, owned by the
+   carousel (locked for 460ms after a step, so one swipe is one card), or
+   handed back to the page as a vertical scroll. */
+const gesture = {
+  phase: createMachine("photo touch gesture", {
+    initial: "idle",
+    states: {
+      idle: { start: "tracking", reset: "idle" },
+      tracking: { start: "tracking", release: "released", lock: "locked", reset: "idle" },
+      locked: { start: "tracking", unlock: "tracking", reset: "idle" },
+      released: { start: "tracking", reset: "idle" },
+    },
+  }),
+  startX: 0,
+  startY: 0,
+  unlockTimer: 0,
+};
+
 const photoCardStyleCache = new WeakMap();
 let photoLayoutMetricsCache = null;
-let photoCarouselHitRectCache = null;
-let photoCarouselWheelDelta = 0;
-let photoCarouselWheelDirection = 0;
-let photoCarouselLastStepTime = 0;
-let photoCarouselBoundaryDelta = 0;
-let photoCarouselBoundaryDirection = 0;
-let photoCarouselTouchStartX = 0;
-let photoCarouselTouchStartY = 0;
-let photoCarouselTouchActive = false;
-let photoCarouselTouchStartedInside = false;
-let photoCarouselTouchLocked = false;
-let photoCarouselTouchReleasedToPage = false;
-let photoCarouselTouchUnlockTimer = 0;
 
 function getPhotoLayoutMetrics(isCompact, viewportWidth) {
   const sampleCard = photoQueueCards[0] || photoFloatingCards[0];
@@ -192,7 +266,7 @@ function getPhotoLayoutMetrics(isCompact, viewportWidth) {
 
 export function invalidatePhotoLayoutCaches() {
   photoLayoutMetricsCache = null;
-  photoCarouselHitRectCache = null;
+  carousel.hitRectCache = null;
 }
 
 function computePhotoRawProgress(rect, viewportHeight, isCompact = false) {
@@ -214,7 +288,7 @@ function applyPhotoSectionScrollHeight(viewportHeight, isCompact) {
   const extraHeight = isCompact
     ? PHOTO_SECTION_EXTRA_HEIGHT_PX.mobile
     : PHOTO_SECTION_EXTRA_HEIGHT_PX.desktop;
-  const expandedExtraHeight = Math.max(0, photoExpandedScrollExtraPx);
+  const expandedExtraHeight = Math.max(0, expand.scrollExtraPx);
   const height = viewportHeight * (durationVh + 0.28) + PHOTO_AFTER_COMPLETE_SCROLL_PX;
 
   setStyleFieldIfChanged(photoSection, "minHeight", `${height.toFixed(2)}px`);
@@ -312,7 +386,7 @@ function syncPhotoShowAllButtonCopy() {
     return;
   }
 
-  const showAllText = getPhotoShowAllLabel(photoAllExpandedTarget > 0.5);
+  const showAllText = getPhotoShowAllLabel(expandTarget() > 0.5);
   if (photoShowAllButton.textContent !== showAllText) {
     photoShowAllButton.textContent = showAllText;
   }
@@ -485,13 +559,13 @@ function applyPhotoZoomImageSource({ token, src, srcset = "", sizes = "" }) {
   setAttributeIfChanged(photoZoomImage, "src", src);
 
   return decodePhotoZoomElement(photoZoomImage).then(async (decoded) => {
-    if (token !== photoZoomOpenToken || !photoZoomActive || !decoded) {
+    if (token !== zoom.openToken || !isPhotoZoomOpen() || !decoded) {
       return false;
     }
 
     await waitForNextAnimationFrame();
 
-    if (token !== photoZoomOpenToken || !photoZoomActive) {
+    if (token !== zoom.openToken || !isPhotoZoomOpen()) {
       return false;
     }
 
@@ -504,7 +578,7 @@ function applyPhotoZoomImageSource({ token, src, srcset = "", sizes = "" }) {
 }
 
 async function recoverFromPhotoZoomFailure(token, sourceContent, failedSrc) {
-  if (token !== photoZoomOpenToken || !photoZoomActive) {
+  if (token !== zoom.openToken || !isPhotoZoomOpen()) {
     return;
   }
 
@@ -516,7 +590,7 @@ async function recoverFromPhotoZoomFailure(token, sourceContent, failedSrc) {
     ? await applyPhotoZoomImageSource({ token, src: previewSrc })
     : false;
 
-  if (!shown && token === photoZoomOpenToken && photoZoomActive) {
+  if (!shown && token === zoom.openToken && isPhotoZoomOpen()) {
     closePhotoZoom();
   }
 }
@@ -577,8 +651,8 @@ function getPhotoZoomPreloadConcurrency() {
   return isTouchFirst() ? 1 : 2;
 }
 
-function prunePhotoZoomPreloadCache(activeSlot = photoZoomPreloadLastActiveSlot) {
-  const decodedEntries = [...photoZoomPreloadCache.entries()]
+function prunePhotoZoomPreloadCache(activeSlot = zoom.preloadLastActiveSlot) {
+  const decodedEntries = [...zoom.preloadCache.entries()]
     .filter(([, entry]) => entry.status === "decoded");
   const limit = getPhotoZoomPreloadLimit();
 
@@ -594,23 +668,23 @@ function prunePhotoZoomPreloadCache(activeSlot = photoZoomPreloadLastActiveSlot)
     })
     .slice(0, decodedEntries.length - limit)
     .forEach(([key]) => {
-      photoZoomPreloadCache.delete(key);
+      zoom.preloadCache.delete(key);
     });
 }
 
 function pumpPhotoZoomPreloadQueue() {
   const concurrency = getPhotoZoomPreloadConcurrency();
 
-  while (photoZoomPreloadActiveCount < concurrency && photoZoomPreloadQueue.length > 0) {
-    const preloadTask = photoZoomPreloadQueue.shift();
-    const entry = photoZoomPreloadCache.get(preloadTask.key);
+  while (zoom.preloadActiveCount < concurrency && zoom.preloadQueue.length > 0) {
+    const preloadTask = zoom.preloadQueue.shift();
+    const entry = zoom.preloadCache.get(preloadTask.key);
 
     if (!entry || entry.status !== "queued") {
       continue;
     }
 
     entry.status = "loading";
-    photoZoomPreloadActiveCount += 1;
+    zoom.preloadActiveCount += 1;
 
     const image = new Image();
     image.decoding = "async";
@@ -643,7 +717,7 @@ function pumpPhotoZoomPreloadQueue() {
       entry.status = "error";
       return null;
     }).finally(() => {
-      photoZoomPreloadActiveCount = Math.max(0, photoZoomPreloadActiveCount - 1);
+      zoom.preloadActiveCount = Math.max(0, zoom.preloadActiveCount - 1);
       pumpPhotoZoomPreloadQueue();
     });
   }
@@ -657,7 +731,7 @@ function preloadPhotoZoomContent(sourceContent, priority = false, slot = null) {
     return;
   }
 
-  const existingEntry = photoZoomPreloadCache.get(key);
+  const existingEntry = zoom.preloadCache.get(key);
   if (existingEntry) {
     if (Number.isFinite(slot)) {
       existingEntry.slot = slot;
@@ -668,11 +742,11 @@ function preloadPhotoZoomContent(sourceContent, priority = false, slot = null) {
     if (existingEntry.status === "queued") {
       if (priority && !existingEntry.priority) {
         existingEntry.priority = true;
-        const queueIndex = photoZoomPreloadQueue.findIndex((task) => task.key === key);
+        const queueIndex = zoom.preloadQueue.findIndex((task) => task.key === key);
         if (queueIndex > 0) {
-          const [task] = photoZoomPreloadQueue.splice(queueIndex, 1);
+          const [task] = zoom.preloadQueue.splice(queueIndex, 1);
           task.priority = true;
-          photoZoomPreloadQueue.unshift(task);
+          zoom.preloadQueue.unshift(task);
         }
       }
       return;
@@ -689,7 +763,7 @@ function preloadPhotoZoomContent(sourceContent, priority = false, slot = null) {
     image: null,
     promise: null,
   };
-  photoZoomPreloadCache.set(key, entry);
+  zoom.preloadCache.set(key, entry);
 
   const preloadTask = {
     key,
@@ -701,9 +775,9 @@ function preloadPhotoZoomContent(sourceContent, priority = false, slot = null) {
   };
 
   if (priority) {
-    photoZoomPreloadQueue.unshift(preloadTask);
+    zoom.preloadQueue.unshift(preloadTask);
   } else {
-    photoZoomPreloadQueue.push(preloadTask);
+    zoom.preloadQueue.push(preloadTask);
   }
 
   pumpPhotoZoomPreloadQueue();
@@ -715,7 +789,7 @@ function preloadNearbyPhotoZoomImages(activeSlot, radius = (isTouchFirst() ? 1 :
   }
 
   const clampedActiveSlot = clampPhotoCarouselIndex(Math.round(activeSlot));
-  photoZoomPreloadLastActiveSlot = clampedActiveSlot;
+  zoom.preloadLastActiveSlot = clampedActiveSlot;
   const slots = [clampedActiveSlot];
 
   for (let offset = 1; offset <= radius; offset += 1) {
@@ -723,7 +797,7 @@ function preloadNearbyPhotoZoomImages(activeSlot, radius = (isTouchFirst() ? 1 :
   }
 
   slots.forEach((slot) => {
-    if (slot < photoCarouselMinIndex || slot > photoCarouselMaxIndex) {
+    if (slot < carousel.minIndex || slot > carousel.maxIndex) {
       return;
     }
 
@@ -746,7 +820,7 @@ function openPhotoZoom(sourceContent) {
     return;
   }
 
-  const token = ++photoZoomOpenToken;
+  const token = ++zoom.openToken;
   const zoomDescriptor = getPhotoZoomSourceDescriptor(sourceContent);
   if (!zoomDescriptor?.src) {
     return;
@@ -756,7 +830,7 @@ function openPhotoZoom(sourceContent) {
   const zoomSizes = zoomDescriptor.sizes;
   const zoomAlt = sourceContent.label || "Expanded photo";
   const zoomCacheKey = getPhotoZoomPreloadKey(sourceContent);
-  const cachedZoom = photoZoomPreloadCache.get(zoomCacheKey);
+  const cachedZoom = zoom.preloadCache.get(zoomCacheKey);
 
   photoZoomImage.style.opacity = "0";
   photoZoomImage.style.visibility = "hidden";
@@ -774,7 +848,7 @@ function openPhotoZoom(sourceContent) {
   photoZoomOverlay.classList.remove("is-image-ready");
   setPhotoZoomLoading(true);
 
-  photoZoomActive = true;
+  zoom.phase.send("open");
   root.classList.add("is-photo-zoom-open");
   photoZoomOverlay.style.opacity = "";
   photoZoomOverlay.style.visibility = "";
@@ -795,7 +869,7 @@ function openPhotoZoom(sourceContent) {
         recoverFromPhotoZoomFailure(token, sourceContent, cachedZoom.src);
       }
     });
-    preloadNearbyPhotoZoomImages(clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex)), isTouchFirst() ? 1 : 2);
+    preloadNearbyPhotoZoomImages(clampPhotoCarouselIndex(Math.round(carousel.visualIndex)), isTouchFirst() ? 1 : 2);
     return;
   }
 
@@ -811,7 +885,7 @@ function openPhotoZoom(sourceContent) {
   nextImage.src = zoomSrc;
 
   decodePhotoZoomElement(nextImage).then((decoded) => {
-    if (token !== photoZoomOpenToken || !photoZoomActive) {
+    if (token !== zoom.openToken || !isPhotoZoomOpen()) {
       return;
     }
 
@@ -834,12 +908,12 @@ function openPhotoZoom(sourceContent) {
 }
 
 export function closePhotoZoom() {
-  if (!photoZoomActive || !photoZoomOverlay) {
+  if (!isPhotoZoomOpen() || !photoZoomOverlay) {
     return;
   }
 
-  photoZoomOpenToken += 1;
-  photoZoomActive = false;
+  zoom.openToken += 1;
+  zoom.phase.send("close");
   if (photoZoomImage) {
     photoZoomImage.style.opacity = "0";
     photoZoomImage.style.visibility = "hidden";
@@ -855,15 +929,15 @@ export function closePhotoZoom() {
   photoZoomOverlay.setAttribute("aria-hidden", "true");
   photoZoomOverlay.style.removeProperty("--photo-zoom-loading-width");
   photoZoomOverlay.style.removeProperty("--photo-zoom-loading-height");
-  if (photoZoomTriggerCard?.isConnected) {
-    photoZoomTriggerCard.focus({ preventScroll: true });
+  if (zoom.triggerCard?.isConnected) {
+    zoom.triggerCard.focus({ preventScroll: true });
   } else {
     photoZoomCloseButton?.blur();
   }
-  photoZoomTriggerCard = null;
+  zoom.triggerCard = null;
   requestPhotoSceneUpdate();
   window.requestAnimationFrame(() => {
-    if (photoZoomActive || !photoZoomOverlay) {
+    if (isPhotoZoomOpen() || !photoZoomOverlay) {
       return;
     }
 
@@ -888,7 +962,7 @@ export function handlePhotoZoomOverlayPointerDown(event) {
 }
 
 export function stopPhotoZoomScroll(event) {
-  if (!photoZoomActive) {
+  if (!isPhotoZoomOpen()) {
     return;
   }
 
@@ -897,11 +971,11 @@ export function stopPhotoZoomScroll(event) {
 }
 
 function getActivePhotoMainCard() {
-  if (!photoCarouselEnabled || photoAllExpandedTarget > 0 || photoAllExpandedProgress > 0.01) {
+  if (!isCarouselEnabled() || expandTarget() > 0 || expand.progress > 0.01) {
     return null;
   }
 
-  const activeSlot = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+  const activeSlot = clampPhotoCarouselIndex(Math.round(carousel.visualIndex));
   return photoCardSlotMap.get(activeSlot) || null;
 }
 
@@ -940,7 +1014,7 @@ function isPointInsidePhotoCard(card, x, y) {
 }
 
 function getExpandedPhotoCardContentAtPoint(x, y, target) {
-  if (photoAllExpandedTarget <= 0.5 && photoAllExpandedProgress <= 0.5) {
+  if (expandTarget() <= 0.5 && expand.progress <= 0.5) {
     return null;
   }
 
@@ -988,7 +1062,7 @@ function handlePhotoMainCardPreloadAtPoint(x, y, target) {
 }
 
 export function handlePhotoMainCardPointerPreload(event) {
-  if (photoZoomActive || !photoStage || photoShowAllButton?.contains(event.target)) {
+  if (isPhotoZoomOpen() || !photoStage || photoShowAllButton?.contains(event.target)) {
     return;
   }
 
@@ -996,7 +1070,7 @@ export function handlePhotoMainCardPointerPreload(event) {
 }
 
 export function handlePhotoMainCardTouchPreload(event) {
-  if (photoZoomActive || !photoStage || photoShowAllButton?.contains(event.target) || event.touches.length !== 1) {
+  if (isPhotoZoomOpen() || !photoStage || photoShowAllButton?.contains(event.target) || event.touches.length !== 1) {
     return;
   }
 
@@ -1005,30 +1079,30 @@ export function handlePhotoMainCardTouchPreload(event) {
 }
 
 function navigatePhotoCarouselToSlot(slot) {
-  if (!photoCarouselEnabled || photoAllExpandedTarget > 0 || photoAllExpandedProgress > 0.01) {
+  if (!isCarouselEnabled() || expandTarget() > 0 || expand.progress > 0.01) {
     return false;
   }
 
   const targetSlot = clampPhotoCarouselIndex(slot);
-  const currentSlot = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+  const currentSlot = clampPhotoCarouselIndex(Math.round(carousel.visualIndex));
   if (targetSlot === currentSlot) {
     return false;
   }
 
-  photoCarouselBoundaryDelta = 0;
-  photoCarouselBoundaryDirection = 0;
-  photoCarouselPreviousIndex = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
-  photoCarouselTargetIndex = targetSlot;
+  carousel.boundaryDelta = 0;
+  carousel.boundaryDirection = 0;
+  carousel.previousIndex = clampPhotoCarouselIndex(Math.round(carousel.visualIndex));
+  carousel.targetIndex = targetSlot;
   setPhotoSelectedSlot(targetSlot);
-  photoCarouselTransitionDirection = Math.sign(targetSlot - currentSlot);
-  photoCarouselHasInteracted = true;
-  photoCarouselSettling = false;
+  carousel.transitionDirection = Math.sign(targetSlot - currentSlot);
+  carousel.hasInteracted = true;
+  carousel.phase.send("step");
   requestPhotoSceneUpdate();
   return true;
 }
 
 function getClickedPhotoCardSlot(x, y, target) {
-  if (!photoCarouselEnabled || photoAllExpandedTarget > 0 || photoAllExpandedProgress > 0.01) {
+  if (!isCarouselEnabled() || expandTarget() > 0 || expand.progress > 0.01) {
     return null;
   }
 
@@ -1046,13 +1120,13 @@ function getClickedPhotoCardSlot(x, y, target) {
 }
 
 export function handlePhotoMainCardClick(event) {
-  if (photoZoomActive || !photoStage || photoShowAllButton?.contains(event.target)) {
+  if (isPhotoZoomOpen() || !photoStage || photoShowAllButton?.contains(event.target)) {
     return;
   }
 
   const clickedSlot = getClickedPhotoCardSlot(event.clientX, event.clientY, event.target);
   if (clickedSlot !== null) {
-    const activeSlot = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+    const activeSlot = clampPhotoCarouselIndex(Math.round(carousel.visualIndex));
     if (clickedSlot !== activeSlot) {
       event.preventDefault();
       event.stopPropagation();
@@ -1068,7 +1142,7 @@ export function handlePhotoMainCardClick(event) {
 
   event.preventDefault();
   event.stopPropagation();
-  photoZoomTriggerCard = hitContent.activeCard || null;
+  zoom.triggerCard = hitContent.activeCard || null;
   openPhotoZoom(hitContent.sourceContent);
 }
 
@@ -1077,7 +1151,7 @@ export function handlePhotoCardKeydown(event) {
     return;
   }
 
-  if (photoZoomActive || !photoStage || photoShowAllButton?.contains(event.target)) {
+  if (isPhotoZoomOpen() || !photoStage || photoShowAllButton?.contains(event.target)) {
     return;
   }
 
@@ -1094,8 +1168,8 @@ export function handlePhotoCardKeydown(event) {
   event.preventDefault();
   event.stopPropagation();
 
-  if (photoCarouselEnabled && photoAllExpandedTarget <= 0 && photoAllExpandedProgress <= 0.01) {
-    const activeSlot = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+  if (isCarouselEnabled() && expandTarget() <= 0 && expand.progress <= 0.01) {
+    const activeSlot = clampPhotoCarouselIndex(Math.round(carousel.visualIndex));
     if (slot !== activeSlot) {
       navigatePhotoCarouselToSlot(slot);
       return;
@@ -1107,7 +1181,7 @@ export function handlePhotoCardKeydown(event) {
     return;
   }
 
-  photoZoomTriggerCard = card;
+  zoom.triggerCard = card;
   openPhotoZoom(sourceContent);
 }
 
@@ -1173,12 +1247,12 @@ function applyPhotoCardFrames({
     applyPhotoCardStyle(card, layout, options);
   });
 
-  photoCarouselHitRectCache = hitRect;
+  carousel.hitRectCache = hitRect;
   photoCardSlotMap.clear();
   slotEntries.forEach(([slot, card]) => {
     photoCardSlotMap.set(slot, card);
   });
-  photoSelectedSourceCard = selectedSourceCard || photoSelectedSourceCard;
+  carousel.selectedSourceCard = selectedSourceCard || carousel.selectedSourceCard;
 }
 
 function createPhotoHitRectCollector(stageRect, cardWidth, cardHeight) {
@@ -1305,15 +1379,15 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
   const rect = photoSection.getBoundingClientRect();
   const photoSectionIsNearViewport = rect.top < viewportHeight * 1.35 && rect.bottom > -viewportHeight * 0.35;
   const photoHasActiveMotion = (
-    photoCarouselEnabled ||
-    photoCarouselSettling ||
-    photoAllExpandedAnimating ||
-    photoReinsertActive ||
-    Math.abs(photoAllExpandedTarget - photoAllExpandedProgress) > 0.001
+    isCarouselEnabled() ||
+    isCarouselSettling() ||
+    isExpandAnimating() ||
+    isCarouselReinserting() ||
+    Math.abs(expandTarget() - expand.progress) > 0.001
   );
 
   if (!photoSectionIsNearViewport && !photoHasActiveMotion) {
-    photoLastFrameTime = timestamp;
+    progressState.lastFrameTime = timestamp;
     return false;
   }
 
@@ -1321,36 +1395,36 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
   const { photoIntroStartY, rawProgress } = computePhotoRawProgress(rect, viewportHeight, isCompact);
   let deltaSeconds = 1 / 60;
   const photoDropStartProgress = getPhotoDropStartProgress(isCompact);
-  photoTargetProgress = clamp01(rawProgress);
+  progressState.target = clamp01(rawProgress);
 
-  if (photoTargetProgress <= 0 && rect.top > photoIntroStartY) {
-    photoVisualProgress = 0;
-    photoProgressVelocity = 0;
+  if (progressState.target <= 0 && rect.top > photoIntroStartY) {
+    progressState.visual = 0;
+    progressState.velocity = 0;
   }
 
   if (reduceMotion) {
-    photoVisualProgress = photoTargetProgress;
-    photoProgressVelocity = 0;
-    photoLastFrameTime = timestamp;
-  } else if (!photoLastFrameTime) {
-    photoVisualProgress = photoTargetProgress;
-    photoProgressVelocity = 0;
-    photoLastFrameTime = timestamp;
+    progressState.visual = progressState.target;
+    progressState.velocity = 0;
+    progressState.lastFrameTime = timestamp;
+  } else if (!progressState.lastFrameTime) {
+    progressState.visual = progressState.target;
+    progressState.velocity = 0;
+    progressState.lastFrameTime = timestamp;
   } else {
-    deltaSeconds = Math.min(Math.max((timestamp - photoLastFrameTime) / 1000, 0.008), 0.05);
-    const delta = photoTargetProgress - photoVisualProgress;
+    deltaSeconds = Math.min(Math.max((timestamp - progressState.lastFrameTime) / 1000, 0.008), 0.05);
+    const delta = progressState.target - progressState.visual;
     const direction = Math.sign(delta);
     const distance = Math.abs(delta);
     const isReverseExtraction = (
       direction < 0 &&
-      photoVisualProgress > photoDropStartProgress &&
-      photoVisualProgress <= PHOTO_INTRO_PHASES.carouselEnd
+      progressState.visual > photoDropStartProgress &&
+      progressState.visual <= PHOTO_INTRO_PHASES.carouselEnd
     );
     const isMobileReverseExtraction = isReverseExtraction && isCompact;
-    const velocityDirection = Math.sign(photoProgressVelocity);
+    const velocityDirection = Math.sign(progressState.velocity);
 
     if (direction && velocityDirection && direction !== velocityDirection) {
-      photoProgressVelocity *= isMobileReverseExtraction ? 0.035 : 0.08;
+      progressState.velocity *= isMobileReverseExtraction ? 0.035 : 0.08;
     }
 
     const maxSpeed = isMobileReverseExtraction ? 1.16 : (isReverseExtraction ? 1.0 : 0.78);
@@ -1358,26 +1432,26 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
     const brakingDistance = isMobileReverseExtraction ? 0.075 : (isReverseExtraction ? 0.1 : 0.2);
     const speedLimitByDistance = maxSpeed * Math.min(1, distance / brakingDistance);
     const desiredVelocity = direction * speedLimitByDistance;
-    const velocityDelta = desiredVelocity - photoProgressVelocity;
+    const velocityDelta = desiredVelocity - progressState.velocity;
     const maxVelocityChange = maxAcceleration * deltaSeconds;
 
-    photoProgressVelocity += Math.min(
+    progressState.velocity += Math.min(
       Math.max(velocityDelta, -maxVelocityChange),
       maxVelocityChange
     );
-    photoVisualProgress += photoProgressVelocity * deltaSeconds;
+    progressState.visual += progressState.velocity * deltaSeconds;
 
     if (
-      Math.abs(photoTargetProgress - photoVisualProgress) < 0.00005 &&
-      Math.abs(photoProgressVelocity) < 0.00005
+      Math.abs(progressState.target - progressState.visual) < 0.00005 &&
+      Math.abs(progressState.velocity) < 0.00005
     ) {
-      photoVisualProgress = photoTargetProgress;
-      photoProgressVelocity = 0;
+      progressState.visual = progressState.target;
+      progressState.velocity = 0;
     }
-    photoLastFrameTime = timestamp;
+    progressState.lastFrameTime = timestamp;
   }
 
-  const progress = photoVisualProgress;
+  const progress = progressState.visual;
   const titleStartRatio = getPhotoTitleStartRatio(isCompact);
   const titleDurationRatio = PHOTO_TITLE_DURATION_RATIO;
   const titleProgress = reduceMotion
@@ -1440,11 +1514,11 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
     centerSlot: centerInsertSlot,
   });
   const hasValidSelectedSlot = (
-    Number.isFinite(photoSelectedSlot) &&
-    photoSelectedSlot >= 0 &&
-    photoSelectedSlot < finalCount
+    Number.isFinite(carousel.selectedSlot) &&
+    carousel.selectedSlot >= 0 &&
+    carousel.selectedSlot < finalCount
   );
-  const selectedSlot = hasValidSelectedSlot ? photoSelectedSlot : centerInsertSlot;
+  const selectedSlot = hasValidSelectedSlot ? carousel.selectedSlot : centerInsertSlot;
   const contentSlot = Math.min(Math.max(Math.round(selectedSlot), 0), Math.max(finalCount - 1, 0));
   const layoutAnchorSlot = hasSingleFloatingCard
     ? contentSlot
@@ -1491,8 +1565,8 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
 
     reinsertRelativeOffsetBySlot.set(slot, orderIndex - selectedOrderIndex);
   });
-  photoCarouselMinIndex = 0;
-  photoCarouselMaxIndex = Math.max(photoCarouselCards.length - 1, finalCount - 1, 0);
+  carousel.minIndex = 0;
+  carousel.maxIndex = Math.max(photoCarouselCards.length - 1, finalCount - 1, 0);
 
   const photoSectionIsVisible = rect.top < viewportHeight && rect.bottom > 0;
   const carouselReadyThreshold = 0.975;
@@ -1508,109 +1582,102 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
   );
 
   if (carouselReady) {
-    if (!photoCarouselEnabled) {
-      photoCarouselEnabled = true;
-      photoReinsertActive = false;
-      if (!photoCarouselHasInteracted && !photoCarouselSettling) {
-        photoCarouselTargetIndex = initialCarouselIndex;
-        photoCarouselVisualIndex = initialCarouselIndex;
-        photoCarouselPreviousIndex = initialCarouselIndex;
-        photoCarouselTransitionDirection = 0;
+    if (!isCarouselEnabled()) {
+      const wasSettling = isCarouselSettling();
+      carousel.phase.send("enable");
+      if (!carousel.hasInteracted && !wasSettling) {
+        carousel.targetIndex = initialCarouselIndex;
+        carousel.visualIndex = initialCarouselIndex;
+        carousel.previousIndex = initialCarouselIndex;
+        carousel.transitionDirection = 0;
       } else {
-        photoCarouselTargetIndex = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+        carousel.targetIndex = clampPhotoCarouselIndex(Math.round(carousel.visualIndex));
       }
-      photoCarouselSettling = false;
-      photoCarouselWheelDelta = 0;
-      photoCarouselWheelDirection = 0;
-      photoCarouselBoundaryDelta = 0;
-      photoCarouselBoundaryDirection = 0;
-      preloadNearbyPhotoZoomImages(photoCarouselTargetIndex, isCompact ? 1 : 2);
+      carousel.wheelDelta = 0;
+      carousel.wheelDirection = 0;
+      carousel.boundaryDelta = 0;
+      carousel.boundaryDirection = 0;
+      preloadNearbyPhotoZoomImages(carousel.targetIndex, isCompact ? 1 : 2);
     }
   } else {
-    photoCarouselEnabled = false;
-    photoCarouselWheelDelta = 0;
-    photoCarouselWheelDirection = 0;
-    photoCarouselBoundaryDelta = 0;
-    photoCarouselBoundaryDirection = 0;
+    carousel.wheelDelta = 0;
+    carousel.wheelDirection = 0;
+    carousel.boundaryDelta = 0;
+    carousel.boundaryDirection = 0;
     resetPhotoCarouselTouchState();
 
     const canReplaySelectedCard = (
       hasSingleFloatingCard &&
-      !photoAllExpanded &&
-      photoAllExpandedProgress < 0.01 &&
-      (photoCarouselHasInteracted || (isCompact && hasValidSelectedSlot))
+      !isExpandTargeted() &&
+      expand.progress < 0.01 &&
+      (carousel.hasInteracted || (isCompact && hasValidSelectedSlot))
     );
 
     if (canReplaySelectedCard && photoSectionIsVisible && !carouselIntroResetReady) {
-      photoCarouselSettling = true;
-      photoCarouselTargetIndex = isCompact && hasValidSelectedSlot
+      carousel.phase.send("replay");
+      carousel.targetIndex = isCompact && hasValidSelectedSlot
         ? clampPhotoCarouselIndex(contentSlot)
-        : clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
+        : clampPhotoCarouselIndex(Math.round(carousel.visualIndex));
       if (isCompact && hasValidSelectedSlot) {
-        photoCarouselVisualIndex = photoCarouselTargetIndex;
+        carousel.visualIndex = carousel.targetIndex;
       }
-      photoReinsertActive = true;
     } else {
-      photoCarouselSettling = false;
-      photoCarouselHasInteracted = false;
-      photoAllExpanded = false;
-      photoAllExpandedTarget = 0;
-      photoAllExpandedProgress = 0;
-      photoAllExpandedAnimating = false;
-      photoAllExpandedAnimationStart = 0;
-      photoAllExpandedAnimationDirection = 0;
-      photoAllExpandedLayouts.clear();
-      photoReinsertActive = false;
-      photoCarouselTargetIndex = initialCarouselIndex;
-      photoCarouselVisualIndex = initialCarouselIndex;
-      photoCarouselPreviousIndex = initialCarouselIndex;
-      photoCarouselTransitionDirection = 0;
+      carousel.phase.send("reset");
+      carousel.hasInteracted = false;
+      expand.phase.send("reset");
+      expand.progress = 0;
+      expand.animationStart = 0;
+      expand.layouts.clear();
+      carousel.targetIndex = initialCarouselIndex;
+      carousel.visualIndex = initialCarouselIndex;
+      carousel.previousIndex = initialCarouselIndex;
+      carousel.transitionDirection = 0;
     }
   }
 
   const photoCarouselLayoutActive = (
-    photoCarouselEnabled ||
-    photoCarouselSettling ||
-    (photoCarouselHasInteracted && photoSectionIsVisible && !carouselIntroResetReady)
+    isCarouselEnabled() ||
+    isCarouselSettling() ||
+    (carousel.hasInteracted && photoSectionIsVisible && !carouselIntroResetReady)
   );
 
-  if (photoCarouselEnabled || photoCarouselSettling) {
-    const carouselDelta = photoCarouselTargetIndex - photoCarouselVisualIndex;
+  if (isCarouselEnabled() || isCarouselSettling()) {
+    const carouselDelta = carousel.targetIndex - carousel.visualIndex;
     const carouselFollowTime = isCompact ? 0.16 : 0.34;
     const carouselFollow = shouldReduceMotion() ? 1 : 1 - Math.exp(-deltaSeconds / carouselFollowTime);
-    photoCarouselVisualIndex += carouselDelta * carouselFollow;
+    carousel.visualIndex += carouselDelta * carouselFollow;
 
-    if (Math.abs(photoCarouselTargetIndex - photoCarouselVisualIndex) < 0.001) {
-      photoCarouselVisualIndex = photoCarouselTargetIndex;
-      photoCarouselPreviousIndex = photoCarouselTargetIndex;
-      photoCarouselTransitionDirection = 0;
-      setPhotoSelectedSlot(photoCarouselTargetIndex);
-      if (photoCarouselSettling) {
-        photoCarouselSettling = false;
+    if (Math.abs(carousel.targetIndex - carousel.visualIndex) < 0.001) {
+      carousel.visualIndex = carousel.targetIndex;
+      carousel.previousIndex = carousel.targetIndex;
+      carousel.transitionDirection = 0;
+      setPhotoSelectedSlot(carousel.targetIndex);
+      if (isCarouselSettling()) {
+        carousel.phase.send("converge");
       }
     }
   }
 
-  if (photoAllExpandedAnimating) {
-    const rawAnimationProgress = clamp01((timestamp - photoAllExpandedAnimationStart) / photoAllExpandedDuration);
+  if (isExpandAnimating()) {
+    const rawAnimationProgress = clamp01((timestamp - expand.animationStart) / expand.duration);
     const easedAnimationProgress = easeOutCubic(rawAnimationProgress);
-    photoAllExpandedProgress = photoAllExpandedAnimationDirection > 0
+    expand.progress = expand.phase.is("expanding")
       ? easedAnimationProgress
       : 1 - easedAnimationProgress;
 
     if (rawAnimationProgress >= 1) {
-      photoAllExpandedAnimating = false;
-      photoAllExpandedProgress = photoAllExpandedTarget;
-      photoAllExpandedLayouts.clear();
+      expand.phase.send("finish");
+      expand.progress = expandTarget();
+      expand.layouts.clear();
     }
   } else {
-    photoAllExpandedProgress = photoAllExpandedTarget;
+    expand.progress = expandTarget();
   }
 
-  const activeIndex = photoCarouselLayoutActive ? photoCarouselVisualIndex : initialCarouselIndex;
+  const activeIndex = photoCarouselLayoutActive ? carousel.visualIndex : initialCarouselIndex;
   const nearestCenterSlot = isCompact || !photoCarouselLayoutActive
     ? Math.round(activeIndex)
-    : Math.round(photoCarouselTargetIndex);
+    : Math.round(carousel.targetIndex);
   const getCompressedLineOffset = (slot, centerSlot) => {
     if (slot < centerSlot) {
       return slot - centerSlot + 0.5;
@@ -1765,20 +1832,20 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
           return Math.max(1, 1000 - layerDistance * 10);
         }
 
-        const targetDistance = Math.abs(slot - photoCarouselTargetIndex);
-        const isTransitioning = Math.abs(photoCarouselTargetIndex - photoCarouselVisualIndex) > 0.001;
+        const targetDistance = Math.abs(slot - carousel.targetIndex);
+        const isTransitioning = Math.abs(carousel.targetIndex - carousel.visualIndex) > 0.001;
 
-        if (slot === photoCarouselTargetIndex) {
+        if (slot === carousel.targetIndex) {
           return 1100;
         }
 
-        if (isTransitioning && slot === photoCarouselPreviousIndex) {
+        if (isTransitioning && slot === carousel.previousIndex) {
           return 1080;
         }
 
         const directionBias = (
-          photoCarouselTransitionDirection !== 0 &&
-          Math.sign(slot - photoCarouselTargetIndex) === photoCarouselTransitionDirection
+          carousel.transitionDirection !== 0 &&
+          Math.sign(slot - carousel.targetIndex) === carousel.transitionDirection
         ) ? 2 : 0;
 
         return Math.max(1, 1000 - targetDistance * 24 + directionBias);
@@ -1786,7 +1853,7 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
       isCenter: centerWeight > 0.999,
     };
   };
-  const expandedMix = shouldReduceMotion() ? photoAllExpandedTarget : easeInOut(photoAllExpandedProgress);
+  const expandedMix = shouldReduceMotion() ? expandTarget() : easeInOut(expand.progress);
   const expandedScale = isCompact ? 0.88 : 1.1;
   const expandedCardWidth = cardWidth * expandedScale;
   const expandedCardHeight = cardHeight * expandedScale;
@@ -1821,8 +1888,8 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
   const expandedGridBottomY = expandedStartY + (expandedRows - 1) * expandedStepY + expandedCardHeight;
   const expandedScrollPadding = isCompact ? 96 : 120;
   const expandedScrollNeeded = Math.max(0, expandedGridBottomY - viewportHeight + expandedScrollPadding);
-  const expandedScrollMix = photoAllExpandedTarget > 0.5 ? 1 : photoAllExpandedProgress;
-  photoExpandedScrollExtraPx = expandedScrollNeeded * expandedScrollMix;
+  const expandedScrollMix = expandTarget() > 0.5 ? 1 : expand.progress;
+  expand.scrollExtraPx = expandedScrollNeeded * expandedScrollMix;
   applyPhotoSectionScrollHeight(viewportHeight, isCompact);
   const getExpandedMetrics = (slot) => {
     const column = slot % expandedColumns;
@@ -1845,10 +1912,10 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
   const expandedButtonY = expandedStartY - (isCompact ? 16 : 20);
   const showAllButtonX = interpolate(activeCardCenterX, expandedButtonX, expandedMix);
   const showAllButtonY = interpolate(activeCardTopY - (isCompact ? 18 : 24), expandedButtonY, expandedMix);
-  const showAllVisible = photoCarouselEnabled || photoAllExpandedProgress > 0.001;
+  const showAllVisible = isCarouselEnabled() || expand.progress > 0.001;
   applyPhotoShowAllFrame({
     visible: showAllVisible,
-    expanded: photoAllExpandedTarget > 0.5,
+    expanded: expandTarget() > 0.5,
     x: showAllButtonX,
     y: showAllButtonY,
   });
@@ -1859,8 +1926,8 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
     return Math.min(isCompact ? 210 : 260, distanceDelay + orderDelay);
   };
   const resolveExpandedLayout = (card, slot, carouselLayout, expandedLayout) => {
-    if (!photoAllExpandedAnimating) {
-      const mix = photoAllExpandedProgress;
+    if (!isExpandAnimating()) {
+      const mix = expand.progress;
       return {
         x: interpolate(carouselLayout.x, expandedLayout.x, mix),
         y: interpolate(carouselLayout.y, expandedLayout.y, mix),
@@ -1871,11 +1938,11 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
       };
     }
 
-    const fromLayout = photoAllExpandedLayouts.get(card) || carouselLayout;
-    const toLayout = photoAllExpandedAnimationDirection > 0 ? expandedLayout : carouselLayout;
+    const fromLayout = expand.layouts.get(card) || carouselLayout;
+    const toLayout = expand.phase.is("expanding") ? expandedLayout : carouselLayout;
     const delay = getExpandedDelay(slot);
-    const localDuration = Math.max(180, photoAllExpandedDuration - delay);
-    const localProgress = clamp01((timestamp - photoAllExpandedAnimationStart - delay) / localDuration);
+    const localDuration = Math.max(180, expand.duration - delay);
+    const localProgress = clamp01((timestamp - expand.animationStart - delay) / localDuration);
     const mix = easeOutCubic(localProgress);
 
     return {
@@ -1967,7 +2034,7 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
       rotate,
       dropScale,
     } = getPhotoDropPathFrame({ index, gapSlot });
-    const carouselMetrics = photoReinsertActive && hasSingleFloatingCard
+    const carouselMetrics = isCarouselReinserting() && hasSingleFloatingCard
       ? getPhotoPreviewMetrics(0)
       : getCarouselMetrics(slot);
     const previewX = queueCenterX + carouselMetrics.x;
@@ -1988,7 +2055,7 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
     const blur = (1 - appearProgress) * (isCompact ? 8 : 10);
     const expandedMetrics = getExpandedMetrics(slot);
 
-    const dropZIndex = photoReinsertActive && hasSingleFloatingCard
+    const dropZIndex = isCarouselReinserting() && hasSingleFloatingCard
       ? 1200
       : (previewProgress > 0.01 ? carouselMetrics.zIndex : 25);
 
@@ -2017,7 +2084,7 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
   };
 
   const computePhotoQueueInsertLayout = ({ index, slot }) => {
-    const isReinsert = photoReinsertActive && hasSingleFloatingCard;
+    const isReinsert = isCarouselReinserting() && hasSingleFloatingCard;
     const insertSlot = baseInsertSlots[index] ?? slot;
     const reinsertVisualOffset = reinsertRelativeOffsetBySlot.get(slot) ?? (slot - contentSlot);
     const lineRelativeOffset = getCompressedLineOffset(insertSlot, layoutAnchorSlot);
@@ -2086,8 +2153,8 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
     const previewMix = previewEase;
     const previewScaleMix = previewScaleEase;
     const shouldUseCarouselMetrics = (
-      photoCarouselEnabled &&
-      !photoReinsertActive &&
+      isCarouselEnabled() &&
+      !isCarouselReinserting() &&
       previewProgress >= carouselReadyThreshold
     );
     const finalMetrics = shouldUseCarouselMetrics ? carouselMetrics : previewMetrics;
@@ -2118,13 +2185,13 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
 
   const nextPhotoCardSlotMap = new Map();
   const selectedContent = photoSlotContentMap.get(contentSlot);
-  const selectedContentCard = photoCardSlotMap.get(contentSlot) || photoSelectedSourceCard;
+  const selectedContentCard = photoCardSlotMap.get(contentSlot) || carousel.selectedSourceCard;
   const photoHitCollector = createPhotoHitRectCollector(stageRect, cardWidth, cardHeight);
   const queueCardBaseX = stageRect.width / 2;
   const cardFrames = [];
-  const photoExpandedFocus = photoAllExpandedTarget > 0.5 || photoAllExpandedProgress > 0.5;
-  const keyboardFocusSlot = photoCarouselEnabled && !photoExpandedFocus
-    ? clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex))
+  const photoExpandedFocus = expandTarget() > 0.5 || expand.progress > 0.5;
+  const keyboardFocusSlot = isCarouselEnabled() && !photoExpandedFocus
+    ? clampPhotoCarouselIndex(Math.round(carousel.visualIndex))
     : -1;
 
   photoQueueCards.forEach((card, index) => {
@@ -2217,14 +2284,14 @@ export function updatePhotoScene(timestamp = window.performance.now()) {
     cardFrames,
     hitRect: photoHitCollector.getRect(),
     slotEntries: [...nextPhotoCardSlotMap.entries()],
-    selectedSourceCard: selectedContentCard || nextPhotoCardSlotMap.get(contentSlot) || photoSelectedSourceCard,
+    selectedSourceCard: selectedContentCard || nextPhotoCardSlotMap.get(contentSlot) || carousel.selectedSourceCard,
   });
 
   return !reduceMotion && photoSectionIsNearViewport && (
-    Math.abs(photoTargetProgress - photoVisualProgress) > 0.00005 ||
-    Math.abs(photoProgressVelocity) > 0.00005 ||
-    ((photoCarouselEnabled || photoCarouselSettling) && Math.abs(photoCarouselTargetIndex - photoCarouselVisualIndex) > 0.001) ||
-    Math.abs(photoAllExpandedTarget - photoAllExpandedProgress) > 0.001
+    Math.abs(progressState.target - progressState.visual) > 0.00005 ||
+    Math.abs(progressState.velocity) > 0.00005 ||
+    ((isCarouselEnabled() || isCarouselSettling()) && Math.abs(carousel.targetIndex - carousel.visualIndex) > 0.001) ||
+    Math.abs(expandTarget() - expand.progress) > 0.001
   );
 }
 
@@ -2254,13 +2321,13 @@ export function requestPhotoSceneUpdate() {
 }
 
 function clampPhotoCarouselIndex(index) {
-  return Math.min(Math.max(index, photoCarouselMinIndex), photoCarouselMaxIndex);
+  return Math.min(Math.max(index, carousel.minIndex), carousel.maxIndex);
 }
 
 function setPhotoSelectedSlot(slot) {
   const nextSlot = clampPhotoCarouselIndex(Math.round(slot));
-  photoSelectedSlot = nextSlot;
-  photoSelectedSourceCard = photoCardSlotMap.get(nextSlot) || photoSelectedSourceCard;
+  carousel.selectedSlot = nextSlot;
+  carousel.selectedSourceCard = photoCardSlotMap.get(nextSlot) || carousel.selectedSourceCard;
   preloadNearbyPhotoZoomImages(nextSlot, isTouchFirst() ? 1 : 2);
 }
 
@@ -2269,14 +2336,14 @@ function beginPhotoCarouselSettle(preferTarget = false) {
     return;
   }
 
-  const sourceIndex = preferTarget ? photoCarouselTargetIndex : photoCarouselVisualIndex;
+  const sourceIndex = preferTarget ? carousel.targetIndex : carousel.visualIndex;
   const nearestIndex = clampPhotoCarouselIndex(Math.round(sourceIndex));
-  photoCarouselPreviousIndex = clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex));
-  photoCarouselTransitionDirection = Math.sign(nearestIndex - photoCarouselVisualIndex);
-  photoCarouselTargetIndex = nearestIndex;
+  carousel.previousIndex = clampPhotoCarouselIndex(Math.round(carousel.visualIndex));
+  carousel.transitionDirection = Math.sign(nearestIndex - carousel.visualIndex);
+  carousel.targetIndex = nearestIndex;
   setPhotoSelectedSlot(nearestIndex);
-  photoCarouselSettling = true;
-  photoCarouselHasInteracted = true;
+  carousel.phase.send("settle");
+  carousel.hasInteracted = true;
   requestPhotoSceneUpdate();
 }
 
@@ -2318,41 +2385,39 @@ function getPhotoCardLayoutSnapshot(card) {
 }
 
 function capturePhotoAllExpandedLayouts() {
-  photoAllExpandedLayouts.clear();
+  expand.layouts.clear();
   photoCarouselCards.forEach((card) => {
-    photoAllExpandedLayouts.set(card, getPhotoCardLayoutSnapshot(card));
+    expand.layouts.set(card, getPhotoCardLayoutSnapshot(card));
   });
 }
 
 export function togglePhotoAllExpanded() {
-  if (!photoCarouselEnabled && !photoCarouselSettling && photoAllExpandedProgress < 0.001) {
+  if (!isCarouselEnabled() && !isCarouselSettling() && expand.progress < 0.001) {
     return;
   }
 
   capturePhotoAllExpandedLayouts();
-  photoAllExpanded = !photoAllExpanded;
-  photoAllExpandedTarget = photoAllExpanded ? 1 : 0;
-  photoAllExpandedProgress = photoAllExpanded ? 0 : 1;
-  photoAllExpandedAnimating = true;
-  photoAllExpandedAnimationStart = window.performance.now();
-  photoAllExpandedAnimationDirection = photoAllExpanded ? 1 : -1;
-  photoAllExpandedDuration = photoAllExpanded ? 920 : 780;
+  expand.phase.send("toggle");
+  const expanding = expand.phase.is("expanding");
+  expand.progress = expanding ? 0 : 1;
+  expand.animationStart = window.performance.now();
+  expand.duration = expanding ? 920 : 780;
   syncPhotoShowAllButtonCopy();
-  photoCarouselWheelDelta = 0;
-  photoCarouselWheelDirection = 0;
-  photoCarouselBoundaryDelta = 0;
-  photoCarouselBoundaryDirection = 0;
+  carousel.wheelDelta = 0;
+  carousel.wheelDirection = 0;
+  carousel.boundaryDelta = 0;
+  carousel.boundaryDirection = 0;
   resetPhotoCarouselTouchState();
   requestPhotoSceneUpdate();
 }
 
 function canStepPhotoCarousel(direction) {
-  if (!photoCarouselEnabled || !direction) {
+  if (!isCarouselEnabled() || !direction) {
     return false;
   }
 
-  const target = clampPhotoCarouselIndex(photoCarouselTargetIndex);
-  return direction > 0 ? target < photoCarouselMaxIndex : target > photoCarouselMinIndex;
+  const target = clampPhotoCarouselIndex(carousel.targetIndex);
+  return direction > 0 ? target < carousel.maxIndex : target > carousel.minIndex;
 }
 
 function stepPhotoCarousel(direction) {
@@ -2360,36 +2425,50 @@ function stepPhotoCarousel(direction) {
     return false;
   }
 
-  photoCarouselBoundaryDelta = 0;
-  photoCarouselBoundaryDirection = 0;
-  photoCarouselPreviousIndex = photoCarouselTargetIndex;
-  photoCarouselTargetIndex = clampPhotoCarouselIndex(photoCarouselTargetIndex + direction);
-  setPhotoSelectedSlot(photoCarouselTargetIndex);
-  photoCarouselTransitionDirection = direction;
-  photoCarouselHasInteracted = true;
-  photoCarouselSettling = false;
+  carousel.boundaryDelta = 0;
+  carousel.boundaryDirection = 0;
+  carousel.previousIndex = carousel.targetIndex;
+  carousel.targetIndex = clampPhotoCarouselIndex(carousel.targetIndex + direction);
+  setPhotoSelectedSlot(carousel.targetIndex);
+  carousel.transitionDirection = direction;
+  carousel.hasInteracted = true;
+  carousel.phase.send("step");
   requestPhotoSceneUpdate();
   return true;
 }
 
-function resetPhotoCarouselTouchState() {
-  photoCarouselTouchActive = false;
-  photoCarouselTouchStartedInside = false;
-  photoCarouselTouchLocked = false;
-  photoCarouselTouchReleasedToPage = false;
-  if (photoCarouselTouchUnlockTimer) {
-    window.clearTimeout(photoCarouselTouchUnlockTimer);
-    photoCarouselTouchUnlockTimer = 0;
+function clearGestureUnlockTimer() {
+  if (gesture.unlockTimer) {
+    window.clearTimeout(gesture.unlockTimer);
+    gesture.unlockTimer = 0;
   }
 }
 
+function resetPhotoCarouselTouchState() {
+  gesture.phase.send("reset");
+  clearGestureUnlockTimer();
+}
+
+/* Locked for 460ms after a step or a push against the end, so one swipe
+   moves one card. The timer only unlocks the lock it was set for. */
+function lockGestureBriefly() {
+  gesture.phase.send("lock");
+  clearGestureUnlockTimer();
+  gesture.unlockTimer = window.setTimeout(() => {
+    gesture.unlockTimer = 0;
+    if (gesture.phase.is("locked")) {
+      gesture.phase.send("unlock");
+    }
+  }, 460);
+}
+
 function getPhotoCarouselHitRect() {
-  if (!photoCarouselEnabled || photoCarouselCards.length === 0) {
+  if (!isCarouselEnabled() || photoCarouselCards.length === 0) {
     return null;
   }
 
-  if (photoCarouselHitRectCache) {
-    return photoCarouselHitRectCache;
+  if (carousel.hitRectCache) {
+    return carousel.hitRectCache;
   }
 
   return photoQueueAnchor?.getBoundingClientRect() || null;
@@ -2415,15 +2494,15 @@ function isPointInPhotoCarousel(x, y) {
 }
 
 export function handlePhotoCarouselWheel(event) {
-  if (!photoCarouselEnabled || photoAllExpandedTarget > 0 || photoAllExpandedProgress > 0.01) {
+  if (!isCarouselEnabled() || expandTarget() > 0 || expand.progress > 0.01) {
     return;
   }
 
   if (!isPointInPhotoCarousel(event.clientX, event.clientY)) {
-    photoCarouselWheelDelta = 0;
-    photoCarouselWheelDirection = 0;
-    photoCarouselBoundaryDelta = 0;
-    photoCarouselBoundaryDirection = 0;
+    carousel.wheelDelta = 0;
+    carousel.wheelDirection = 0;
+    carousel.boundaryDelta = 0;
+    carousel.boundaryDirection = 0;
     return;
   }
 
@@ -2432,10 +2511,10 @@ export function handlePhotoCarouselWheel(event) {
   const horizontalIntent = absWheelX > absWheelY * 1.15;
 
   if (!horizontalIntent) {
-    photoCarouselWheelDelta = 0;
-    photoCarouselWheelDirection = 0;
-    photoCarouselBoundaryDelta = 0;
-    photoCarouselBoundaryDirection = 0;
+    carousel.wheelDelta = 0;
+    carousel.wheelDirection = 0;
+    carousel.boundaryDelta = 0;
+    carousel.boundaryDirection = 0;
     return;
   }
 
@@ -2453,18 +2532,18 @@ export function handlePhotoCarouselWheel(event) {
   const canStep = canStepPhotoCarousel(direction);
 
   if (!canStep) {
-    if (photoCarouselBoundaryDirection !== direction) {
-      photoCarouselBoundaryDelta = 0;
-      photoCarouselBoundaryDirection = direction;
+    if (carousel.boundaryDirection !== direction) {
+      carousel.boundaryDelta = 0;
+      carousel.boundaryDirection = direction;
     }
 
-    photoCarouselBoundaryDelta += Math.abs(delta);
-    photoCarouselWheelDelta = 0;
-    photoCarouselWheelDirection = 0;
+    carousel.boundaryDelta += Math.abs(delta);
+    carousel.wheelDelta = 0;
+    carousel.wheelDirection = 0;
 
-    if (photoCarouselBoundaryDelta >= 240) {
-      photoCarouselBoundaryDelta = 0;
-      photoCarouselBoundaryDirection = 0;
+    if (carousel.boundaryDelta >= 240) {
+      carousel.boundaryDelta = 0;
+      carousel.boundaryDirection = 0;
       return;
     }
 
@@ -2475,31 +2554,31 @@ export function handlePhotoCarouselWheel(event) {
 
   event.preventDefault();
   event.stopPropagation();
-  photoCarouselBoundaryDelta = 0;
-  photoCarouselBoundaryDirection = 0;
+  carousel.boundaryDelta = 0;
+  carousel.boundaryDirection = 0;
 
-  if (now - photoCarouselLastStepTime < 680) {
+  if (now - carousel.lastStepTime < 680) {
     return;
   }
 
-  if (photoCarouselWheelDirection !== direction) {
-    photoCarouselWheelDelta = 0;
-    photoCarouselWheelDirection = direction;
+  if (carousel.wheelDirection !== direction) {
+    carousel.wheelDelta = 0;
+    carousel.wheelDirection = direction;
   }
 
-  photoCarouselWheelDelta += Math.abs(delta);
+  carousel.wheelDelta += Math.abs(delta);
 
-  if (photoCarouselWheelDelta < 52) {
+  if (carousel.wheelDelta < 52) {
     return;
   }
 
   stepPhotoCarousel(direction);
-  photoCarouselWheelDelta = 0;
-  photoCarouselLastStepTime = now;
+  carousel.wheelDelta = 0;
+  carousel.lastStepTime = now;
 }
 
 export function handlePhotoCarouselTouchStart(event) {
-  if (!photoCarouselEnabled || photoAllExpandedTarget > 0 || photoAllExpandedProgress > 0.01 || event.touches.length !== 1) {
+  if (!isCarouselEnabled() || expandTarget() > 0 || expand.progress > 0.01 || event.touches.length !== 1) {
     resetPhotoCarouselTouchState();
     return;
   }
@@ -2511,60 +2590,56 @@ export function handlePhotoCarouselTouchStart(event) {
     return;
   }
 
-  photoCarouselTouchStartX = touch.clientX;
-  photoCarouselTouchStartY = touch.clientY;
-  photoCarouselTouchActive = true;
-  photoCarouselTouchStartedInside = true;
-  photoCarouselTouchLocked = false;
-  photoCarouselTouchReleasedToPage = false;
+  gesture.startX = touch.clientX;
+  gesture.startY = touch.clientY;
+  clearGestureUnlockTimer();
+  gesture.phase.send("start");
 }
 
 export function handlePhotoCarouselTouchMove(event) {
   if (
-    !photoCarouselEnabled ||
-    photoAllExpandedTarget > 0 ||
-    photoAllExpandedProgress > 0.01 ||
-    !photoCarouselTouchActive ||
-    !photoCarouselTouchStartedInside ||
-    photoCarouselTouchReleasedToPage ||
+    !isCarouselEnabled() ||
+    expandTarget() > 0 ||
+    expand.progress > 0.01 ||
+    !gesture.phase.is("tracking", "locked") ||
     event.touches.length !== 1
   ) {
     return;
   }
 
   const touch = event.touches[0];
-  const deltaX = touch.clientX - photoCarouselTouchStartX;
-  const deltaY = touch.clientY - photoCarouselTouchStartY;
+  const deltaX = touch.clientX - gesture.startX;
+  const deltaY = touch.clientY - gesture.startY;
 
   const absX = Math.abs(deltaX);
   const absY = Math.abs(deltaY);
   const carouselIsSwitching = (
-    photoCarouselSettling ||
-    Math.abs(photoCarouselTargetIndex - photoCarouselVisualIndex) > 0.001
+    isCarouselSettling() ||
+    Math.abs(carousel.targetIndex - carousel.visualIndex) > 0.001
   );
 
   const verticalPageIntent = absY > 28 && absY > absX * 1.35;
 
-  if (!photoCarouselTouchLocked && verticalPageIntent) {
-    photoCarouselTouchReleasedToPage = true;
+  if (!gesture.phase.is("locked") && verticalPageIntent) {
+    gesture.phase.send("release");
     if (carouselIsSwitching) {
       beginPhotoCarouselSettle(true);
     }
     return;
   }
 
-  if (!photoCarouselTouchLocked && absX < 10 && absY < 10) {
+  if (!gesture.phase.is("locked") && absX < 10 && absY < 10) {
     return;
   }
 
-  if (!photoCarouselTouchLocked && absX < absY * 1.08) {
+  if (!gesture.phase.is("locked") && absX < absY * 1.08) {
     return;
   }
 
   event.preventDefault();
   event.stopPropagation();
 
-  if (photoCarouselTouchLocked) {
+  if (gesture.phase.is("locked")) {
     return;
   }
 
@@ -2577,24 +2652,16 @@ export function handlePhotoCarouselTouchMove(event) {
     : (deltaY > 0 ? -1 : 1);
 
   if (!canStepPhotoCarousel(direction)) {
-    photoCarouselTouchLocked = true;
-    photoCarouselTouchUnlockTimer = window.setTimeout(() => {
-      photoCarouselTouchLocked = false;
-      photoCarouselTouchUnlockTimer = 0;
-    }, 460);
+    lockGestureBriefly();
     return;
   }
 
-  photoCarouselTouchLocked = true;
+  lockGestureBriefly();
   stepPhotoCarousel(direction);
-  photoCarouselTouchUnlockTimer = window.setTimeout(() => {
-    photoCarouselTouchLocked = false;
-    photoCarouselTouchUnlockTimer = 0;
-  }, 460);
 }
 
 export function handlePhotoCarouselTouchEnd(event) {
-  if (!photoCarouselEnabled || photoAllExpandedTarget > 0 || photoAllExpandedProgress > 0.01 || !photoCarouselTouchActive || !photoCarouselTouchStartedInside) {
+  if (!isCarouselEnabled() || expandTarget() > 0 || expand.progress > 0.01 || gesture.phase.is("idle")) {
     resetPhotoCarouselTouchState();
     return;
   }
@@ -2606,18 +2673,18 @@ export function handlePhotoCarouselTouchEnd(event) {
     return;
   }
 
-  const deltaX = touch.clientX - photoCarouselTouchStartX;
-  const deltaY = touch.clientY - photoCarouselTouchStartY;
+  const deltaX = touch.clientX - gesture.startX;
+  const deltaY = touch.clientY - gesture.startY;
 
-  if (!photoCarouselTouchLocked && Math.abs(deltaX) >= 42 && Math.abs(deltaX) >= Math.abs(deltaY) * 1.18) {
+  if (!gesture.phase.is("locked") && Math.abs(deltaX) >= 42 && Math.abs(deltaX) >= Math.abs(deltaY) * 1.18) {
     const direction = deltaX < 0 ? 1 : -1;
     stepPhotoCarousel(direction);
   }
 
   if (
-    photoCarouselHasInteracted ||
-    photoCarouselTouchLocked ||
-    Math.abs(photoCarouselTargetIndex - photoCarouselVisualIndex) > 0.001
+    carousel.hasInteracted ||
+    gesture.phase.is("locked") ||
+    Math.abs(carousel.targetIndex - carousel.visualIndex) > 0.001
   ) {
     beginPhotoCarouselSettle(true);
   }

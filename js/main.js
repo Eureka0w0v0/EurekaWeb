@@ -42,14 +42,14 @@ import {
   photoSection,
   photoShowAllButton,
   photoStage,
-  photoZoomActive,
+  isPhotoZoomOpen,
   photoZoomCloseButton,
   photoZoomOverlay,
   requestPhotoSceneUpdate,
   stopPhotoZoomScroll,
   togglePhotoAllExpanded,
   updatePhotoScene,
-} from "./photo.js?v=11b04d6e";
+} from "./photo.js?v=2da595b8";
 import {
   bindBrainReactions,
   brainSceneController,
@@ -250,7 +250,7 @@ async function initApp() {
   });
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      if (photoZoomActive) {
+      if (isPhotoZoomOpen()) {
         closePhotoZoom();
         return;
       }
@@ -261,7 +261,7 @@ async function initApp() {
        exists, so Tab leaving it puts the two in disagreement: focus lands on
        something the user has just been told is not there. The dialog holds
        exactly one focusable element, so trapping is simply keeping it. */
-    if (photoZoomActive && event.key === "Tab") {
+    if (isPhotoZoomOpen() && event.key === "Tab") {
       event.preventDefault();
       photoZoomCloseButton?.focus({ preventScroll: true });
     }
