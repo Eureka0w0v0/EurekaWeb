@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the three WebP tiers for a photo and print the card markup to paste.
+"""Build the three WebP tiers for a photo and add it to the photo theatre.
 
 Adding a photo used to mean running ImageMagick three times with the right
 numbers, then hand-writing an <article> with six URLs in it across three
@@ -24,15 +24,16 @@ Two things it fixes on the way through:
     python3 tools/add-photo.py ~/Desktop/IMG_1234.HEIC
     python3 tools/add-photo.py shot.jpg --name kamakura-beach
 
-Cards are printed, not inserted. The photo section's markup carries ordering
-state (data-photo-base, aria-label) that the scroll choreography in js/photo.js
-reads, and quietly rewriting that by machine is a good way to break a very
-hand-tuned animation.
+The photo is appended to the end of the queue in data/photos.json, and
+tools/build-photos.py then regenerates the cards in index.html and restamps.
+To put it somewhere else in the order, move its name in data/photos.json and
+run build-photos.py again.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -41,6 +42,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 IMAGES = ROOT / "images"
+PHOTOS = ROOT / "data" / "photos.json"
 
 TIERS = [
     ("photo-preview", 640),
@@ -61,13 +63,6 @@ def magick() -> str:
 def safe_name(raw: str) -> str:
     stem = re.sub(r"[^A-Za-z0-9._-]+", "-", raw).strip("-.").lower()
     return stem or "photo"
-
-
-def next_index() -> int:
-    """Highest data-photo-base already in index.html, plus one."""
-    html = (ROOT / "index.html").read_text(encoding="utf-8")
-    found = [int(n) for n in re.findall(r'data-photo-base="(\d+)"', html)]
-    return max(found, default=0) + 1
 
 
 def build(binary: str, source: Path, name: str, force: bool) -> list[Path]:
@@ -98,27 +93,21 @@ def build(binary: str, source: Path, name: str, force: bool) -> list[Path]:
     return written
 
 
-def card(name: str, index: int) -> str:
-    preview = f"./images/photo-preview/{name}.webp"
-    medium = f"./images/medium/{name}.webp"
-    full = f"./images/full/{name}.webp"
-    # ?v=new is a placeholder; tools/stamp-assets.py replaces it with the
-    # content hash on the next run, which is also what makes it obvious in a
-    # diff when someone forgets to run it.
-    return f"""                <article class="photo-card photo-queue-card" data-photo-base="{index}" aria-label="照片 {index}">
-                  <img
-                  class="photo-card-image"
-                  src="{preview}?v=new"
-                  data-preview-src="{preview}?v=new"
-                  data-full-src="{full}?v=new"
-                  data-full-srcset="{medium}?v=new 1280w, {full}?v=new 1920w"
-                  data-full-sizes="(max-width: 900px) 92vw, min(88vw, 1200px)"
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  draggable="false"
-                  />
-                </article>"""
+def read_photos() -> dict:
+    return json.loads(PHOTOS.read_text(encoding="utf-8"))
+
+
+def is_listed(name: str) -> bool:
+    data = read_photos()
+    return name == data["insert"] or name in data["queue"]
+
+
+def add_to_queue(name: str) -> int:
+    """Append name to the queue in data/photos.json; returns its position."""
+    data = read_photos()
+    data["queue"].append(name)
+    PHOTOS.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return len(data["queue"])
 
 
 def main() -> int:
@@ -133,7 +122,8 @@ def main() -> int:
 
     binary = magick()
     name = safe_name(args.name or args.source.stem)
-    index = next_index()
+    if not args.force and is_listed(name):
+        sys.exit(f"{name} is already in data/photos.json (pass --force to rebuild its tiers)")
 
     written = build(binary, args.source, name, args.force)
 
@@ -142,11 +132,13 @@ def main() -> int:
         size = path.stat().st_size
         print(f"  {path.relative_to(ROOT)}  {size / 1024:.0f} KB")
 
-    print(f"\nPaste into the .photo-queue in index.html (next free index is {index}):\n")
-    print(card(name, index))
-    print("\nThen run:  python3 tools/stamp-assets.py")
-    print("Keep the original in images/_originals/ -- it is gitignored and never deployed.")
-    return 0
+    if is_listed(name):
+        print(f"\n{name} was already listed; its tiers are rebuilt and its place is unchanged.")
+    else:
+        position = add_to_queue(name)
+        print(f"\nadded to data/photos.json as queue card {position}")
+    print("Keep the original in images/_originals/ -- it is gitignored and never deployed.\n", flush=True)
+    return subprocess.run([sys.executable, str(ROOT / "tools" / "build-photos.py")], check=False).returncode
 
 
 if __name__ == "__main__":

@@ -30,6 +30,9 @@ jobs:
       - name: Check asset cache stamps are current
         run: python3 tools/stamp-assets.py --check
 
+      - name: Check the photo cards match data/photos.json
+        run: python3 tools/build-photos.py --check
+
       - name: Check site consistency
         run: python3 tools/check-site.py
 

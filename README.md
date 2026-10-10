@@ -33,7 +33,7 @@ Then open `http://localhost:5500` in a browser.
 
 ## Maintenance scripts
 
-Both scripts depend only on Python 3 and ImageMagick. No Node.
+These scripts need only Python 3, plus ImageMagick for `add-photo.py`. No Node.
 
 ### Cache-busting stamps (required)
 
@@ -61,9 +61,16 @@ python3 tools/add-photo.py ~/Desktop/IMG_1234.HEIC
 python3 tools/add-photo.py shot.jpg --name kamakura-beach
 ```
 
-Generates the preview / medium / full WebP tiers (longest edge 640 / 1280 / 1920, q92), **strips EXIF** (phone photos carry GPS), lowercases the file name, and prints a ready-to-paste `<article>` card.
+Generates the preview / medium / full WebP tiers (longest edge 640 / 1280 / 1920, q92), **strips EXIF** (phone photos carry GPS), lowercases the file name, appends the photo to the end of the queue in `data/photos.json`, and regenerates the cards.
 
-The card is printed rather than inserted automatically: `js/photo.js` reads the `data-photo-base` order in the photo section to choreograph the scroll animation, and machine edits there break it easily. Run `stamp-assets.py` again after pasting.
+`data/photos.json` is the photo list: `insert` is the card that drops into the stack, `queue` is the stack in order. The cards in `index.html` are generated from it by `tools/build-photos.py`, between `photo-insert` / `photo-queue` marker comments, so the ordering state the scroll choreography in `js/photo/` reads (`data-photo-base`, the aria-label number) always follows the list. To reorder or remove a photo, edit the list and run:
+
+```bash
+python3 tools/build-photos.py          # regenerate the cards, then restamp
+python3 tools/build-photos.py --check  # check only; exit code 1 if out of date
+```
+
+CI and `tools/deploy.py` both run the check.
 
 ## Image tiers
 

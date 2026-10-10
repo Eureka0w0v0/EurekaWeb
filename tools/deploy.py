@@ -139,10 +139,9 @@ def preflight(allow_branch: bool) -> None:
     dirty = run(["git", "-C", str(ROOT), "status", "--porcelain"], capture=True).strip()
     if dirty:
         raise DeployError(f"working tree is not clean:\n{dirty}")
-    for script in ("stamp-assets.py", "check-site.py"):
-        args = [sys.executable, str(ROOT / "tools" / script)] + (["--check"] if script == "stamp-assets.py" else [])
-        run(args)
-    print("preflight: clean tree, stamps current, site checks pass")
+    for script, args in (("stamp-assets.py", ["--check"]), ("build-photos.py", ["--check"]), ("check-site.py", [])):
+        run([sys.executable, str(ROOT / "tools" / script), *args])
+    print("preflight: clean tree, stamps current, photo cards current, site checks pass")
 
 
 def collect() -> list[Path]:

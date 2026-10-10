@@ -1,0 +1,26 @@
+{
+  "_about": "The photo theatre's cards, in order. tools/build-photos.py generates them into index.html; nothing reads this file at runtime.",
+  "insert": "353ada2ec7798bf29b0ea234c88fc0c3",
+  "queue": [
+    "01362e483ec3218bab9580a317f7f619",
+    "IMG_5077",
+    "IMG_5256",
+    "IMG_9638",
+    "IMG_1389",
+    "IMG_0518",
+    "IMG_1483",
+    "IMG_3863",
+    "IMG_3109",
+    "IMG_7125",
+    "IMG_0209",
+    "IMG_3865",
+    "IMG_4994",
+    "IMG_4996",
+    "IMG_5174",
+    "IMG_7265",
+    "IMG_6723",
+    "IMG_3735",
+    "IMG_3872",
+    "IMG_5187"
+  ]
+}
