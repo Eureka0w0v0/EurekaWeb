@@ -902,22 +902,25 @@ async function finishThemeTransitionContext() {
   careerThemeRestorePending = false;
 }
 
-/* initApp awaits this before anything else runs, and site-config.json is
-   no-store on both hosts and in the worker's NEVER_CACHE -- so this is one
-   unavoidable network round trip standing between the visitor and the page,
-   behind an intro overlay that is opaque, fixed, and at z-index 99999. If it
-   never settles, that overlay is the whole site.
+/* Maintenance mode is a switch in site-config.json, read on every visit.
 
-   It used to guard that with `signal: AbortSignal.timeout?.(4000)`, which is
-   the failure this is written to avoid: where AbortSignal.timeout is missing
-   the optional call evaluates to undefined, `signal: undefined` is a fetch
-   with no signal at all, and the guard silently becomes no guard on exactly
-   the old browsers most likely to need it. Racing a plain setTimeout needs
-   nothing newer than a promise.
+   It used to be awaited before anything else ran, which put one uncacheable
+   round trip -- the file is no-store on every host and in the worker's
+   NEVER_CACHE -- between every visitor and the page, for a switch that is
+   almost never on. Now the request is only started: the intro and the page
+   run at once, and in the rare case the answer is "maintenance" the redirect
+   follows a moment later, while the intro overlay still covers the page.
 
-   Losing the race resolves rather than rejects: a config that did not arrive
-   in time means "not in maintenance", the same answer every other failure
-   path here gives. */
+   The deadline still matters, for a different reason: it bounds when that
+   redirect can happen. A config that arrives after SITE_CONFIG_TIMEOUT_MS is
+   ignored rather than pulling a visitor off a page they have started reading.
+   Losing the race resolves rather than rejects -- "not in maintenance", the
+   same answer every other failure path gives.
+
+   The race uses a plain setTimeout, not `signal: AbortSignal.timeout?.(4000)`:
+   where AbortSignal.timeout is missing that optional call is undefined,
+   `signal: undefined` is no signal at all, and the guard silently vanished on
+   the old browsers most likely to need it. */
 const SITE_CONFIG_TIMEOUT_MS = 3000;
 const SITE_CONFIG_DEFAULT = { maintenance: false };
 
@@ -942,6 +945,14 @@ async function loadSiteConfig() {
   });
 
   return Promise.race([request, deadline]);
+}
+
+function redirectIfInMaintenance() {
+  loadSiteConfig().then((siteConfig) => {
+    if (siteConfig.maintenance) {
+      window.location.replace("./maintenance/index.html");
+    }
+  });
 }
 
 function syncViewportHeightVar() {
@@ -7730,11 +7741,7 @@ function handleWindowResize() {
 }
 
 async function initApp() {
-  const siteConfig = await loadSiteConfig();
-  if (siteConfig.maintenance) {
-    window.location.replace("./maintenance/index.html");
-    return;
-  }
+  redirectIfInMaintenance();
 
   const introPromise = runIntroAnimation();
 
