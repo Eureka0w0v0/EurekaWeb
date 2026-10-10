@@ -44,9 +44,14 @@ SKIP_INTRO = 'try { sessionStorage.setItem("eurekaweb:intro-seen", "1"); } catch
 SECTIONS = ("welcome-section", "hero-section", "language-section", "career-section", "photo-section")
 PHOTO_CARDS = 20
 COPY = {
-    "zh": {"lang": "zh-CN", "railPhoto": "照片", "careerLayer1Title": "职业"},
-    "en": {"lang": "en", "railPhoto": "Photos", "careerLayer1Title": "Career"},
-    "ja": {"lang": "ja", "railPhoto": "写真", "careerLayer1Title": "職業"},
+    "zh": {"lang": "zh-CN", "railPhoto": "照片", "careerLayer1Title": "职业",
+           "languageToggle": "切换语言", "themeToggle": "切换浅色或深色模式", "photoZoom": "放大的照片"},
+    "en": {"lang": "en", "railPhoto": "Photos", "careerLayer1Title": "Career",
+           "languageToggle": "Switch language", "themeToggle": "Switch between light and dark mode",
+           "photoZoom": "Enlarged photo"},
+    "ja": {"lang": "ja", "railPhoto": "写真", "careerLayer1Title": "職業",
+           "languageToggle": "言語を切り替える", "themeToggle": "ライトモードとダークモードを切り替える",
+           "photoZoom": "拡大した写真"},
 }
 CONFIG_DELAY_S = 2.0
 # How long after DOMContentLoaded the page may take to start without the
@@ -216,11 +221,18 @@ def check_language(page: Page, results: Results, tag: str) -> None:
         state = page.evaluate(
             "({ lang: document.documentElement.lang,"
             " rail: document.querySelector('[data-i18n=\"railPhoto\"]').textContent.trim(),"
-            " career: document.querySelector('[data-i18n=\"careerLayer1Title\"]').textContent.trim() })"
+            " career: document.querySelector('[data-i18n=\"careerLayer1Title\"]').textContent.trim(),"
+            " languageToggle: document.getElementById('language-toggle').getAttribute('aria-label'),"
+            " themeToggle: document.getElementById('theme-toggle').getAttribute('aria-label'),"
+            " themeTitle: document.getElementById('theme-toggle').getAttribute('title'),"
+            " photoZoom: document.getElementById('photo-zoom-overlay').getAttribute('aria-label') })"
         )
         results.check(f"{tag} language {language}",
                       state == {"lang": expected["lang"], "rail": expected["railPhoto"],
-                                "career": expected["careerLayer1Title"]},
+                                "career": expected["careerLayer1Title"],
+                                "languageToggle": expected["languageToggle"],
+                                "themeToggle": expected["themeToggle"], "themeTitle": expected["themeToggle"],
+                                "photoZoom": expected["photoZoom"]},
                       json.dumps(state, ensure_ascii=False))
 
 
