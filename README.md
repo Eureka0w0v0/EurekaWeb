@@ -85,6 +85,27 @@ Config file: `site-config.json`
 - Normal: `"maintenance": false`
 - Maintenance page: `"maintenance": true`
 
+## Testing
+
+Everything below needs only Python 3 and a local Chrome; set `CHROME` to point at a specific browser binary.
+
+```bash
+python3 tools/check-site.py      # static checks, no browser
+python3 tools/smoke.py           # desktop, phone and touch tablet, light and dark
+python3 tools/smoke.py --quick   # desktop, light, plus the regression checks
+```
+
+`smoke.py` serves the working tree locally and drives headless Chrome over the DevTools protocol (`tools/cdp.py`, standard library only). The page has to load with no exception, console error or failed request, scroll end to end, step the career cards, switch language and theme, and run the photo carousel, lightbox and Show All. It also checks that a slow `site-config.json` does not hold the page back, that maintenance mode still redirects, and that the service worker keeps one cached copy per asset. CI runs the stamp check, `check-site.py` and the full smoke test before every Pages deploy.
+
+For refactors that must not change the page, `tools/snapshot.py` records every element's box and computed styles at each stop of a fixed walk through the site, then compares a later run against it:
+
+```bash
+python3 tools/snapshot.py record /tmp/before.json    # on the old code
+python3 tools/snapshot.py compare /tmp/before.json   # on the new code
+```
+
+Baselines depend on the machine's fonts and rasteriser, so record and compare on the same machine; they are not committed.
+
 ## Deploying
 
 Pushing to `main` deploys GitHub Pages through `.github/workflows/pages.yml`. The main site, `https://eureka-web.com/`, does not follow git and is deployed with `tools/deploy.py`; both name it as the canonical URL. See [deploy/README.md](deploy/README.md) for the details and the nginx configuration.

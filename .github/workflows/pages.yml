@@ -3,23 +3,20 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: ["main"]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "pages"
+  group: "pages-${{ github.ref }}"
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,6 +29,31 @@ jobs:
       # year.
       - name: Check asset cache stamps are current
         run: python3 tools/stamp-assets.py --check
+
+      - name: Check site consistency
+        run: python3 tools/check-site.py
+
+      # The runner image ships Google Chrome. Its sandbox needs unprivileged
+      # user namespaces, which Ubuntu 24.04 restricts, hence CHROME_NO_SANDBOX.
+      - name: Browser smoke test
+        env:
+          CHROME_NO_SANDBOX: "1"
+        run: python3 tools/smoke.py
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Strip non-deploy assets
         run: |
