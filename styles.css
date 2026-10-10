@@ -25,6 +25,29 @@
    1024 and 1160 overlap between 1024-1160px, but their selectors are disjoint
    (topbar/hero vs language section), so nothing fights. Verified: no gaps and
    no conflicting overrides across the whole range.
+
+   Stacking layers
+   ---------------------------------------------------------------------------
+   Everything that stacks against the page as a whole takes its z-index from a
+   --z-* token on :root, lowest first:
+
+     --z-backdrop           -1   body::before gradient
+     --z-noise               1   .noise texture
+     --z-grain               2   #grain-canvas
+     --z-content             3   .page-shell
+     --z-chrome             24   topbar, wordmark, section rail
+     --z-photo-title        30   the photo section's fixed title
+     --z-theme-wave         40   the theme-change ripple
+     --z-photo-controls   1400   Show All: above the photo cards, which
+                                 script.js stacks at up to z-index 1040
+     --z-lightbox         1900   the photo lightbox
+     --z-theme-wave-mobile 9999  the mobile ripple variants
+     --z-intro           99999   the intro curtain
+     --z-skip-link      100000   the keyboard skip link, above even the intro
+
+   A new page-level layer gets a token here, not a bigger number. The small
+   numbers inside a component (0-7) only order that component's own children
+   within its stacking context, and stay plain values.
    --------------------------------------------------------------------------- */
 
 @property --snapshot-wave-radius {
@@ -35,6 +58,19 @@
 
 :root {
   color-scheme: light dark;
+  /* Stacking layers -- see "Stacking layers" at the top of this file. */
+  --z-backdrop: -1;
+  --z-noise: 1;
+  --z-grain: 2;
+  --z-content: 3;
+  --z-chrome: 24;
+  --z-photo-title: 30;
+  --z-theme-wave: 40;
+  --z-photo-controls: 1400;
+  --z-lightbox: 1900;
+  --z-theme-wave-mobile: 9999;
+  --z-intro: 99999;
+  --z-skip-link: 100000;
   --app-height: 100dvh;
   --wave-x: calc(100% - 52px);
   --wave-y: 52px;
@@ -118,7 +154,7 @@
   position: fixed;
   top: 0;
   left: 50%;
-  z-index: 100000; /* above .intro-overlay (99999) */
+  z-index: var(--z-skip-link); /* above .intro-overlay (99999) */
   padding: 12px 22px;
   min-height: 44px;
   display: inline-flex;
@@ -187,7 +223,7 @@ html.theme-dark section {
   --intro-part: 820ms;
   position: fixed;
   inset: 0;
-  z-index: 99999;
+  z-index: var(--z-intro);
   display: block;
   overflow: hidden;
   pointer-events: auto;
@@ -441,7 +477,7 @@ body::before {
   content: "";
   position: fixed;
   inset: -18lvh 0 -18lvh 0;
-  z-index: -1;
+  z-index: var(--z-backdrop);
   pointer-events: none;
   transform: translateZ(0);
   background:
@@ -493,7 +529,7 @@ textarea {
 }
 
 .noise {
-  z-index: 1;
+  z-index: var(--z-noise);
   opacity: 0.035;
   background-image:
     linear-gradient(rgba(70, 82, 104, 0.05) 1px, transparent 1px),
@@ -510,7 +546,7 @@ html.theme-dark .noise {
 }
 
 .theme-wave {
-  z-index: 40;
+  z-index: var(--z-theme-wave);
   opacity: 0;
   overflow: hidden;
   visibility: hidden;
@@ -622,7 +658,7 @@ html.theme-dark .noise {
 }
 
 .theme-wave.is-outline.is-mobile-wave {
-  z-index: 9999;
+  z-index: var(--z-theme-wave-mobile);
 }
 
 .theme-wave.is-outline.is-mobile-wave .theme-wave-core {
@@ -658,7 +694,7 @@ html.theme-dark .noise {
 }
 
 .theme-wave.is-mobile-clip-wave {
-  z-index: 9999;
+  z-index: var(--z-theme-wave-mobile);
   opacity: 1;
   visibility: visible;
   clip-path: circle(0px at var(--wave-x) var(--wave-y));
@@ -830,7 +866,7 @@ html.theme-mask-reveal::view-transition-new(root) {
 
 .page-shell {
   position: relative;
-  z-index: 3;
+  z-index: var(--z-content);
   width: 100%;
   min-height: 100lvh;
   min-height: 100vh;
@@ -897,7 +933,7 @@ html.theme-syncing .welcome-stage {
   position: fixed;
   top: var(--topbar-top);
   right: var(--topbar-right);
-  z-index: 24;
+  z-index: var(--z-chrome);
   pointer-events: none;
 }
 
@@ -2540,7 +2576,7 @@ html[lang="en"] .career-statement {
   position: fixed;
   top: 80px;
   left: 50%;
-  z-index: 30;
+  z-index: var(--z-photo-title);
   display: grid;
   justify-items: center;
   gap: 10px;
@@ -2621,7 +2657,7 @@ html[lang="en"] .career-statement {
   position: absolute;
   left: 0;
   top: 0;
-  z-index: 1400;
+  z-index: var(--z-photo-controls);
   border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: 999px;
   padding: 0.68rem 1.05rem;
@@ -2736,7 +2772,7 @@ html[lang="en"] .career-statement {
 .photo-zoom-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1900;
+  z-index: var(--z-lightbox);
   display: grid;
   place-items: center;
   padding: max(18px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px))
@@ -2846,7 +2882,7 @@ html.is-photo-zoom-open .topbar {
 
 .photo-zoom-close {
   position: relative;
-  z-index: 1901;
+  z-index: calc(var(--z-lightbox) + 1);
   width: 44px;
   height: 44px;
   border: 1px solid rgba(255, 255, 255, 0.34);
@@ -3893,7 +3929,7 @@ html.theme-dark .photo-queue::before {
 #grain-canvas {
   position: fixed;
   inset: 0;
-  z-index: 2;
+  z-index: var(--z-grain);
   pointer-events: none;
   opacity: 0.03;
   mix-blend-mode: overlay;
@@ -3960,7 +3996,7 @@ html.theme-dark .photo-card-hover-glow {
   position: fixed;
   top: calc(var(--topbar-top) + 11px);
   left: max(28px, env(safe-area-inset-left, 0px));
-  z-index: 24;
+  z-index: var(--z-chrome);
   display: inline-flex;
   align-items: center;
   height: 34px;
@@ -3989,7 +4025,7 @@ html.theme-dark .photo-card-hover-glow {
   position: fixed;
   right: 22px;
   top: 50%;
-  z-index: 24;
+  z-index: var(--z-chrome);
   display: flex;
   flex-direction: column;
   gap: 12px;
