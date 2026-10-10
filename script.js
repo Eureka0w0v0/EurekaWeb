@@ -1062,14 +1062,15 @@ function syncViewportHeightVar() {
   root.style.setProperty("--app-height", `${Math.round(viewportHeight)}px`);
 }
 
-function handleVisualViewportResize() {
+/* True when the visual viewport's width has moved by more than 2px since
+   the last call -- a real resize rather than a rounding wobble. */
+function visualViewportWidthChanged() {
   const currentWidth = Math.round(window.visualViewport?.width || window.innerWidth);
   if (lastVisualViewportWidth === 0 || Math.abs(currentWidth - lastVisualViewportWidth) > 2) {
     lastVisualViewportWidth = currentWidth;
-    invalidatePhotoLayoutCaches();
+    return true;
   }
-
-  syncViewportHeightVar();
+  return false;
 }
 
 function isElementInViewport(element) {
@@ -1845,6 +1846,11 @@ function resetLanguageUniverseParallax() {
   languageUniverse?.style.setProperty("--universe-x", "0");
   languageUniverse?.style.setProperty("--universe-y", "0");
   requestLanguageNetworkSync();
+}
+
+function bindLanguageUniverseMotion() {
+  pageEvents.on("pointer:frame", updateLanguageUniverseParallax);
+  pageEvents.on("brain:frame", updateLanguageNetworkEndpoints);
 }
 
 function bindLanguageUniverseReactions() {
@@ -5722,6 +5728,13 @@ function updatePhotoScene(timestamp = window.performance.now()) {
   );
 }
 
+function cancelPhotoSceneFrame() {
+  if (photoFrame) {
+    window.cancelAnimationFrame(photoFrame);
+    photoFrame = 0;
+  }
+}
+
 function requestPhotoSceneUpdate() {
   if (document.hidden) {
     return;
@@ -6119,6 +6132,9 @@ function handlePhotoCarouselTouchEnd(event) {
 let pointerMoveFrame = 0;
 let lastPointerMoveEvent = null;
 
+/* Pointer moves are coalesced to one pass per frame and handed, as
+   pointer:frame, to every section that reacts to the pointer: the hero's tilt
+   card first, then the language universe's parallax. */
 function handlePointerMove(event) {
   lastPointerMoveEvent = event;
   if (pointerMoveFrame) {
@@ -6127,13 +6143,12 @@ function handlePointerMove(event) {
 
   pointerMoveFrame = window.requestAnimationFrame(() => {
     pointerMoveFrame = 0;
-    applyPointerMove(lastPointerMoveEvent);
+    pageEvents.emit("pointer:frame", lastPointerMoveEvent);
   });
 }
 
-function applyPointerMove(event) {
+function applyTilt(event) {
   if (!tiltCard || !isWideLayout() || event.pointerType !== "mouse") {
-    updateLanguageUniverseParallax(event);
     return;
   }
 
@@ -6148,7 +6163,6 @@ function applyPointerMove(event) {
 
   if (!isInsideTiltArea) {
     resetTilt();
-    updateLanguageUniverseParallax(event);
     return;
   }
 
@@ -6156,7 +6170,10 @@ function applyPointerMove(event) {
   const rotateX = ((event.clientY - bounds.top) / bounds.height - 0.5) * -14;
 
   tiltCard.style.transform = `perspective(1100px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-  updateLanguageUniverseParallax(event);
+}
+
+function bindTiltReactions() {
+  pageEvents.on("pointer:frame", applyTilt);
 }
 
 function resetTilt() {
@@ -6797,10 +6814,11 @@ async function createBrainWireframeScene(mount) {
       }
 
       render();
-      /* After render, not before: the lines trail the mesh by a frame either
-         way, and doing the DOM writes last keeps them out of the path between
-         the matrix update and the draw call. */
-      updateLanguageNetworkEndpoints();
+      /* After render, not before: the connector lines (which listen for this)
+         trail the mesh by a frame either way, and doing their DOM writes last
+         keeps them out of the path between the matrix update and the draw
+         call. */
+      pageEvents.emit("brain:frame");
     }
 
     function start() {
@@ -7697,7 +7715,10 @@ function bindBrainReactions() {
   pageEvents.on("theme:render-frame", setTheme);
 }
 
-function scheduleBrainSceneLoad() {
+/* observeTarget is what has to come near the viewport before three.js is
+   fetched: the whole language section, passed in by initApp, so the load
+   starts while the visitor is still approaching it. */
+function scheduleBrainSceneLoad(observeTarget = brainMount) {
   if (!brainMount || brainSceneController || shouldReduceMotion()) {
     return;
   }
@@ -7720,7 +7741,7 @@ function scheduleBrainSceneLoad() {
     }
   };
 
-  const target = languageUniverse || brainMount;
+  const target = observeTarget || brainMount;
 
   if (typeof IntersectionObserver === "function" && target) {
     const observer = new IntersectionObserver(
@@ -7885,6 +7906,14 @@ function handleWindowResize() {
   }, RESIZE_SETTLE_MS);
 }
 
+function handleVisualViewportResize() {
+  if (visualViewportWidthChanged()) {
+    invalidatePhotoLayoutCaches();
+  }
+
+  syncViewportHeightVar();
+}
+
 async function initApp() {
   /* Order matters: listeners run in subscription order, and this is the
      order applyLanguage used to call these sections in. */
@@ -7895,6 +7924,8 @@ async function initApp() {
   bindBrainReactions();
   bindWelcomeReactions();
   bindCareerReactions();
+  bindTiltReactions();
+  bindLanguageUniverseMotion();
 
   redirectIfInMaintenance();
 
@@ -8017,7 +8048,7 @@ async function initApp() {
   setActiveLanguageNode(activeLanguageNode);
   updateCareerLayerClasses();
   await commitThemeState(resolveTheme());
-  scheduleBrainSceneLoad();
+  scheduleBrainSceneLoad(languageUniverse);
   drawWelcome();
   updateHeroParallax();
   updateCareerScene();
@@ -8045,10 +8076,7 @@ async function initApp() {
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
-      if (photoFrame) {
-        window.cancelAnimationFrame(photoFrame);
-        photoFrame = 0;
-      }
+      cancelPhotoSceneFrame();
       brainSceneController?.stop();
     } else {
       /* Only resume what is actually on screen -- otherwise switching back to
