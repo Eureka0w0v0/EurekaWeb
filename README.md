@@ -44,7 +44,7 @@ python3 tools/stamp-assets.py          # rewrite ?v= from content hashes
 python3 tools/stamp-assets.py --check  # check only; exit code 1 if stale
 ```
 
-It covers three files: `index.html`, `404.html` and `manifest.webmanifest`. The latter two used to carry hand-written date stamps (the 404 favicon had none at all), so `--check` could not see them and a swapped icon would have been pinned by the immutable cache for a year.
+It covers four files: `index.html`, `404.html`, `manifest.webmanifest` and `maintenance/index.html`. The other three used to carry hand-written date stamps or none at all, so `--check` could not see them and a swapped icon or an edited maintenance page would have been pinned by the immutable cache for a year. References are resolved relative to the document that holds them, so `../images/...` from the maintenance page works.
 
 `index.html` references `manifest.webmanifest`, and the manifest's own hash changes as soon as its stamps do, so the script iterates to a fixed point: changing one icon converges both the manifest and `index.html` in a single run.
 

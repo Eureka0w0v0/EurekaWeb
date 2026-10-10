@@ -36,13 +36,17 @@ ROOT = Path(__file__).resolve().parent.parent
 # stamp at all -- while index.html moved to content hashes, so --check passed
 # while an icon replacement would have been invisible behind netlify.toml's
 # year of immutable caching.
-SOURCES = ("index.html", "404.html", "manifest.webmanifest")
+#
+# maintenance/index.html was outside this list, so its stylesheet, script and
+# favicon went out unstamped under the same year-long immutable header: a
+# visitor who ever saw the maintenance page kept that version of it forever.
+SOURCES = ("index.html", "404.html", "manifest.webmanifest", "maintenance/index.html")
 
 # A local reference with no ?v= is normally a mistake, because these paths are
 # served immutable for a year. sw.js is the deliberate exception: a service
 # worker has to keep one stable URL to be replaceable at all, which is why
 # netlify.toml gives that one file no-cache instead.
-UNSTAMPED_OK = frozenset({"./sw.js"})
+UNSTAMPED_OK = frozenset({ROOT / "sw.js"})
 
 # Matches any "./path/file.ext?v=STAMP" wherever it appears, rather than keying
 # off an attribute name. That matters: the photo cards carry their real URLs in
@@ -54,13 +58,20 @@ UNSTAMPED_OK = frozenset({"./sw.js"})
 # The stamp is terminated by any character that cannot be in one, which is the
 # closing quote in an attribute and the space before the width descriptor in a
 # srcset.
-REF = re.compile(r'(?P<path>\./[A-Za-z0-9._/-]+\.(?:css|js|png|webp|webmanifest))\?v=(?P<stamp>[A-Za-z0-9._-]+)')
+# Paths are relative to the document that holds them -- "./" or "../" -- so a
+# page in a subdirectory resolves its own references correctly.
+REF = re.compile(r'(?P<path>(?:\.\.?/)+[A-Za-z0-9._/-]+\.(?:css|js|png|webp|webmanifest))\?v=(?P<stamp>[A-Za-z0-9._-]+)')
 
 # Same paths, but with the stamp optional, so an unstamped reference can be
 # reported rather than silently skipped by REF.
-ANY_REF = re.compile(r'(?P<path>\./[A-Za-z0-9._/-]+\.(?:css|js|png|webp|webmanifest))(?P<query>\?v=[A-Za-z0-9._-]+)?')
+ANY_REF = re.compile(r'(?P<path>(?:\.\.?/)+[A-Za-z0-9._/-]+\.(?:css|js|png|webp|webmanifest))(?P<query>\?v=[A-Za-z0-9._-]+)?')
 
-def digest(path: Path, pending: dict[str, str]) -> str:
+def resolve(document: str, rel: str) -> Path:
+    """Absolute path of a reference, read relative to the document holding it."""
+    return ((ROOT / document).parent / rel).resolve()
+
+
+def digest(path: Path, pending: dict[Path, str]) -> str:
     """SHA-256 prefix of a file, preferring this run's rewritten copy of it.
 
     One of the documents being stamped is itself a stamped asset: index.html
@@ -70,29 +81,24 @@ def digest(path: Path, pending: dict[str, str]) -> str:
     pass would leave the tree in a state --check rejects. Reading from the
     in-progress text closes that loop.
     """
-    try:
-        rel = f"./{path.relative_to(ROOT).as_posix()}"
-    except ValueError:
-        rel = None
-
-    if rel is not None and rel in pending:
-        return hashlib.sha256(pending[rel].encode("utf-8")).hexdigest()[:8]
+    if path in pending:
+        return hashlib.sha256(pending[path].encode("utf-8")).hexdigest()[:8]
     return hashlib.sha256(path.read_bytes()).hexdigest()[:8]
 
 
-def rewrite(html: str, pending: dict[str, str]) -> str:
-    """Return html with every ?v= stamp set from the referenced file's content."""
+def rewrite(document: str, text: str, pending: dict[Path, str]) -> str:
+    """Return text with every ?v= stamp set from the referenced file's content."""
 
     def replace(match: re.Match[str]) -> str:
         rel = match.group("path")
-        target = (ROOT / rel[2:]).resolve()
+        target = resolve(document, rel)
         # A reference to something that is not on disk is a broken link, not a
         # stale stamp. Leave it exactly as-is and let the caller notice.
         if not target.is_file():
             return match.group(0)
         return f"{rel}?v={digest(target, pending)}"
 
-    return REF.sub(replace, html)
+    return REF.sub(replace, text)
 
 
 def stamp_all(documents: dict[str, str]) -> dict[str, str]:
@@ -105,32 +111,27 @@ def stamp_all(documents: dict[str, str]) -> dict[str, str]:
     """
     pending = dict(documents)
     for _ in range(len(documents) + 2):
-        nxt = {f"./{name}": rewrite(text, {f"./{k}": v for k, v in pending.items()})
-               for name, text in pending.items()}
-        nxt = {name[2:]: text for name, text in nxt.items()}
+        by_path = {(ROOT / name).resolve(): text for name, text in pending.items()}
+        nxt = {name: rewrite(name, text, by_path) for name, text in pending.items()}
         if nxt == pending:
             return pending
         pending = nxt
     raise RuntimeError("cache stamps did not converge; check for a reference cycle")
 
 
-def missing_targets(html: str) -> list[str]:
-    out = []
-    for match in REF.finditer(html):
-        rel = match.group("path")
-        if not (ROOT / rel[2:]).resolve().is_file():
-            out.append(rel)
-    return out
+def missing_targets(document: str, text: str) -> list[str]:
+    return [m.group("path") for m in REF.finditer(text) if not resolve(document, m.group("path")).is_file()]
 
 
-def unstamped_refs(html: str) -> list[str]:
+def unstamped_refs(document: str, text: str) -> list[str]:
     """Local asset references carrying no ?v= at all, sw.js aside."""
     out = []
-    for match in ANY_REF.finditer(html):
+    for match in ANY_REF.finditer(text):
         rel = match.group("path")
-        if match.group("query") or rel in UNSTAMPED_OK:
+        target = resolve(document, rel)
+        if match.group("query") or target in UNSTAMPED_OK:
             continue
-        if (ROOT / rel[2:]).resolve().is_file():
+        if target.is_file():
             out.append(rel)
     return out
 
@@ -144,10 +145,10 @@ def main() -> int:
 
     failed = False
     for name, text in documents.items():
-        for rel in missing_targets(text):
+        for rel in missing_targets(name, text):
             print(f"{name} references a file that does not exist: {rel}", file=sys.stderr)
             failed = True
-        for rel in unstamped_refs(text):
+        for rel in unstamped_refs(name, text):
             print(f"{name} references {rel} with no ?v= stamp", file=sys.stderr)
             failed = True
     if failed:
