@@ -6,7 +6,6 @@ import { getActiveCopy } from "../i18n/language.js?v=651a14fb";
 import { brainMount, brainSceneController, brainWrap } from "./brain.js?v=944d5227";
 
 export const languageUniverse = document.querySelector("#language-universe");
-const languageStage = document.querySelector(".language-stage");
 const languageNetwork = document.querySelector(".language-network");
 export const languageNodeButtons = document.querySelectorAll(".language-node[data-language-node]");
 export const languageIndexButtons = document.querySelectorAll(".language-index-item");
