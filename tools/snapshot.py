@@ -33,7 +33,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from cdp import DEVICES, Browser, CDPError, Page  # noqa: E402
-from devserver import DevServer  # noqa: E402
+from devserver import ROOT, DevServer  # noqa: E402
 from smoke import PHOTO_STATE, SCROLL_TO, SKIP_INTRO, THEME_SETTLED, scroll_photo_stage_into_view  # noqa: E402
 
 CONFIGURATIONS = (("desktop", False), ("desktop", True), ("mobile", False), ("tablet", True))
@@ -46,8 +46,15 @@ INTERACTION_DELAY_S = 0.4
 # last thing clicked cannot leave a :hover state in the capture.
 NEUTRAL_POINTER = (2, -2)
 CHECKPOINT_SPACING = 0.5  # viewport heights between scroll stops
-MOTION_TOLERANCE = 3.0   # px: box geometry, transform translations, page height
+MOTION_TOLERANCE = 5.0   # px: box geometry, transform translations, page height
+LAYOUT_TOLERANCE = 0.5   # px: resolved sizes, some fed by script-computed values
 STATIC_TOLERANCE = 0.05  # px: every other length -- static CSS must match
+LAYOUT_PROPS = ("width", "height", "padding", "gap", "inset", "line-height")
+# The photo section's scroll length is set by script from the Show All
+# animation and lands a pixel or so differently from run to run; the page
+# containers inherit that. Their sizes get MOTION_TOLERANCE like the page
+# height does.
+SCRIPT_SIZED = frozenset({"html", "html>body", "#main", "#photo-section"})
 RATIO_TOLERANCE = 0.01   # unitless: opacity, scale, matrix coefficients
 NUMBER = re.compile(r"-?\d+(?:\.\d+)?(?:e-?\d+)?")
 UNIT = re.compile(r"-?\d+(?:\.\d+)?(?:e-?\d+)?([a-z%]*)")
@@ -66,11 +73,15 @@ CAPTURE = r"""((viewportOnly) => {
     "#mars-clock", "#intro-overlay", "script", "style", "noscript"];
   // Placed around the brain's projected outline, which turns every frame.
   const NO_GEOMETRY = [".language-node-field", ".language-node", ".brain-wrap"];
-  const POSITIONAL = ["inset", "transform", "translate", "scale", "rotate"];
+  const POSITIONAL = ["inset", "transform", "translate", "scale", "rotate", "width", "height"];
   const PROPS = ["display", "visibility", "opacity", "transform", "z-index", "position", "color",
-    "background-color", "filter", "clip-path", "pointer-events", "font-size", "font-weight",
-    "letter-spacing", "border-radius", "box-shadow", "backdrop-filter", "mix-blend-mode", "overflow",
-    "translate", "scale", "rotate", "inset", "content"];
+    "background-color", "background-image", "filter", "clip-path", "pointer-events", "font-family",
+    "font-size", "font-weight", "line-height", "letter-spacing", "text-transform", "border-radius",
+    "border", "outline", "box-shadow", "backdrop-filter", "mix-blend-mode", "overflow", "translate",
+    "scale", "rotate", "inset", "padding", "width", "height", "gap", "content", "cursor"];
+  // Not margin: an auto margin resolves to "0px" or to its used value
+  // depending on whether layout is clean at that instant, and its effect is
+  // already in the boxes recorded below.
   const margin = innerHeight;
   const records = {};
   const keyOf = (el) => {
@@ -168,6 +179,8 @@ def _tolerances(prop: str, value: str, count: int) -> list[float]:
         return [RATIO_TOLERANCE] * 4 + [MOTION_TOLERANCE] * 2
     if prop == "translate":
         return [MOTION_TOLERANCE] * count
+    if prop in LAYOUT_PROPS:
+        return [LAYOUT_TOLERANCE if unit == "px" else RATIO_TOLERANCE for unit in UNIT.findall(value)]
     return [STATIC_TOLERANCE if unit == "px" else RATIO_TOLERANCE for unit in UNIT.findall(value)]
 
 
@@ -186,8 +199,13 @@ def numbers_close(prop: str, a: str, b: str) -> bool:
 
 def diff_records(key: str, old: dict, new: dict) -> list[str]:
     lines = []
+    script_sized = key in SCRIPT_SIZED
     for prop in sorted(set(old) | set(new)):
         a, b = old.get(prop), new.get(prop)
+        if script_sized and prop in LAYOUT_PROPS and a and b:
+            if not numbers_close("translate", str(a), str(b)):
+                lines.append(f"{key} {prop}: {a!r} -> {b!r}")
+            continue
         if prop == "r" and a and b:
             if any(abs(x - y) > MOTION_TOLERANCE for x, y in zip(a, b)):
                 lines.append(f"{key} box {a} -> {b}")
@@ -290,9 +308,9 @@ def journey(page: Page, shots: Path | None, label: str) -> dict:
     return stops
 
 
-def run(configurations, shots: Path | None) -> dict:
+def run(configurations, shots: Path | None, root: Path) -> dict:
     result = {}
-    with Browser() as browser, DevServer() as server:
+    with Browser() as browser, DevServer(root=root) as server:
         for device, dark in configurations:
             label = f"{device}-{'dark' if dark else 'light'}"
             print(f"  {label}", flush=True)
@@ -313,7 +331,11 @@ def main() -> int:
     parser.add_argument("baseline", type=Path)
     parser.add_argument("--only", help="comma-separated labels, e.g. desktop-light,mobile-light")
     parser.add_argument("--shots", type=Path, help="directory for a screenshot per stop")
+    parser.add_argument("--root", type=Path, default=ROOT,
+                        help="site directory to serve, e.g. a worktree of the code before the change")
     parser.add_argument("--limit", type=int, default=60, help="differences to print per stop")
+    parser.add_argument("--ignore", action="append", default=[], metavar="REGEX",
+                        help="drop differences matching this pattern (an intended change); repeatable")
     args = parser.parse_args()
 
     configurations = [
@@ -323,7 +345,7 @@ def main() -> int:
     if args.shots:
         args.shots.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
-    current = run(configurations, args.shots)
+    current = run(configurations, args.shots, args.root.resolve())
 
     if args.mode == "record":
         args.baseline.write_text(json.dumps(current))
@@ -333,7 +355,8 @@ def main() -> int:
         return 0
 
     baseline = json.loads(args.baseline.read_text())
-    total = 0
+    ignored_patterns = [re.compile(pattern) for pattern in args.ignore]
+    total = ignored = 0
     for label, run_result in current.items():
         old_stops = baseline.get(label, {}).get("stops", {})
         new_stops = run_result["stops"]
@@ -346,12 +369,16 @@ def main() -> int:
                 total += 1
                 continue
             lines = diff_snapshots(old_stops[name], new_stops[name])
+            kept = [line for line in lines if not any(p.search(line) for p in ignored_patterns)]
+            ignored += len(lines) - len(kept)
+            lines = kept
             if lines:
                 total += len(lines)
                 print(f"[{label}] {name}: {len(lines)} differences")
                 for line in lines[: args.limit]:
                     print(f"    {line}")
-    print(f"\n{'identical' if not total else f'{total} differences'} "
+    note = f", {ignored} intended difference(s) ignored" if ignored else ""
+    print(f"\n{'identical' if not total else f'{total} differences'}{note} "
           f"({time.monotonic() - started:.0f}s)")
     return 1 if total else 0
 

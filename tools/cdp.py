@@ -365,14 +365,24 @@ class Page:
         return result.get("result", {}).get("value")
 
     def wait_for(self, expression: str, timeout: float = 10.0, message: str | None = None):
-        """Poll a JS expression until it returns something truthy."""
+        """Poll a JS expression until it returns something truthy.
+
+        An evaluation that fails is retried rather than raised: when the
+        thing being waited for is a navigation, the context the expression
+        ran in is destroyed under it, and the next poll is the one that sees
+        the new page."""
         deadline = time.monotonic() + timeout
+        last_error = None
         while True:
-            value = self.evaluate(expression)
-            if value:
-                return value
+            try:
+                value = self.evaluate(expression)
+                if value:
+                    return value
+            except CDPError as error:
+                last_error = error
             if time.monotonic() >= deadline:
-                raise CDPError(message or f"timed out waiting for: {expression}")
+                detail = f" (last error: {last_error})" if last_error else ""
+                raise CDPError((message or f"timed out waiting for: {expression}") + detail)
             time.sleep(POLL_INTERVAL_S)
 
     def press_key(self, key: str, code: str | None = None, key_code: int | None = None) -> None:
