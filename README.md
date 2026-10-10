@@ -37,7 +37,7 @@ Both scripts depend only on Python 3 and ImageMagick. No Node.
 
 ### Cache-busting stamps (required)
 
-`netlify.toml` gives CSS / JS / images a one-year `immutable` cache. If a file changes but its URL does not, returning visitors never receive the new version. The version stamp is a content hash, so **run this once before committing any asset change**:
+The main site's nginx config (`deploy/nginx/eurekaweb.conf`) gives CSS / JS / images a one-year `immutable` cache. If a file changes but its URL does not, returning visitors never receive the new version. The version stamp is a content hash, so **run this once before committing any asset change**:
 
 ```bash
 python3 tools/stamp-assets.py          # rewrite ?v= from content hashes
@@ -48,11 +48,11 @@ It covers four files: `index.html`, `404.html`, `manifest.webmanifest` and `main
 
 `index.html` references `manifest.webmanifest`, and the manifest's own hash changes as soon as its stamps do, so the script iterates to a fixed point: changing one icon converges both the manifest and `index.html` in a single run.
 
-A local asset referenced **without** `?v=` fails with exit code 2. The one exemption is `sw.js`: a service worker must keep a stable URL to be replaceable, so `netlify.toml` gives it `no-cache` separately.
+A local asset referenced **without** `?v=` fails with exit code 2. The one exemption is `sw.js`: a service worker must keep a stable URL to be replaceable, so the nginx config gives it `no-cache` separately.
 
 Forgetting to run it is caught by GitHub Actions (the workflow runs `--check`). The script is idempotent; unchanged assets produce no diff.
 
-It is not run automatically in CI because Netlify publishes the repository as-is with no build command. The stamps have to live in the commit, or the two hosts would serve different URLs.
+It is not run automatically in CI because the main site is deployed from the committed files by `tools/deploy.py`. The stamps have to live in the commit, or the two hosts would serve different URLs.
 
 ### Adding a photo
 
@@ -76,7 +76,7 @@ The card is printed rather than inserted automatically: `script.js` reads the `d
 | `images/_originals/` | untouched originals, never referenced by the page | original JPG/PNG |
 
 The page loads previews only; enlarging fetches medium/full on demand via `srcset`.  
-`images/_originals/` is a local backup only (git-ignored) and is excluded from both the Netlify and GitHub Pages deploys.
+`images/_originals/` is a local backup only (git-ignored) and is never deployed: `tools/deploy.py` stages from an allow-list, and the Pages workflow removes it before uploading.
 
 ## Maintenance mode
 
@@ -85,18 +85,9 @@ Config file: `site-config.json`
 - Normal: `"maintenance": false`
 - Maintenance page: `"maintenance": true`
 
-## Deploying to Netlify
+## Deploying
 
-- Leave the build command empty
-- Publish directory `.`, or just use the `netlify.toml` in the repo
-- Long-lived caching for static assets and basic security headers are configured there
-- `.netlifyignore` excludes `images/_originals/`
-
-## Deploying to GitHub Pages
-
-`.github/workflows/pages.yml` is included; it removes `images/_originals/` before deploying. The site is served at:
-
-`https://<your-github-username>.github.io/<repo-name>/`
+Pushing to `main` deploys GitHub Pages through `.github/workflows/pages.yml`. The main site, `https://eureka-web.com/`, does not follow git and is deployed with `tools/deploy.py`; both name it as the canonical URL. See [deploy/README.md](deploy/README.md) for the details and the nginx configuration.
 
 ## Deploy size
 

@@ -6,8 +6,8 @@
 
   lastmod is maintained by hand, in the commit that changes the page. There is
   deliberately no CI step for it, for the same reason the ?v= stamps are not
-  generated in CI either. Netlify publishes this repository directly with no
-  build command, so anything a GitHub Actions run rewrites would exist on one
+  generated in CI either. The main site is synced from the committed files by
+  tools/deploy.py, so anything a GitHub Actions run rewrote would exist on one
   host and not the other. A date that is only right on half the deploys is
   worse than one someone has to remember.
 

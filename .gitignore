@@ -2,5 +2,4 @@
 webkey/
 images/_originals/
 *.log
-.netlify/
 __pycache__/

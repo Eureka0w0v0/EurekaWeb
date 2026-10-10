@@ -18,7 +18,7 @@ Two things it fixes on the way through:
 
   * Output names are lowercased and cleaned. The existing set is a mix of
     IMG_5077.webp and 353ada2ec7798bf29b0ea234c88fc0c3.webp, which is only
-    survivable because GitHub Pages and Netlify both happen to be
+    survivable because GitHub Pages and nginx both happen to be
     case-sensitive in the same way. New files should not add to that.
 
     python3 tools/add-photo.py ~/Desktop/IMG_1234.HEIC

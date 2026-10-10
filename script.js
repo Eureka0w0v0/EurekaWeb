@@ -6074,7 +6074,7 @@ async function createBrainWireframeScene(mount) {
        one and the ./three.core.min.js it imports -- so the CDN version cost
        two cross-origin requests on a host that is unreliable from China, and
        a failure meant the brain silently never appeared. Same-origin now, and
-       covered by the one-year immutable cache netlify.toml gives *.js.
+       covered by the one-year immutable cache deploy/nginx gives *.js.
        Still lazy: this runs when the language section scrolls into view. */
     const THREE = await import("./vendor/three.module.min.js?v=0.185.1");
     const scene = new THREE.Scene();

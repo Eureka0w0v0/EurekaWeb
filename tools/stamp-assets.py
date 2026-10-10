@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Rewrite the ?v= cache stamps in the site's documents from the assets' content.
 
-Why this exists: netlify.toml marks css/js/images immutable for a year, so the
+Why this exists: deploy/nginx marks css/js/images immutable for a year, so the
 only thing that makes a visitor pick up a change is a different URL. That was
 tracked by hand, which means a deploy is one forgotten edit away from shipping
 a stylesheet nobody will ever see.
 
-Both hosts serve straight from the repo -- Netlify has publish="." and no build
-command, GitHub Pages uploads the checkout -- so the stamped index.html has to
-be the committed one. Run this before committing; CI runs it with --check and
-fails if the file on disk disagrees.
+Both hosts serve the committed files -- GitHub Pages uploads the checkout and
+tools/deploy.py syncs the main site from it -- so the stamped index.html has
+to be the committed one. Run this before committing; CI runs it with --check
+and fails if the file on disk disagrees.
 
 Stamps are the first 8 hex chars of the file's SHA-256, so re-running without
 changing an asset is a no-op and the diff stays quiet.
@@ -34,8 +34,8 @@ ROOT = Path(__file__).resolve().parent.parent
 # manifest.webmanifest points at the PWA icons and 404.html at the favicon.
 # Both were carrying hand-written date stamps -- or, in the 404's case, no
 # stamp at all -- while index.html moved to content hashes, so --check passed
-# while an icon replacement would have been invisible behind netlify.toml's
-# year of immutable caching.
+# while an icon replacement would have been invisible behind a year of
+# immutable caching.
 #
 # maintenance/index.html was outside this list, so its stylesheet, script and
 # favicon went out unstamped under the same year-long immutable header: a
@@ -45,7 +45,7 @@ SOURCES = ("index.html", "404.html", "manifest.webmanifest", "maintenance/index.
 # A local reference with no ?v= is normally a mistake, because these paths are
 # served immutable for a year. sw.js is the deliberate exception: a service
 # worker has to keep one stable URL to be replaceable at all, which is why
-# netlify.toml gives that one file no-cache instead.
+# deploy/nginx gives that one file no-cache instead.
 UNSTAMPED_OK = frozenset({ROOT / "sw.js"})
 
 # Matches any "./path/file.ext?v=STAMP" wherever it appears, rather than keying

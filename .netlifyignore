@@ -1,8 +1,0 @@
-.git/
-.github/
-.vscode/
-.DS_Store
-**/.DS_Store
-images/_originals/
-_originals/
-*.log

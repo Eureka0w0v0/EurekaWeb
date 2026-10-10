@@ -5,16 +5,16 @@
    third-party dependency the three.js vendoring just removed.
 
    Every path here is relative. GitHub Pages serves this site from /EurekaWeb/
-   and Netlify serves it from /, so anything absolute would work on one host
-   and 404 on the other.
+   and eureka-web.com serves it from /, so anything absolute would work on one
+   host and 404 on the other.
 
    Two things must never be cached, and both are load-bearing:
      - site-config.json drives maintenance mode. A stale copy would leave the
        site stuck in (or out of) maintenance with no way to correct it.
-     - sw.js itself. netlify.toml marks *.js immutable for a year, which for
-       this one file would mean the worker can never be replaced. There is a
-       matching header override in netlify.toml; this comment exists so the
-       next person to touch either one finds the other. */
+     - sw.js itself. deploy/nginx/eurekaweb.conf marks *.js immutable for a
+       year, which for this one file would mean the worker can never be
+       replaced. There is a matching no-cache override there; this comment
+       exists so the next person to touch either one finds the other. */
 
 const VERSION = "2026-09-15-2";
 const SHELL_CACHE = `eureka-shell-${VERSION}`;

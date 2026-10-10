@@ -48,7 +48,7 @@
          exactly where it ran at the end of <body> -- and nothing here touches
          the DOM before that: every querySelector is at module top level and
          initApp() is the last statement in the file. -->
-    <script defer src="./script.js?v=0571f7ef"></script>
+    <script defer src="./script.js?v=dd12b675"></script>
   </head>
   <body>
     <a class="skip-link" href="#main" data-i18n="skipToContent">跳到主要内容</a>
@@ -714,7 +714,7 @@
       /* Registered inline and after load so the worker never competes with the
          intro animation for bandwidth or main-thread time. The relative path
          also sets the scope, which is what makes this work unchanged on both
-         the GitHub Pages subpath and the Netlify root. */
+         the GitHub Pages subpath and the eureka-web.com root. */
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("./sw.js").catch(() => {
