@@ -206,6 +206,41 @@ def _check_career_layers(results: Results, tag: str, state: dict) -> None:
                   json.dumps(layers))
 
 
+def check_pointer(page: Page, results: Results, tag: str) -> None:
+    """Desktop only: the tilt card and the language parallax follow the mouse."""
+    if page.device.touch:
+        return
+    scroll_to(page, section_top(page, "hero-section"))
+    time.sleep(0.6)
+    card = page.evaluate("(() => { const r = document.getElementById('feature-card').getBoundingClientRect();"
+                         " return { x: r.left + r.width * 0.8, y: r.top + r.height * 0.3 }; })()")
+    page.send("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": card["x"], "y": card["y"]})
+    try:
+        page.wait_for("getComputedStyle(document.getElementById('feature-card')).transform !== 'none'"
+                      " && document.getElementById('feature-card').style.transform.includes('rotateY(')"
+                      " && !document.getElementById('feature-card').style.transform.includes('rotateY(0deg)')",
+                      timeout=3)
+        tilted = True
+    except CDPError:
+        tilted = False
+    results.check(f"{tag} tilt card follows the pointer", tilted,
+                  page.evaluate("document.getElementById('feature-card').style.transform"))
+
+    scroll_to(page, section_top(page, "language-section"))
+    time.sleep(0.6)
+    spot = page.evaluate("(() => { const r = document.getElementById('language-universe').getBoundingClientRect();"
+                         " return { x: r.left + r.width * 0.25, y: r.top + r.height * 0.25 }; })()")
+    page.send("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": spot["x"], "y": spot["y"]})
+    try:
+        page.wait_for("Number(document.getElementById('language-universe').style.getPropertyValue('--universe-x')) < -0.2",
+                      timeout=3)
+        moved = True
+    except CDPError:
+        moved = False
+    results.check(f"{tag} language universe parallax follows the pointer", moved,
+                  page.evaluate("document.getElementById('language-universe').style.getPropertyValue('--universe-x')"))
+
+
 def check_language(page: Page, results: Results, tag: str) -> None:
     for language in ("en", "ja", "zh"):
         page.click_selector("#language-toggle")
@@ -325,6 +360,7 @@ def run_configuration(browser: Browser, server_url: str, device: str, dark: bool
         for step in (
             lambda: check_structure(page, results, dark, tag),
             lambda: check_scroll_and_brain(page, results, tag),
+            lambda: check_pointer(page, results, tag),
             lambda: check_career(page, results, tag),
             lambda: check_language(page, results, tag),
             lambda: check_theme(page, results, tag, dark),
