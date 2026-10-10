@@ -29,7 +29,7 @@ python3 tools/deploy.py                # deploy, asking before the sync
 python3 tools/deploy.py --verify-only  # check the live site only
 ```
 
-It refuses to run from a branch other than `main` or from a dirty working tree, and runs `stamp-assets.py --check` and `check-site.py` first.
+It refuses to run from a branch other than `main` or from a dirty working tree, and runs `stamp-assets.py --check`, `build-photos.py --check` and `check-site.py` first.
 
 ## nginx
 

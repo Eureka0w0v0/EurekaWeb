@@ -2,6 +2,8 @@
 
 Eureka's personal website, built with plain HTML, CSS and JavaScript. No Node toolchain required.
 
+How the code is organised -- modules, events, state machines, the CSS files, the tooling -- is in [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## Running locally
 
 ### Option 1: VS Code task
@@ -44,9 +46,9 @@ python3 tools/stamp-assets.py          # rewrite ?v= from content hashes
 python3 tools/stamp-assets.py --check  # check only; exit code 1 if stale
 ```
 
-It covers four files: `index.html`, `404.html`, `manifest.webmanifest` and `maintenance/index.html`. The other three used to carry hand-written date stamps or none at all, so `--check` could not see them and a swapped icon or an edited maintenance page would have been pinned by the immutable cache for a year. References are resolved relative to the document that holds them, so `../images/...` from the maintenance page works.
+It covers four documents -- `index.html`, `404.html`, `manifest.webmanifest` and `maintenance/index.html` -- and the import specifiers of every module under `js/`. References are resolved relative to the file that holds them, so `../images/...` from the maintenance page works. It also regenerates the `<link rel="modulepreload">` list in `index.html` from the static import graph of `js/main.js`.
 
-`index.html` references `manifest.webmanifest`, and the manifest's own hash changes as soon as its stamps do, so the script iterates to a fixed point: changing one icon converges both the manifest and `index.html` in a single run.
+Stamped files reference each other -- `index.html` references `manifest.webmanifest`, which references the icons, and modules import modules -- and a file's hash changes as soon as its stamps do, so the script iterates to a fixed point: changing one leaf module converges every module above it and `index.html` in a single run.
 
 A local asset referenced **without** `?v=` fails with exit code 2. The one exemption is `sw.js`: a service worker must keep a stable URL to be replaceable, so the nginx config gives it `no-cache` separately.
 
@@ -102,7 +104,7 @@ python3 tools/smoke.py           # desktop, phone and touch tablet, light and da
 python3 tools/smoke.py --quick   # desktop, light, plus the regression checks
 ```
 
-`smoke.py` serves the working tree locally and drives headless Chrome over the DevTools protocol (`tools/cdp.py`, standard library only). The page has to load with no exception, console error or failed request, scroll end to end, step the career cards, switch language and theme, and run the photo carousel, lightbox and Show All. It also checks that a slow `site-config.json` does not hold the page back, that maintenance mode still redirects, and that the service worker keeps one cached copy per asset. CI runs the stamp check, `check-site.py` and the full smoke test before every Pages deploy.
+`smoke.py` serves the working tree locally and drives headless Chrome over the DevTools protocol (`tools/cdp.py`, standard library only). The page has to load with no exception, console error or failed request, scroll end to end, step the career cards, switch language and theme, and run the photo carousel, lightbox and Show All. It also checks that a slow `site-config.json` does not hold the page back, that maintenance mode still redirects, and that the service worker keeps one cached copy per asset. CI runs the stamp check, the photo-card check, `check-site.py` and the full smoke test before every Pages deploy.
 
 For refactors that must not change the page, `tools/snapshot.py` records every element's box and computed styles at each stop of a fixed walk through the site, then compares a later run against it:
 
