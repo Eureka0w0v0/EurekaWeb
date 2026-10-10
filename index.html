@@ -48,7 +48,7 @@
          exactly where it ran at the end of <body> -- and nothing here touches
          the DOM before that: every querySelector is at module top level and
          initApp() is the last statement in the file. -->
-    <script defer src="./script.js?v=5677480f"></script>
+    <script defer src="./script.js?v=6f5650b2"></script>
   </head>
   <body>
     <a class="skip-link" href="#main" data-i18n="skipToContent">跳到主要内容</a>
@@ -85,6 +85,7 @@
           id="language-toggle"
           type="button"
           aria-label="切换语言"
+          data-i18n-aria="languageToggleLabel"
           aria-expanded="false"
         >
           <svg
@@ -172,6 +173,8 @@
         aria-pressed="false"
         aria-label="切换浅色或深色模式"
         title="切换浅色或深色模式"
+        data-i18n-aria="themeToggleLabel"
+        data-i18n-title="themeToggleLabel"
       >
         <span class="theme-icon" aria-hidden="true">
           <span class="theme-icon-sun"></span>
@@ -683,6 +686,7 @@
       role="dialog"
       aria-modal="true"
       aria-label="放大的照片"
+      data-i18n-aria="photoZoomLabel"
     >
       <div class="photo-zoom-shell">
         <button class="photo-zoom-close" id="photo-zoom-close" type="button" data-i18n-aria="photoZoomCloseLabel" aria-label="关闭放大的照片"></button>

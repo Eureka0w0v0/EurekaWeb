@@ -57,6 +57,30 @@ const i18nNodes = document.querySelectorAll("[data-i18n]");
    switch the same as the markup that shipped with the page. */
 const i18nAriaSelector = "[data-i18n-aria]";
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+
+/* A small synchronous publish/subscribe hub. The shared layers -- language,
+   theme, viewport -- announce what changed instead of calling into every
+   section that happens to care, and each section subscribes to what it needs
+   in its own bind...Reactions() function. Listeners run in subscription
+   order, and initApp subscribes the sections in a fixed order on purpose:
+   it reproduces the order the direct calls used to run in.
+
+   No try/catch around listeners: a throwing listener propagates to whoever
+   emitted, exactly as the direct call it replaces would have. */
+const pageEvents = (() => {
+  const listeners = new Map();
+  return {
+    on(type, listener) {
+      if (!listeners.has(type)) {
+        listeners.set(type, []);
+      }
+      listeners.get(type).push(listener);
+    },
+    emit(type, detail) {
+      (listeners.get(type) || []).forEach((listener) => listener(detail));
+    },
+  };
+})();
 /* The envelope the shell is sculpted from, in local units before the group's
    scale: the surface starts as this ellipsoid and is pushed into a brain from
    there (see shellPoint), so these set its overall length, height and width.
@@ -203,7 +227,7 @@ let photoAllExpandedDuration = 880;
 const photoAllExpandedLayouts = new Map();
 let photoExpandedScrollExtraPx = 0;
 const photoCardStyleCache = new WeakMap();
-const photoElementStyleCache = new WeakMap();
+const elementStyleCache = new WeakMap();
 let photoLayoutMetricsCache = null;
 let photoCarouselHitRectCache = null;
 let photoCarouselWheelDelta = 0;
@@ -1241,10 +1265,6 @@ function syncLanguageChrome(copy, language) {
     metaDescription.setAttribute("content", copy.description);
   }
 
-  languageToggle?.setAttribute("aria-label", copy.languageToggleLabel);
-  themeToggle?.setAttribute("aria-label", copy.themeToggleLabel);
-  themeToggle?.setAttribute("title", copy.themeToggleLabel);
-  photoZoomOverlay?.setAttribute("aria-label", copy.photoZoomLabel);
   applyAriaLabels(copy);
 
   languageOptions.forEach((option) => {
@@ -1318,15 +1338,7 @@ function applyLanguage(language) {
     node.textContent = copy[key];
   });
 
-  syncPhotoShowAllButtonCopy();
-  setActiveLanguageNode(activeLanguageNode);
-  buildMagneticHeading();
-  buildWelcomeCanvas();
-  requestWelcomeRender();
-  window.requestAnimationFrame(() => {
-    updateCareerScene();
-    requestCareerSceneUpdate();
-  });
+  pageEvents.emit("language:change", { language: nextLanguage, copy, animated: false });
 }
 
 function getLanguageNodeTags(nodeInfo, copy) {
@@ -1810,6 +1822,14 @@ function resetLanguageUniverseParallax() {
   requestLanguageNetworkSync();
 }
 
+function bindLanguageUniverseReactions() {
+  /* Re-applied rather than left alone: the insight panel's title, text and
+     tags are copy for the active node in the active language. */
+  pageEvents.on("language:change", () => {
+    setActiveLanguageNode(activeLanguageNode);
+  });
+}
+
 function revealLanguageUniverse() {
   if (!languageUniverse || shouldReduceMotion()) {
     languageUniverse?.classList.add("is-visible");
@@ -2132,10 +2152,7 @@ async function switchLanguageWithAnimation(language) {
     return;
   }
 
-  /* The kinetic pass rewrites each node's children, detaching the per-character
-     spans. Drop the references now so the pointer loop is not writing styles
-     into orphaned nodes for the length of the animation. */
-  magnetChars.length = 0;
+  pageEvents.emit("language:will-change", { language: nextLanguage });
 
   try {
     const { copy, animated, liteNodes, staticNodes } = getKineticTextPlan(nextLanguage);
@@ -2145,17 +2162,14 @@ async function switchLanguageWithAnimation(language) {
     staticNodes.forEach(({ node, toText }) => {
       node.textContent = toText;
     });
-    syncPhotoShowAllButtonCopy();
-    setActiveLanguageNode(activeLanguageNode);
-    buildWelcomeCanvas(copy.welcomeWord);
-    requestWelcomeRender();
+    pageEvents.emit("language:change", { language: nextLanguage, copy, animated: true });
 
     await runKineticLanguageBatches(animated, liteNodes, pool);
   } catch (error) {
     applyLanguage(nextLanguage);
   } finally {
     isLanguageTransitioning = false;
-    buildMagneticHeading();
+    pageEvents.emit("language:did-change", { language: nextLanguage });
   }
 }
 
@@ -3100,6 +3114,13 @@ function requestWelcomeRender() {
   });
 }
 
+function bindWelcomeReactions() {
+  pageEvents.on("language:change", ({ copy }) => {
+    buildWelcomeCanvas(copy.welcomeWord);
+    requestWelcomeRender();
+  });
+}
+
 function requestWelcomeScatterUpdate() {
   requestWelcomeRender();
 }
@@ -3488,6 +3509,21 @@ function updateCareerScene() {
   careerSection.style.setProperty("--career-alien-scale", (0.78 + alienProgress * 0.22).toFixed(3));
 }
 
+function bindCareerReactions() {
+  /* Card copy changes length between languages, so the scene is re-measured a
+     frame later, once the new text has laid out. The animated path leaves
+     this to the scroll and resize handlers, as it always has. */
+  pageEvents.on("language:change", ({ animated }) => {
+    if (animated) {
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      updateCareerScene();
+      requestCareerSceneUpdate();
+    });
+  });
+}
+
 function requestCareerSceneUpdate() {
   if (isCareerSceneThemeLocked()) {
     return;
@@ -3503,12 +3539,12 @@ function requestCareerSceneUpdate() {
   });
 }
 
-function getPhotoElementStyleCache(element) {
-  let cache = photoElementStyleCache.get(element);
+function getElementStyleCache(element) {
+  let cache = elementStyleCache.get(element);
 
   if (!cache) {
     cache = new Map();
-    photoElementStyleCache.set(element, cache);
+    elementStyleCache.set(element, cache);
   }
 
   return cache;
@@ -3519,7 +3555,7 @@ function setStylePropertyIfChanged(element, name, value) {
     return;
   }
 
-  const cache = getPhotoElementStyleCache(element);
+  const cache = getElementStyleCache(element);
 
   if (cache.get(name) === value) {
     return;
@@ -3535,7 +3571,7 @@ function setStyleFieldIfChanged(element, name, value) {
   }
 
   const cacheKey = `style:${name}`;
-  const cache = getPhotoElementStyleCache(element);
+  const cache = getElementStyleCache(element);
 
   if (cache.get(cacheKey) === value) {
     return;
@@ -3719,6 +3755,12 @@ function syncPhotoShowAllButtonCopy() {
   if (photoShowAllButton.textContent !== showAllText) {
     photoShowAllButton.textContent = showAllText;
   }
+}
+
+function bindPhotoReactions() {
+  pageEvents.on("language:change", () => {
+    syncPhotoShowAllButtonCopy();
+  });
 }
 
 function applyPhotoShowAllFrame({
@@ -7137,6 +7179,25 @@ function releaseMagnet() {
 
 /* Called after every language switch: applyLanguage writes textContent, which
    destroys the per-character spans. */
+function bindHeroReactions() {
+  /* The kinetic pass rewrites each node's children, detaching the
+     per-character spans. Drop the references before it starts so the pointer
+     loop is not writing styles into orphaned nodes for the length of the
+     animation, and rebuild once it is over. The instant path has no kinetic
+     pass, so it rebuilds straight away. */
+  pageEvents.on("language:will-change", () => {
+    magnetChars.length = 0;
+  });
+  pageEvents.on("language:change", ({ animated }) => {
+    if (!animated) {
+      buildMagneticHeading();
+    }
+  });
+  pageEvents.on("language:did-change", () => {
+    buildMagneticHeading();
+  });
+}
+
 function buildMagneticHeading() {
   const heading = document.querySelector(".hero-copy h1");
 
@@ -7755,6 +7816,14 @@ function handleWindowResize() {
 }
 
 async function initApp() {
+  /* Order matters: listeners run in subscription order, and this is the
+     order applyLanguage used to call these sections in. */
+  bindPhotoReactions();
+  bindLanguageUniverseReactions();
+  bindHeroReactions();
+  bindWelcomeReactions();
+  bindCareerReactions();
+
   redirectIfInMaintenance();
 
   const introPromise = runIntroAnimation();
