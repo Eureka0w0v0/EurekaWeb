@@ -9,7 +9,7 @@ import {
   syncViewportHeightVar,
   visualViewportWidthChanged,
 } from "./core/viewport.js?v=71b5eb94";
-import { initGrainCanvas } from "./effects/grain.js?v=f1e9e677";
+import { initGrainCanvas } from "./effects/grain.js?v=70366064";
 import {
   applyLanguage,
   bindLanguageMenuReactions,
