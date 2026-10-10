@@ -25,7 +25,7 @@ Two things it fixes on the way through:
     python3 tools/add-photo.py shot.jpg --name kamakura-beach
 
 Cards are printed, not inserted. The photo section's markup carries ordering
-state (data-photo-base, aria-label) that the scroll choreography in script.js
+state (data-photo-base, aria-label) that the scroll choreography in js/photo.js
 reads, and quietly rewriting that by machine is a good way to break a very
 hand-tuned animation.
 """

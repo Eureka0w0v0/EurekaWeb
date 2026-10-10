@@ -56,7 +56,7 @@ HTTP_TIMEOUT_S = 15
 # for the listed extensions only.
 DEPLOY_FILES = (
     "index.html", "404.html", "sw.js", "site-config.json", "manifest.webmanifest",
-    "robots.txt", "sitemap.xml", "styles.css", "script.js",
+    "robots.txt", "sitemap.xml", "styles.css",
 )
 DEPLOY_DIRS = {
     "css": (".css",),

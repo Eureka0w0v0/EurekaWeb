@@ -39,7 +39,7 @@
      --z-photo-title        30   the photo section's fixed title
      --z-theme-wave         40   the theme-change ripple
      --z-photo-controls   1400   Show All: above the photo cards, which
-                                 script.js stacks at up to z-index 1040
+                                 js/photo.js stacks at up to z-index 1040
      --z-lightbox         1900   the photo lightbox
      --z-theme-wave-mobile 9999  the mobile ripple variants
      --z-intro           99999   the intro curtain
@@ -378,7 +378,7 @@ html {
   transition: background-color 320ms ease;
 }
 
-/* script.js already checks shouldReduceMotion() before every scroll it drives
+/* The script already checks shouldReduceMotion() before every scroll it drives
    (see initJumpLinks), but the skip link is a plain hash href handled by the
    browser, so that path needs the CSS side turned off too. */
 @media (prefers-reduced-motion: reduce) {
@@ -3879,7 +3879,7 @@ html.theme-dark .photo-queue::before {
 
 /* Both of these need the width floor, and both need to exist.
    (hover: hover) and (pointer: fine) is the media query; is-desktop-input is
-   the class script.js sets from navigator.maxTouchPoints === 0. A touchscreen
+   the class js/core/viewport.js sets from navigator.maxTouchPoints === 0. A touchscreen
    laptop matches the query but not the class, so neither is redundant.
 
    The floor is 781px because that is where this layout stops fitting, not

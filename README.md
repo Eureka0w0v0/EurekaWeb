@@ -63,7 +63,7 @@ python3 tools/add-photo.py shot.jpg --name kamakura-beach
 
 Generates the preview / medium / full WebP tiers (longest edge 640 / 1280 / 1920, q92), **strips EXIF** (phone photos carry GPS), lowercases the file name, and prints a ready-to-paste `<article>` card.
 
-The card is printed rather than inserted automatically: `script.js` reads the `data-photo-base` order in the photo section to choreograph the scroll animation, and machine edits there break it easily. Run `stamp-assets.py` again after pasting.
+The card is printed rather than inserted automatically: `js/photo.js` reads the `data-photo-base` order in the photo section to choreograph the scroll animation, and machine edits there break it easily. Run `stamp-assets.py` again after pasting.
 
 ## Image tiers
 
