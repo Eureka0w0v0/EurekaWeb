@@ -49,7 +49,7 @@ import {
   stopPhotoZoomScroll,
   togglePhotoAllExpanded,
   updatePhotoScene,
-} from "./photo.js?v=2da595b8";
+} from "./photo.js?v=3d7807be";
 import {
   bindBrainReactions,
   brainSceneController,
