@@ -22,34 +22,41 @@ import {
   toggleLanguageMenu,
 } from "./i18n/language.js?v=c4a9e128";
 import { initJumpLinks, initSectionRail } from "./nav.js?v=2f0ea05b";
+import { initPhotoQueueCards } from "./photo/cards.js?v=3742a350";
 import {
-  bindPhotoReactions,
-  cancelPhotoSceneFrame,
-  closePhotoZoom,
-  handlePhotoCardKeydown,
   handlePhotoCarouselTouchEnd,
   handlePhotoCarouselTouchMove,
   handlePhotoCarouselTouchStart,
   handlePhotoCarouselWheel,
-  handlePhotoMainCardClick,
-  handlePhotoMainCardPointerPreload,
-  handlePhotoMainCardTouchPreload,
-  handlePhotoZoomClosePointerDown,
-  handlePhotoZoomOverlayPointerDown,
-  initPhotoCardHoverGlow,
-  initPhotoQueueCards,
-  invalidatePhotoLayoutCaches,
+} from "./photo/carousel.js?v=75cfa7fb";
+import {
   photoSection,
   photoShowAllButton,
   photoStage,
-  isPhotoZoomOpen,
   photoZoomCloseButton,
   photoZoomOverlay,
+} from "./photo/dom.js?v=64ce044a";
+import { bindPhotoReactions, togglePhotoAllExpanded } from "./photo/expand.js?v=1dc6ef87";
+import { initPhotoCardHoverGlow } from "./photo/hover-glow.js?v=18fbb765";
+import {
+  handlePhotoCardKeydown,
+  handlePhotoMainCardClick,
+  handlePhotoMainCardPointerPreload,
+  handlePhotoMainCardTouchPreload,
+} from "./photo/interaction.js?v=84ee121e";
+import { invalidatePhotoLayoutCaches } from "./photo/layout.js?v=6166abf4";
+import { updatePhotoScene } from "./photo/scene.js?v=3355d386";
+import {
+  cancelPhotoSceneFrame,
+  isPhotoZoomOpen,
   requestPhotoSceneUpdate,
+} from "./photo/state.js?v=b4cbf01b";
+import {
+  closePhotoZoom,
+  handlePhotoZoomClosePointerDown,
+  handlePhotoZoomOverlayPointerDown,
   stopPhotoZoomScroll,
-  togglePhotoAllExpanded,
-  updatePhotoScene,
-} from "./photo.js?v=24e4d6d2";
+} from "./photo/zoom.js?v=5d4a4ded";
 import {
   bindBrainReactions,
   brainSceneController,
