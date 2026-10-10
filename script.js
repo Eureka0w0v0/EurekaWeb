@@ -69,6 +69,12 @@ const themeColorMeta = document.querySelector('meta[name="theme-color"]');
 const BRAIN_SHELL = { rx: 5.8, ry: 4.5, rz: 4.2, cy: 0.32 };
 
 const DESKTOP_BRAIN_WRAP_WIDTH = 660;
+/* Below this width the brain scene pulls its camera back to fit a canvas
+   wider than the screen, and builds lighter geometry. It is the scene's own
+   threshold rather than COMPACT_MAX_WIDTH; the value dates from the first
+   commit with no recorded reason, and is kept because changing it would move
+   the camera for every window between 680 and 719px wide. */
+const BRAIN_CAMERA_FIT_BELOW = 720;
 const DESKTOP_BRAIN_RENDER_WIDTH = Math.round(DESKTOP_BRAIN_WRAP_WIDTH * 1.16);
 const DESKTOP_BRAIN_RENDER_HEIGHT = Math.round((DESKTOP_BRAIN_WRAP_WIDTH / 2) * 1.22);
 
@@ -488,11 +494,39 @@ const languageNodeInfo = {
 
 let activeLanguageNode = "js";
 
-function isDesktopViewport() {
-  return window.innerWidth >= 1024;
+/* Three questions about the viewport, each answered in exactly one place and
+   each mirroring a media query in styles.css (see "Breakpoints" at the top of
+   that file):
+
+     isCompactLayout()  width <= 680px            (max-width: 680px)
+                        the phone layout: geometry, sizes, positions
+     isTouchFirst()     compact, or a touch-only  (max-width: 680px),
+                        device of any width       (hover: none) and (pointer: coarse)
+                        interaction: gestures, hover effects, lighter animation
+     isWideLayout()     width >= 1024px           (min-width: 1024px)
+                        desktop-only affordances
+
+   They are not interchangeable. A landscape tablet is touch-first but not
+   compact, and the CSS gives it the touch treatment with the wide layout, so
+   layout code has to ask the first question and interaction code the second. */
+const COMPACT_MAX_WIDTH = 680;
+const WIDE_MIN_WIDTH = 1024;
+const touchFirstMedia = window.matchMedia?.(
+  `(max-width: ${COMPACT_MAX_WIDTH}px), (hover: none) and (pointer: coarse)`
+);
+
+function isCompactLayout() {
+  return window.innerWidth <= COMPACT_MAX_WIDTH;
 }
 
-const mobileViewportMedia = window.matchMedia?.("(max-width: 680px), (hover: none) and (pointer: coarse)");
+function isTouchFirst() {
+  return Boolean(touchFirstMedia?.matches || isCompactLayout());
+}
+
+function isWideLayout() {
+  return window.innerWidth >= WIDE_MIN_WIDTH;
+}
+
 let stableMobileAppHeight = 0;
 let stableMobileAppWidth = 0;
 let stableMobileOrientation = "";
@@ -512,12 +546,8 @@ const careerSceneThemeCache = new Map();
 const careerGeometryLockTargets = [];
 const careerGeometryLockCache = new Map();
 
-function isMobileViewport() {
-  return Boolean(mobileViewportMedia?.matches || window.innerWidth <= 680);
-}
-
 function getCareerLayerSwitchDuration() {
-  return isMobileViewport() ? 360 : 430;
+  return isTouchFirst() ? 360 : 430;
 }
 
 function getViewportOrientationKey() {
@@ -563,7 +593,7 @@ function cacheInlineStyleSnapshot(element) {
 }
 
 function lockElementToViewportRect(element, { zIndex = null, contain = "" } = {}) {
-  if (!element || !isMobileViewport()) {
+  if (!element || !isTouchFirst()) {
     return;
   }
 
@@ -593,7 +623,7 @@ function lockElementToViewportRect(element, { zIndex = null, contain = "" } = {}
 }
 
 function lockCareerSceneToViewportForTheme() {
-  if (!careerScene || !isMobileViewport()) {
+  if (!careerScene || !isTouchFirst()) {
     return false;
   }
 
@@ -626,7 +656,7 @@ function lockCareerSceneToViewportForTheme() {
 }
 
 function lockCareerCardStackForTheme() {
-  if (!careerCardStack || !isMobileViewport()) {
+  if (!careerCardStack || !isTouchFirst()) {
     return;
   }
 
@@ -662,7 +692,7 @@ function lockCareerCardStackForTheme() {
 }
 
 function lockCareerGeometryForTheme() {
-  if (!isMobileViewport()) {
+  if (!isTouchFirst()) {
     return;
   }
 
@@ -701,7 +731,7 @@ function restoreCareerGeometryForTheme() {
 }
 
 function freezeCareerLayerStylesForTheme() {
-  if (!careerCardStack || !isMobileViewport()) {
+  if (!careerCardStack || !isTouchFirst()) {
     return;
   }
 
@@ -723,7 +753,7 @@ function restoreCareerLayerStylesForTheme() {
 }
 
 function freezeCareerSceneForTheme({ lockGeometry = true } = {}) {
-  if (!careerSection || !isMobileViewport()) {
+  if (!careerSection || !isTouchFirst()) {
     return;
   }
 
@@ -764,7 +794,7 @@ function freezeCareerSceneForTheme({ lockGeometry = true } = {}) {
 }
 
 function clearStaleCareerThemeLockBeforeTransition() {
-  if (!isMobileViewport() || careerThemeRestorePending || isThemeTransitioning) {
+  if (!isTouchFirst() || careerThemeRestorePending || isThemeTransitioning) {
     return;
   }
 
@@ -805,7 +835,7 @@ function scheduleCareerSceneResumeAfterTheme() {
 
   const resumeWhenThemeWaveSettles = () => {
     if (
-      isMobileViewport() &&
+      isTouchFirst() &&
       (
         isThemeTransitioning ||
         themeWave?.classList.contains("is-active") ||
@@ -951,7 +981,7 @@ function redirectIfInMaintenance() {
 }
 
 function syncViewportHeightVar() {
-  if (isMobileViewport()) {
+  if (isTouchFirst()) {
     const width = Math.round(window.innerWidth);
     const orientation = getViewportOrientationKey();
     const shouldRefreshStableHeight = (
@@ -1050,7 +1080,7 @@ function syncSystemChromeForTheme(theme) {
 
 function applyTheme(theme, options = {}) {
   const {
-    deferHeavyWork = isMobileViewport(),
+    deferHeavyWork = isTouchFirst(),
     skipHeavyWork = false,
     syncSnapshotVisuals = false,
     deferSystemChrome = false,
@@ -1419,7 +1449,7 @@ function getEllipseEdgePoint(ellipse, nodeRect) {
 }
 
 function getBrainEdgePoint(anchorRect, nodeRect) {
-  const isMobileLayout = window.innerWidth <= 680;
+  const isMobileLayout = isCompactLayout();
   const center = {
     x: anchorRect.left + anchorRect.width * 0.5,
     y: anchorRect.top + anchorRect.height * (isMobileLayout ? 0.54 : 0.58),
@@ -1594,7 +1624,7 @@ function syncLanguageNetworkLines() {
 
   const networkRect = languageNetwork.getBoundingClientRect();
   const anchorRect = brainWrap?.getBoundingClientRect() || brainMount.getBoundingClientRect();
-  const usesMobileAnchors = window.innerWidth <= 680;
+  const usesMobileAnchors = isCompactLayout();
   /* Two different outlines on purpose. Lines end on the shell, because that is
      the surface they read as plugging into; pills ring the whole brain, so the
      cerebellum's mass is accounted for and the ring is not pulled off centre by
@@ -1753,7 +1783,7 @@ function requestLanguageNetworkSync() {
 }
 
 function updateLanguageUniverseParallax(event) {
-  if (!languageUniverse || !isDesktopViewport()) {
+  if (!languageUniverse || !isWideLayout()) {
     return;
   }
 
@@ -1832,7 +1862,7 @@ function isNodeInAnimationViewport(node) {
 function getKineticTextPlan(language) {
   const nextLanguage = pageTranslations[language] ? language : "zh";
   const copy = pageTranslations[nextLanguage];
-  const maxChars = isDesktopViewport()
+  const maxChars = isWideLayout()
     ? languageKineticConfig.MAX_DESKTOP_CHARS
     : languageKineticConfig.MAX_MOBILE_CHARS;
   let animatedCharCount = 0;
@@ -1990,8 +2020,8 @@ function commitKineticText(node, key, text) {
 function animateKineticLiteNode({ node, key, fromText, toText }, pool, nodeIndex) {
   const unlockSize = lockLanguageNodeSize(node, toText);
   const timers = [];
-  const duration = isMobileViewport() ? 360 : 420;
-  const distance = isMobileViewport() ? 8 : 12;
+  const duration = isTouchFirst() ? 360 : 420;
+  const distance = isTouchFirst() ? 8 : 12;
   const direction = nodeIndex % 2 === 0 ? 1 : -1;
 
   node.textContent = fromText;
@@ -2050,7 +2080,7 @@ function waitForNextAnimationFrame() {
 }
 
 async function runKineticLanguageBatches(animated, liteNodes, pool) {
-  const batchLimit = isMobileViewport()
+  const batchLimit = isTouchFirst()
     ? languageKineticConfig.MOBILE_BATCH_CHARS
     : languageKineticConfig.DESKTOP_BATCH_CHARS;
   const tasks = [
@@ -2158,7 +2188,7 @@ function isCareerSectionInViewport() {
   }
 
   const rect = careerSection.getBoundingClientRect();
-  const viewportHeight = isMobileViewport()
+  const viewportHeight = isTouchFirst()
     ? Math.max(stableMobileAppHeight || window.innerHeight, 1)
     : Math.max(window.innerHeight, document.documentElement.clientHeight, 1);
 
@@ -2220,7 +2250,7 @@ function resetThemeWave() {
 
 function prepareThemeWave(originX, originY, nextTheme) {
   const endRadius = getWaveEndRadius(originX, originY);
-  const waveSafetyPadding = isMobileViewport() ? 160 : 12;
+  const waveSafetyPadding = isTouchFirst() ? 160 : 12;
   root.style.setProperty("--wave-x", `${originX}px`);
   root.style.setProperty("--wave-y", `${originY}px`);
   root.style.setProperty("--wave-diameter", `${Math.ceil(endRadius * 2 + waveSafetyPadding)}px`);
@@ -2301,7 +2331,7 @@ function endViewTransitionDomLock() {
 }
 
 function beginSnapshotThemeLiteMode() {
-  if (!isMobileViewport()) {
+  if (!isTouchFirst()) {
     return false;
   }
 
@@ -2342,7 +2372,7 @@ async function runMobileThemeWave(originX, originY, nextTheme) {
   );
   themeWave.style.opacity = "1";
   themeWave.style.clipPath = `circle(0px at ${originX}px ${originY}px)`;
-  const lockCareerGeometry = !(isMobileViewport() && isCareerSectionInViewport());
+  const lockCareerGeometry = !(isTouchFirst() && isCareerSectionInViewport());
   beginThemeTransitionContext({ lockGeometry: lockCareerGeometry });
   let didCommit = false;
 
@@ -2715,17 +2745,17 @@ async function triggerThemeWave(originX, originY, nextTheme) {
   closeLanguageMenu();
 
   try {
-    if (isMobileViewport() && isCareerSectionInViewport() && supportsSnapshotThemeWave()) {
+    if (isTouchFirst() && isCareerSectionInViewport() && supportsSnapshotThemeWave()) {
       await runMobileCareerSnapshotThemeWave(originX, originY, nextTheme);
     } else if (supportsSnapshotThemeWave()) {
       await runSnapshotThemeWave(originX, originY, nextTheme);
-    } else if (isMobileViewport()) {
+    } else if (isTouchFirst()) {
       await runMobileThemeWave(originX, originY, nextTheme);
     } else {
       await runFallbackThemeWave(originX, originY, nextTheme);
     }
   } catch (error) {
-    if (isMobileViewport()) {
+    if (isTouchFirst()) {
       await runMobileThemeSafetyFade(nextTheme);
     } else {
       await runFallbackThemeWave(originX, originY, nextTheme);
@@ -3075,7 +3105,7 @@ function requestWelcomeScatterUpdate() {
 }
 
 function updateHeroParallax() {
-  const desktopBoost = isDesktopViewport() ? 1.55 : 1;
+  const desktopBoost = isWideLayout() ? 1.55 : 1;
   if (heroSection && heroCopy && heroVisual) {
     const heroRect = heroSection.getBoundingClientRect();
     const heroProgress = Math.min(
@@ -3085,8 +3115,8 @@ function updateHeroParallax() {
     const heroDepth = heroProgress - 0.4;
     const heroCopyShift = heroDepth * -48 * desktopBoost;
     const heroVisualShift = heroDepth * 42 * desktopBoost;
-    const heroCopyScale = 1 - heroProgress * (isDesktopViewport() ? 0.05 : 0.03);
-    const heroVisualScale = 1 + heroProgress * (isDesktopViewport() ? 0.04 : 0.025);
+    const heroCopyScale = 1 - heroProgress * (isWideLayout() ? 0.05 : 0.03);
+    const heroVisualScale = 1 + heroProgress * (isWideLayout() ? 0.04 : 0.025);
 
     heroCopy.style.transform =
       `translate3d(0, ${heroCopyShift}px, 0) scale(${heroCopyScale})`;
@@ -3212,7 +3242,7 @@ function setCareerLayer(nextLayer, direction = "forward") {
   const switchDuration = getCareerLayerSwitchDuration();
   careerCardStack.dataset.direction = animationDirection;
   careerCardStack.classList.remove("is-switching-forward", "is-switching-back");
-  if (!shouldReduceMotion() && !isMobileViewport()) {
+  if (!shouldReduceMotion() && !isTouchFirst()) {
     careerCardStack.classList.add(animationDirection === "back" ? "is-switching-back" : "is-switching-forward");
   }
   updateCareerLayerClasses();
@@ -3307,7 +3337,7 @@ function canScrollCareerLayer(scrollArea, deltaY) {
     return false;
   }
 
-  if (!isMobileViewport() && activeCareerLayer === 3) {
+  if (!isTouchFirst() && activeCareerLayer === 3) {
     scrollArea.scrollTop = 0;
     return false;
   }
@@ -3421,7 +3451,7 @@ function updateCareerScene() {
   }
 
   const rect = careerSection.getBoundingClientRect();
-  const viewportHeight = isMobileViewport()
+  const viewportHeight = isTouchFirst()
     ? Math.max(stableMobileAppHeight || window.innerHeight, 1)
     : Math.max(window.innerHeight, window.visualViewport?.height || 0, 1);
   const progress = clamp01((viewportHeight * 0.85 - rect.top) / (viewportHeight * 1.05));
@@ -3937,11 +3967,11 @@ function getPhotoZoomPreloadKey(sourceContent) {
    used to be 6 and 10, exactly double, and every extra entry holds a decoded
    1920w bitmap: roughly 9.8MB once the browser has expanded it. */
 function getPhotoZoomPreloadLimit() {
-  return isMobileViewport() ? 3 : 5;
+  return isTouchFirst() ? 3 : 5;
 }
 
 function getPhotoZoomPreloadConcurrency() {
-  return isMobileViewport() ? 1 : 2;
+  return isTouchFirst() ? 1 : 2;
 }
 
 function prunePhotoZoomPreloadCache(activeSlot = photoZoomPreloadLastActiveSlot) {
@@ -4076,7 +4106,7 @@ function preloadPhotoZoomContent(sourceContent, priority = false, slot = null) {
   pumpPhotoZoomPreloadQueue();
 }
 
-function preloadNearbyPhotoZoomImages(activeSlot, radius = (isMobileViewport() ? 1 : 2)) {
+function preloadNearbyPhotoZoomImages(activeSlot, radius = (isTouchFirst() ? 1 : 2)) {
   if (!Number.isFinite(activeSlot) || photoSlotContentMap.size === 0) {
     return;
   }
@@ -4162,7 +4192,7 @@ function openPhotoZoom(sourceContent) {
         recoverFromPhotoZoomFailure(token, sourceContent, cachedZoom.src);
       }
     });
-    preloadNearbyPhotoZoomImages(clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex)), isMobileViewport() ? 1 : 2);
+    preloadNearbyPhotoZoomImages(clampPhotoCarouselIndex(Math.round(photoCarouselVisualIndex)), isTouchFirst() ? 1 : 2);
     return;
   }
 
@@ -4585,7 +4615,7 @@ function createPhotoHitRectCollector(stageRect, cardWidth, cardHeight) {
 }
 
 function applyPhotoCardStyle(card, layout, options = {}) {
-  const useMobilePhotoPerformance = options.mobilePerformance ?? isMobileViewport();
+  const useMobilePhotoPerformance = options.mobilePerformance ?? isTouchFirst();
   const transform = `translate3d(${layout.x.toFixed(2)}px, ${layout.y.toFixed(2)}px, 0) rotate(${layout.rotate.toFixed(2)}deg) scale(${layout.scale.toFixed(3)})`;
   const opacity = layout.opacity.toFixed(3);
   const zIndex = String(layout.zIndex);
@@ -4659,7 +4689,7 @@ function updatePhotoScene(timestamp = window.performance.now()) {
     return false;
   }
 
-  const isCompact = window.innerWidth <= 680;
+  const isCompact = isCompactLayout();
   const viewportHeight = isCompact
     ? Math.max(stableMobileAppHeight || window.innerHeight, 1)
     : Math.max(window.innerHeight, window.visualViewport?.height || 0, 1);
@@ -5625,7 +5655,7 @@ function setPhotoSelectedSlot(slot) {
   const nextSlot = clampPhotoCarouselIndex(Math.round(slot));
   photoSelectedSlot = nextSlot;
   photoSelectedSourceCard = photoCardSlotMap.get(nextSlot) || photoSelectedSourceCard;
-  preloadNearbyPhotoZoomImages(nextSlot, isMobileViewport() ? 1 : 2);
+  preloadNearbyPhotoZoomImages(nextSlot, isTouchFirst() ? 1 : 2);
 }
 
 function beginPhotoCarouselSettle(preferTarget = false) {
@@ -5766,7 +5796,7 @@ function isPointInPhotoCarousel(x, y) {
     return false;
   }
 
-  const isCompact = window.innerWidth <= 680;
+  const isCompact = isCompactLayout();
   const hitSlopX = isCompact ? 28 : 48;
   const hitSlopY = isCompact ? 58 : 96;
 
@@ -6005,7 +6035,7 @@ function handlePointerMove(event) {
 }
 
 function applyPointerMove(event) {
-  if (!tiltCard || !isDesktopViewport() || event.pointerType !== "mouse") {
+  if (!tiltCard || !isWideLayout() || event.pointerType !== "mouse") {
     updateLanguageUniverseParallax(event);
     return;
   }
@@ -6070,7 +6100,7 @@ async function createBrainWireframeScene(mount) {
        on both sides. Pull the camera back by that overflow ratio, plus a
        little air, so the whole silhouette fits the viewport instead. */
     function fitCameraDistance() {
-      const compactViewport = window.innerWidth < 720;
+      const compactViewport = window.innerWidth < BRAIN_CAMERA_FIT_BELOW;
       const overflow = compactViewport
         ? Math.max(1, ((mount.clientWidth || window.innerWidth) / window.innerWidth) * 1.12)
         : 1;
@@ -6092,7 +6122,7 @@ async function createBrainWireframeScene(mount) {
     const random = createSeededRandom(20260427);
     const pts = [];
     const edgeSet = new Set();
-    const isCompact = window.innerWidth < 720;
+    const isCompact = window.innerWidth < BRAIN_CAMERA_FIT_BELOW;
 
     function addEdge(set, a, b) {
       if (a === b) return;
@@ -6635,7 +6665,7 @@ async function createBrainWireframeScene(mount) {
       const widthChanged = Math.abs(width - lastBrainRenderWidth) > 1;
       const heightChanged = Math.abs(height - lastBrainRenderHeight) > 1;
 
-      if (lastBrainRenderWidth && !widthChanged && (!heightChanged || isMobileViewport())) {
+      if (lastBrainRenderWidth && !widthChanged && (!heightChanged || isTouchFirst())) {
         return;
       }
 
@@ -6925,7 +6955,7 @@ function runIntroAnimation() {
   const kicker = welcomeSection?.querySelector(".welcome-kicker") || null;
 
   return new Promise((resolve) => {
-    const isCompact = window.innerWidth <= 680;
+    const isCompact = isCompactLayout();
     const stagger = isCompact ? 32 : 38;
     const partDuration = isCompact ? 700 : 820;
     overlay.style.setProperty("--intro-part", `${partDuration}ms`);
@@ -7207,7 +7237,7 @@ function initCinematicParallax() {
   function updateCinematicParallax() {
     const vh = window.innerHeight;
     const center = vh / 2;
-    const mobile = isMobileViewport();
+    const mobile = isTouchFirst();
     const strength = mobile ? 0.5 : 1.0;
 
     /* Measure everything first, then write. Interleaving the two forced a
@@ -7262,7 +7292,7 @@ function initGrainCanvas() {
   if (!canvas) return;
 
   /* Skip on mobile & reduced-motion */
-  if (isMobileViewport() || shouldReduceMotion()) {
+  if (isTouchFirst() || shouldReduceMotion()) {
     canvas.style.display = "none";
     return;
   }
@@ -7371,7 +7401,7 @@ function initGrainCanvas() {
    ═══════════════════════════════════════════════════════════════ */
 
 function initPhotoCardHoverGlow() {
-  if (isMobileViewport()) return; /* No cursor tracking on touch devices */
+  if (isTouchFirst()) return; /* No cursor tracking on touch devices */
   const stage = document.querySelector(".photo-stage");
   if (!stage) return;
 
