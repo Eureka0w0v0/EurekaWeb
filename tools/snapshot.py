@@ -69,7 +69,7 @@ CAPTURE = r"""((viewportOnly) => {
       animation.currentTime = 0;
     }
   }
-  const SKIP = ["#brain-three-mount", ".language-network", "#grain-canvas", "#welcome-canvas",
+  const SKIP = ["head", "#brain-three-mount", ".language-network", "#grain-canvas", "#welcome-canvas",
     "#mars-clock", "#intro-overlay", "script", "style", "noscript"];
   // Placed around the brain's projected outline, which turns every frame.
   const NO_GEOMETRY = [".language-node-field", ".language-node", ".brain-wrap"];
