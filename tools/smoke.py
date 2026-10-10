@@ -380,20 +380,22 @@ def check_service_worker_cache(browser: Browser, server_url: str, results: Resul
         page.wait_for("!!navigator.serviceWorker?.controller", timeout=15,
                       message="service worker never took control")
         urls = page.evaluate("""(async () => {
-          const name = (await caches.keys()).find((key) => key.startsWith("eureka-assets"))
-            || "eureka-assets-probe";
+          const settle = () => new Promise((resolve) => setTimeout(resolve, 500));
+          const assetCaches = async () => (await caches.keys()).filter((key) => key.startsWith("eureka-assets"));
+          // One request through the worker first, so the stale copies below go
+          // into the cache it actually uses rather than one the test invents.
+          await (await fetch(`./styles.css?v=warmup-${Date.now()}`)).text();
+          await settle();
+          const [name] = await assetCaches();
           const cache = await caches.open(name);
           const asset = new URL("./styles.css", location.href).href;
           await cache.put(new Request(asset + "?v=stale-one"), new Response("/* stale */"));
           await cache.put(new Request(asset + "?v=stale-two"), new Response("/* stale */"));
-          const live = (await caches.keys()).find((key) => key.startsWith("eureka-assets"));
-          const response = await fetch(`./styles.css?v=probe-${Date.now()}`);
-          await response.text();
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          const caches_ = await Promise.all((await caches.keys())
-            .filter((key) => key.startsWith("eureka-assets"))
+          await (await fetch(`./styles.css?v=probe-${Date.now()}`)).text();
+          await settle();
+          const entries = await Promise.all((await assetCaches())
             .map(async (key) => (await (await caches.open(key)).keys()).map((request) => request.url)));
-          return caches_.flat().filter((url) => new URL(url).pathname.endsWith("/styles.css"));
+          return entries.flat().filter((url) => new URL(url).pathname.endsWith("/styles.css"));
         })()""")
         results.check("[sw] one cached copy per asset path", len(urls) == 1, json.dumps(urls))
     finally:

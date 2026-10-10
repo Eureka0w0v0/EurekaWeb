@@ -19,13 +19,17 @@
 const VERSION = "2026-09-15-2";
 const SHELL_CACHE = `eureka-shell-${VERSION}`;
 
-/* Deliberately not versioned. Every asset URL carries a ?v= content hash, so
-   an entry in here is either still referenced or unreachable -- which is
-   exactly the guarantee cacheFirst already relies on. Tying the name to
-   VERSION meant a one-line CSS change emptied it: 6.1MB of images/full, 2.9MB
-   of images/medium and 744KB of vendor/, re-downloaded by every returning
-   visitor, to replace bytes that were still perfectly valid. */
-const ASSET_CACHE = "eureka-assets";
+/* Deliberately not versioned. Tying the name to VERSION meant a one-line CSS
+   change emptied it: 6.1MB of images/full, 2.9MB of images/medium and 744KB
+   of vendor/, re-downloaded by every returning visitor, to replace bytes that
+   were still perfectly valid.
+
+   Not versioned also means nothing ever swept it, and every deploy left the
+   previous version of each changed file behind for good. cacheFirst now
+   evicts those as it goes (see storeAsset). The "-2" retires the old cache
+   once: the activate sweep deletes any eureka-* cache that is not current,
+   which clears what had already piled up, at the price of one re-download. */
+const ASSET_CACHE = "eureka-assets-2";
 
 /* Only the documents needed to paint something useful. The heavy assets --
    images and the vendored three.js -- are deliberately left to runtime
@@ -64,9 +68,10 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            /* Only shells are swept by version. The old eureka-assets-* caches
-               from when this was versioned get collected by the same rule,
-               once, and then it stops finding anything. */
+            /* Only shells are swept by version. Retired asset caches -- the
+               eureka-assets-* ones from when it was versioned, and the
+               unversioned eureka-assets that preceded eureka-assets-2 -- are
+               collected by the same rule, once, and then it finds nothing. */
             .filter((key) => key.startsWith("eureka-") && key !== SHELL_CACHE && key !== ASSET_CACHE)
             .map((key) => caches.delete(key))
         )
@@ -130,10 +135,10 @@ async function networkFirst(request) {
 
 /* Cache-first is safe here only because every asset URL carries a ?v= stamp:
    when the bytes change the URL changes, so a cached entry can never go
-   stale, it just becomes unreferenced and gets swept on the next version
-   bump. If that convention is ever dropped, this must become
-   stale-while-revalidate. */
-async function cacheFirst(request) {
+   stale -- it can only stop being asked for. If that convention is ever
+   dropped, this must become stale-while-revalidate. */
+async function cacheFirst(event) {
+  const { request } = event;
   const cached = await caches.match(request);
   if (cached) return cached;
 
@@ -143,10 +148,25 @@ async function cacheFirst(request) {
      condition could never be true, and reading it suggested this worker
      handles third-party assets, which it does not. */
   if (response && response.ok) {
-    const cache = await caches.open(ASSET_CACHE);
-    cache.put(request, response.clone());
+    /* waitUntil, because respondWith settles as soon as the response is
+       returned and the worker may be stopped right after; an unawaited put
+       could be cut off half-way. */
+    event.waitUntil(storeAsset(request, response.clone()));
   }
   return response;
+}
+
+/* A page only ever asks for an asset under its current stamp, so storing a
+   new version of a path makes every other version of it unreachable: drop
+   them. The cache then holds one entry per file instead of one per deploy. */
+async function storeAsset(request, response) {
+  const cache = await caches.open(ASSET_CACHE);
+  await cache.put(request, response);
+  const { pathname } = new URL(request.url);
+  const others = (await cache.keys()).filter(
+    (key) => key.url !== request.url && new URL(key.url).pathname === pathname
+  );
+  await Promise.all(others.map((key) => cache.delete(key)));
 }
 
 self.addEventListener("fetch", (event) => {
@@ -174,6 +194,6 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isCacheableAsset(url)) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(cacheFirst(event));
   }
 });
