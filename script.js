@@ -889,6 +889,29 @@ function scheduleCareerSceneResumeAfterTheme() {
   careerThemeResumeFrame = window.requestAnimationFrame(resumeWhenThemeWaveSettles);
 }
 
+async function finishCareerSceneAfterTheme() {
+  if (!careerSceneFrozenForTheme && !careerGeometryLockCache.size) {
+    return;
+  }
+
+  careerThemeRestorePending = true;
+
+  if (careerThemeResumeFrame) {
+    window.cancelAnimationFrame(careerThemeResumeFrame);
+    careerThemeResumeFrame = 0;
+  }
+
+  restoreCareerSceneThemeCache();
+  restoreCareerLayerStylesForTheme();
+  careerCardStack?.classList.remove("is-theme-locking");
+  careerSceneFrozenForTheme = false;
+  careerThemeRequiresScrollResume = false;
+  careerThemeResumeCooldownUntil = performance.now() + 320;
+
+  await waitForFrames(2);
+  careerThemeRestorePending = false;
+}
+
 function isCareerSceneThemeLocked() {
   if (careerThemeRequiresScrollResume) {
     if (Math.abs(window.scrollY - careerThemeFrozenScrollY) <= 3) {
@@ -914,41 +937,48 @@ function isCareerSceneThemeLocked() {
   );
 }
 
+/* Sections that must hold still while the theme changes -- today only the
+   career scene, whose cards are mid-scroll animation on a phone -- register a
+   participant instead of the theme code calling into them:
+
+     isBusy()                    a transition must not start yet
+     prepare()                   clear leftovers before one starts
+     wantsGeometryLockedWave()   needs the wave that locks geometry first
+     freeze({ lockGeometry })    the transition is starting
+     scheduleResume()            it is over; settle back once the wave clears
+     finish()                    it is over; restore now (returns a promise)
+
+   They are called at the moments the theme code used to call the career
+   scene directly, in the same order. */
+const themeTransitionParticipants = [];
+
+function addThemeTransitionParticipant(participant) {
+  themeTransitionParticipants.push(participant);
+}
+
+function isThemeBusy() {
+  return isThemeTransitioning || themeTransitionParticipants.some((participant) => participant.isBusy());
+}
+
+function themeNeedsGeometryLockedWave() {
+  return themeTransitionParticipants.some((participant) => participant.wantsGeometryLockedWave());
+}
+
 function beginThemeTransitionContext(options = {}) {
-  freezeCareerSceneForTheme(options);
+  themeTransitionParticipants.forEach((participant) => participant.freeze(options));
   root.classList.add("theme-syncing");
 }
 
 function endThemeTransitionContext() {
   root.classList.remove("theme-syncing");
   if (!themeTransitionLiteActive && !root.classList.contains("theme-snapshot-active")) {
-    scheduleCareerSceneResumeAfterTheme();
+    themeTransitionParticipants.forEach((participant) => participant.scheduleResume());
   }
 }
 
 async function finishThemeTransitionContext() {
   root.classList.remove("theme-syncing");
-
-  if (!careerSceneFrozenForTheme && !careerGeometryLockCache.size) {
-    return;
-  }
-
-  careerThemeRestorePending = true;
-
-  if (careerThemeResumeFrame) {
-    window.cancelAnimationFrame(careerThemeResumeFrame);
-    careerThemeResumeFrame = 0;
-  }
-
-  restoreCareerSceneThemeCache();
-  restoreCareerLayerStylesForTheme();
-  careerCardStack?.classList.remove("is-theme-locking");
-  careerSceneFrozenForTheme = false;
-  careerThemeRequiresScrollResume = false;
-  careerThemeResumeCooldownUntil = performance.now() + 320;
-
-  await waitForFrames(2);
-  careerThemeRestorePending = false;
+  await Promise.all(themeTransitionParticipants.map((participant) => participant.finish()));
 }
 
 /* Maintenance mode is a switch in site-config.json, read on every visit.
@@ -1052,27 +1082,23 @@ function isElementInViewport(element) {
   return rect.bottom > 0 && rect.top < viewportHeight;
 }
 
+/* Theme-dependent rendering -- the brain's materials, the welcome canvas --
+   belongs to those sections; the theme only says when. Four moments:
+
+     theme:snapshot      inside a view transition's update callback: redraw
+                         only what is on screen, because only that is captured
+     theme:applied       the theme has just been applied
+     theme:render-now    redraw everything now
+     theme:render-frame  redraw on the next frame, cheaply where off screen
+
+   The brain subscribes before the welcome canvas (see initApp), which is the
+   order this work used to run in. */
 function syncThemeSnapshotVisuals(theme) {
-  const brainVisible = (
-    isElementInViewport(languageUniverse) ||
-    isElementInViewport(brainMount)
-  );
-
-  if (brainVisible) {
-    brainSceneController?.setTheme(theme);
-  }
-
-  if (isElementInViewport(welcomeSection)) {
-    buildWelcomeCanvas();
-    drawWelcome();
-  }
+  pageEvents.emit("theme:snapshot", { theme });
 }
 
 function runThemeRenderWork(theme) {
-  brainSceneController?.setTheme(theme);
-  buildWelcomeCanvas();
-  drawWelcome();
-  requestWelcomeRender();
+  pageEvents.emit("theme:render-now", { theme });
 }
 
 function scheduleThemeRenderWork(theme) {
@@ -1082,14 +1108,7 @@ function scheduleThemeRenderWork(theme) {
 
   themeRenderFrame = window.requestAnimationFrame(() => {
     themeRenderFrame = 0;
-    brainSceneController?.setTheme(theme);
-    const welcomeVisible = isElementInViewport(welcomeSection);
-    buildWelcomeCanvas();
-    if (welcomeVisible) {
-      drawWelcome();
-    } else {
-      requestWelcomeRender();
-    }
+    pageEvents.emit("theme:render-frame", { theme });
   });
 }
 
@@ -1132,7 +1151,7 @@ function applyTheme(theme, options = {}) {
     return;
   }
 
-  brainSceneController?.setTheme(theme);
+  pageEvents.emit("theme:applied", { theme });
 
   if (deferHeavyWork) {
     scheduleThemeRenderWork(theme);
@@ -1304,6 +1323,12 @@ function applyAriaLabels(copy) {
     if (key && key in copy) {
       node.setAttribute("title", copy[key]);
     }
+  });
+}
+
+function bindLanguageMenuReactions() {
+  pageEvents.on("theme:will-transition", () => {
+    closeLanguageMenu();
   });
 }
 
@@ -2361,7 +2386,7 @@ function endSnapshotThemeLiteMode(theme) {
 
   themeTransitionLiteActive = false;
   root.classList.remove("theme-snapshot-active");
-  scheduleCareerSceneResumeAfterTheme();
+  themeTransitionParticipants.forEach((participant) => participant.scheduleResume());
 
   window.requestAnimationFrame(() => {
     scheduleThemeRenderWork(theme);
@@ -2386,8 +2411,7 @@ async function runMobileThemeWave(originX, originY, nextTheme) {
   );
   themeWave.style.opacity = "1";
   themeWave.style.clipPath = `circle(0px at ${originX}px ${originY}px)`;
-  const lockCareerGeometry = !(isTouchFirst() && isCareerSectionInViewport());
-  beginThemeTransitionContext({ lockGeometry: lockCareerGeometry });
+  beginThemeTransitionContext({ lockGeometry: !themeNeedsGeometryLockedWave() });
   let didCommit = false;
 
   try {
@@ -2694,7 +2718,7 @@ async function runSnapshotThemeWave(originX, originY, nextTheme) {
   }
 }
 
-async function runMobileCareerSnapshotThemeWave(originX, originY, nextTheme) {
+async function runGeometryLockedSnapshotWave(originX, originY, nextTheme) {
   if (!supportsSnapshotThemeWave()) {
     await runMobileThemeWave(originX, originY, nextTheme);
     return;
@@ -2750,17 +2774,17 @@ async function runMobileCareerSnapshotThemeWave(originX, originY, nextTheme) {
 }
 
 async function triggerThemeWave(originX, originY, nextTheme) {
-  if (isThemeTransitioning || careerThemeRestorePending) {
+  if (isThemeBusy()) {
     return;
   }
 
-  clearStaleCareerThemeLockBeforeTransition();
+  themeTransitionParticipants.forEach((participant) => participant.prepare());
   isThemeTransitioning = true;
-  closeLanguageMenu();
+  pageEvents.emit("theme:will-transition", { theme: nextTheme });
 
   try {
-    if (isTouchFirst() && isCareerSectionInViewport() && supportsSnapshotThemeWave()) {
-      await runMobileCareerSnapshotThemeWave(originX, originY, nextTheme);
+    if (themeNeedsGeometryLockedWave() && supportsSnapshotThemeWave()) {
+      await runGeometryLockedSnapshotWave(originX, originY, nextTheme);
     } else if (supportsSnapshotThemeWave()) {
       await runSnapshotThemeWave(originX, originY, nextTheme);
     } else if (isTouchFirst()) {
@@ -3118,6 +3142,26 @@ function bindWelcomeReactions() {
   pageEvents.on("language:change", ({ copy }) => {
     buildWelcomeCanvas(copy.welcomeWord);
     requestWelcomeRender();
+  });
+  pageEvents.on("theme:snapshot", () => {
+    if (isElementInViewport(welcomeSection)) {
+      buildWelcomeCanvas();
+      drawWelcome();
+    }
+  });
+  pageEvents.on("theme:render-now", () => {
+    buildWelcomeCanvas();
+    drawWelcome();
+    requestWelcomeRender();
+  });
+  pageEvents.on("theme:render-frame", () => {
+    const welcomeVisible = isElementInViewport(welcomeSection);
+    buildWelcomeCanvas();
+    if (welcomeVisible) {
+      drawWelcome();
+    } else {
+      requestWelcomeRender();
+    }
   });
 }
 
@@ -3510,6 +3554,17 @@ function updateCareerScene() {
 }
 
 function bindCareerReactions() {
+  addThemeTransitionParticipant({
+    isBusy: () => careerThemeRestorePending,
+    prepare: clearStaleCareerThemeLockBeforeTransition,
+    /* On a phone with the cards in view, the wave has to pin their geometry
+       before the snapshot is taken, or the captured frame jumps. */
+    wantsGeometryLockedWave: () => isTouchFirst() && isCareerSectionInViewport(),
+    freeze: (options) => freezeCareerSceneForTheme(options),
+    scheduleResume: scheduleCareerSceneResumeAfterTheme,
+    finish: finishCareerSceneAfterTheme,
+  });
+
   /* Card copy changes length between languages, so the scene is re-measured a
      frame later, once the new text has laid out. The animated path leaves
      this to the scroll and resize handlers, as it always has. */
@@ -7627,6 +7682,21 @@ function initMarsClock() {
   render();
 }
 
+function bindBrainReactions() {
+  const setTheme = ({ theme }) => {
+    brainSceneController?.setTheme(theme);
+  };
+  pageEvents.on("theme:snapshot", ({ theme }) => {
+    const universe = brainMount?.closest("#language-universe") || null;
+    if (isElementInViewport(universe) || isElementInViewport(brainMount)) {
+      brainSceneController?.setTheme(theme);
+    }
+  });
+  pageEvents.on("theme:applied", setTheme);
+  pageEvents.on("theme:render-now", setTheme);
+  pageEvents.on("theme:render-frame", setTheme);
+}
+
 function scheduleBrainSceneLoad() {
   if (!brainMount || brainSceneController || shouldReduceMotion()) {
     return;
@@ -7818,9 +7888,11 @@ function handleWindowResize() {
 async function initApp() {
   /* Order matters: listeners run in subscription order, and this is the
      order applyLanguage used to call these sections in. */
+  bindLanguageMenuReactions();
   bindPhotoReactions();
   bindLanguageUniverseReactions();
   bindHeroReactions();
+  bindBrainReactions();
   bindWelcomeReactions();
   bindCareerReactions();
 
@@ -7865,7 +7937,7 @@ async function initApp() {
   themeToggle?.addEventListener("click", async (event) => {
     /* Mirror the guard inside triggerThemeWave so the stored preference
        never flips while the wave silently refuses to run. */
-    if (isThemeTransitioning || careerThemeRestorePending) {
+    if (isThemeBusy()) {
       return;
     }
 
