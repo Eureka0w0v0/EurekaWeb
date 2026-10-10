@@ -6,4 +6,4 @@ Allow: /
 Disallow: /images/_originals/
 Disallow: /maintenance/
 
-Sitemap: https://eureka0w0v0.github.io/EurekaWeb/sitemap.xml
+Sitemap: https://eureka-web.com/sitemap.xml

@@ -15,10 +15,13 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./images/icons/favicon-32.png?v=6ff81418" />
     <link rel="icon" type="image/png" sizes="192x192" href="./images/icons/favicon-192.png?v=7a0486a8" />
     <link rel="apple-touch-icon" href="./images/icons/favicon-192.png?v=7a0486a8" />
-    <!-- This site is served from both GitHub Pages and Netlify. Without a
-         canonical the two hosts read as duplicate content and split their own
-         ranking; this names the Pages copy as the one that counts. -->
-    <link rel="canonical" href="https://eureka0w0v0.github.io/EurekaWeb/" />
+    <!-- The same files are served from eureka-web.com and from GitHub Pages.
+         Without a canonical the two hosts read as duplicate content and split
+         their ranking; this names eureka-web.com as the one that counts. Both
+         copies have to say so -- a mirror that names itself canonical is the
+         duplicate the tag exists to prevent -- so the address is written here
+         once and no deploy rewrites it. tools/check-site.py enforces that. -->
+    <link rel="canonical" href="https://eureka-web.com/" />
     <link rel="manifest" href="./manifest.webmanifest?v=d5290658" />
     <!-- Dark-scheme bar colour. The light value stays first so browsers that
          ignore the media attribute keep the original behaviour. -->
@@ -26,14 +29,14 @@
     <meta property="og:title" content="Eureka Web" />
     <meta property="og:description" content="尤里卡的个人网页：动态交互、编程语言节点、照片剧场。" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://eureka0w0v0.github.io/EurekaWeb/images/og-card.png" />
+    <meta property="og:image" content="https://eureka-web.com/images/og-card.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Eureka Web" />
     <meta property="og:site_name" content="Eureka Web" />
-    <meta property="og:url" content="https://eureka0w0v0.github.io/EurekaWeb/" />
+    <meta property="og:url" content="https://eureka-web.com/" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://eureka0w0v0.github.io/EurekaWeb/images/og-card.png" />
+    <meta name="twitter:image" content="https://eureka-web.com/images/og-card.png" />
     <!-- three.js now lives in vendor/ and is imported lazily from there when
          the language section scrolls into view, so there is no third-party
          origin left to warm up. -->
