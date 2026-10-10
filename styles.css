@@ -149,7 +149,7 @@
 }
 
 html.theme-dark,
-body.theme-dark {
+html.theme-dark body {
   --bg: var(--dark-bg);
   --bg-accent: var(--dark-bg-soft);
   --surface: rgba(18, 18, 18, 0.62);
@@ -173,11 +173,8 @@ body.theme-dark {
 
 html.theme-dark,
 html.theme-dark body,
-body.theme-dark,
 html.theme-dark main,
-body.theme-dark main,
-html.theme-dark section,
-body.theme-dark section {
+html.theme-dark section {
   background-color: var(--dark-bg);
 }
 
@@ -203,7 +200,7 @@ body.theme-dark section {
 }
 
 html.intro-active,
-body.intro-active {
+html.intro-active body {
   overflow: hidden !important;
 }
 
@@ -355,22 +352,14 @@ html {
 }
 
 html.theme-syncing,
-body.theme-syncing,
 html.theme-syncing body,
 html.theme-syncing main,
-body.theme-syncing main,
 html.theme-syncing section,
-body.theme-syncing section,
 html.theme-syncing .topbar,
-body.theme-syncing .topbar,
 html.theme-syncing button,
-body.theme-syncing button,
 html.theme-syncing .photo-card,
-body.theme-syncing .photo-card,
 html.theme-syncing .language-insight,
-body.theme-syncing .language-insight,
-html.theme-syncing .language-node,
-body.theme-syncing .language-node {
+html.theme-syncing .language-node {
   transition:
     color 260ms ease,
     background 320ms ease,
@@ -382,38 +371,22 @@ body.theme-syncing .language-node {
 }
 
 html.theme-vt-lock,
-body.theme-vt-lock,
 html.theme-vt-lock body,
 html.theme-vt-lock body::before,
-body.theme-vt-lock::before,
 html.theme-vt-lock main,
-body.theme-vt-lock main,
 html.theme-vt-lock section,
-body.theme-vt-lock section,
 html.theme-vt-lock .page-shell,
-body.theme-vt-lock .page-shell,
 html.theme-vt-lock .topbar,
-body.theme-vt-lock .topbar,
 html.theme-vt-lock button,
-body.theme-vt-lock button,
 html.theme-vt-lock .first-screen,
-body.theme-vt-lock .first-screen,
 html.theme-vt-lock .welcome-section,
-body.theme-vt-lock .welcome-section,
 html.theme-vt-lock .photo-section,
-body.theme-vt-lock .photo-section,
 html.theme-vt-lock .career-section,
-body.theme-vt-lock .career-section,
 html.theme-vt-lock .glass-panel,
-body.theme-vt-lock .glass-panel,
 html.theme-vt-lock .photo-card,
-body.theme-vt-lock .photo-card,
 html.theme-vt-lock .career-card-layer,
-body.theme-vt-lock .career-card-layer,
 html.theme-vt-lock .language-insight,
-body.theme-vt-lock .language-insight,
-html.theme-vt-lock .language-node,
-body.theme-vt-lock .language-node {
+html.theme-vt-lock .language-node {
   transition: none !important;
 }
 
@@ -529,8 +502,7 @@ textarea {
   mask-image: radial-gradient(circle at center, black 32%, transparent 86%);
 }
 
-html.theme-dark .noise,
-body.theme-dark .noise {
+html.theme-dark .noise {
   opacity: 0.08;
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
@@ -901,25 +873,17 @@ html.theme-mask-reveal::view-transition-new(root) {
 }
 
 html.theme-dark .first-screen,
-body.theme-dark .first-screen,
 html.theme-dark .first-screen-shell,
-body.theme-dark .first-screen-shell,
 html.theme-dark .welcome-section,
-body.theme-dark .welcome-section,
-html.theme-dark .welcome-stage,
-body.theme-dark .welcome-stage {
+html.theme-dark .welcome-stage {
   background: transparent;
   background-color: transparent;
 }
 
 html.theme-syncing .first-screen,
-body.theme-syncing .first-screen,
 html.theme-syncing .first-screen-shell,
-body.theme-syncing .first-screen-shell,
 html.theme-syncing .welcome-section,
-body.theme-syncing .welcome-section,
-html.theme-syncing .welcome-stage,
-body.theme-syncing .welcome-stage {
+html.theme-syncing .welcome-stage {
   background: transparent;
   background-color: transparent;
   transition-property: color, opacity, transform;
@@ -1197,14 +1161,12 @@ body.theme-syncing .welcome-stage {
   background: var(--toggle-bg);
 }
 
-html.theme-dark .theme-icon-sun,
-body.theme-dark .theme-icon-sun {
+html.theme-dark .theme-icon-sun {
   transform: scale(0.35) rotate(90deg);
   opacity: 0;
 }
 
-html.theme-dark .theme-icon-moon,
-body.theme-dark .theme-icon-moon {
+html.theme-dark .theme-icon-moon {
   transform: scale(1) rotate(0deg);
   opacity: 1;
 }
@@ -1608,13 +1570,11 @@ html[lang="zh-CN"] .hero-text {
   opacity: 0;
 }
 
-html.theme-dark .language-section::before,
-body.theme-dark .language-section::before {
+html.theme-dark .language-section::before {
   opacity: 0.5;
 }
 
-html.theme-dark .language-section::after,
-body.theme-dark .language-section::after {
+html.theme-dark .language-section::after {
   opacity: 0.62;
 }
 
@@ -1672,13 +1632,11 @@ body.theme-dark .language-section::after {
   z-index: -1;
 }
 
-html.theme-dark .language-universe::before,
-body.theme-dark .language-universe::before {
+html.theme-dark .language-universe::before {
   opacity: 0.72;
 }
 
-html.theme-dark .language-universe::after,
-body.theme-dark .language-universe::after {
+html.theme-dark .language-universe::after {
   opacity: 1;
 }
 
@@ -2277,8 +2235,7 @@ html[lang="ja"] .language-section-title {
   pointer-events: none;
 }
 
-html.theme-dark .career-card-stack::before,
-body.theme-dark .career-card-stack::before {
+html.theme-dark .career-card-stack::before {
   opacity: 0.92;
 }
 
@@ -2286,8 +2243,7 @@ body.theme-dark .career-card-stack::before {
   opacity: 0;
 }
 
-html.theme-dark .career-card-stack[data-active-layer="3"]::before,
-body.theme-dark .career-card-stack[data-active-layer="3"]::before {
+html.theme-dark .career-card-stack[data-active-layer="3"]::before {
   opacity: 0;
 }
 
@@ -2407,8 +2363,7 @@ body.theme-dark .career-card-stack[data-active-layer="3"]::before {
     inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
 }
 
-html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active,
-body.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
+html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
   background:
     linear-gradient(145deg, rgba(24, 24, 24, 0.995), rgba(18, 18, 18, 0.99));
   background-clip: border-box;
@@ -2419,8 +2374,7 @@ body.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.i
 }
 
 @media (hover: hover) and (pointer: fine) {
-  html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer:not(.is-active),
-  body.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer:not(.is-active) {
+  html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer:not(.is-active) {
     opacity: 0.001;
     visibility: visible;
     background: transparent;
@@ -2797,13 +2751,12 @@ html[lang="en"] .career-statement {
 }
 
 html.is-photo-zoom-open,
-body.is-photo-zoom-open {
+html.is-photo-zoom-open body {
   overflow: hidden;
   overscroll-behavior: contain;
 }
 
-html.is-photo-zoom-open .topbar,
-body.is-photo-zoom-open .topbar {
+html.is-photo-zoom-open .topbar {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -2959,36 +2912,30 @@ body.is-photo-zoom-open .topbar {
   border-color: rgba(255, 255, 255, 0.42);
 }
 
-html:not(.theme-dark) .photo-zoom-close,
-body:not(.theme-dark) .photo-zoom-close {
+html:not(.theme-dark) .photo-zoom-close {
   border-color: rgba(12, 18, 28, 0.48);
   background: rgba(255, 255, 255, 0.34);
   color: rgba(10, 15, 24, 0.94);
 }
 
-html:not(.theme-dark) .photo-zoom-close:hover,
-body:not(.theme-dark) .photo-zoom-close:hover {
+html:not(.theme-dark) .photo-zoom-close:hover {
   border-color: rgba(12, 18, 28, 0.68);
   background: rgba(255, 255, 255, 0.52);
   color: rgba(5, 8, 14, 1);
 }
 
-html:not(.theme-dark) .photo-zoom-close:active,
-body:not(.theme-dark) .photo-zoom-close:active {
+html:not(.theme-dark) .photo-zoom-close:active {
   background: rgba(255, 255, 255, 0.68);
   color: rgba(5, 8, 14, 1);
 }
 
 html:not(.theme-dark) .photo-zoom-close:focus,
-html:not(.theme-dark) .photo-zoom-close:focus-visible,
-body:not(.theme-dark) .photo-zoom-close:focus,
-body:not(.theme-dark) .photo-zoom-close:focus-visible {
+html:not(.theme-dark) .photo-zoom-close:focus-visible {
   border-color: rgba(12, 18, 28, 0.58);
   box-shadow: 0 0 0 2px rgba(12, 18, 28, 0.12);
 }
 
-html.theme-dark .photo-card,
-body.theme-dark .photo-card {
+html.theme-dark .photo-card {
   border-color: transparent;
   background: transparent;
   box-shadow:
@@ -2996,26 +2943,20 @@ body.theme-dark .photo-card {
 }
 
 
-html.theme-dark .photo-section,
-body.theme-dark .photo-section {
+html.theme-dark .photo-section {
   background: transparent;
   background-color: transparent;
 }
 
 html.theme-dark .photo-sticky,
-body.theme-dark .photo-sticky,
 html.theme-dark .photo-shell,
-body.theme-dark .photo-shell,
 html.theme-dark .photo-stage,
-body.theme-dark .photo-stage,
-html.theme-dark .photo-queue,
-body.theme-dark .photo-queue {
+html.theme-dark .photo-queue {
   background: transparent;
   background-color: transparent;
 }
 
-html.theme-dark .photo-queue::before,
-body.theme-dark .photo-queue::before {
+html.theme-dark .photo-queue::before {
   background: transparent;
 }
 
@@ -3420,8 +3361,7 @@ body.theme-dark .photo-queue::before {
       0 var(--photo-card-depth) 28px color-mix(in srgb, var(--text) var(--photo-card-shadow-strength), transparent);
   }
 
-  html.theme-dark .photo-card,
-  body.theme-dark .photo-card {
+  html.theme-dark .photo-card {
     box-shadow:
       0 16px 32px rgba(0, 0, 0, 0.34);
   }
@@ -3757,8 +3697,7 @@ body.theme-dark .photo-queue::before {
     will-change: auto;
   }
 
-  html.theme-snapshot-active .glass-panel,
-  body.theme-snapshot-active .glass-panel {
+  html.theme-snapshot-active .glass-panel {
     transition-property:
       color,
       background-color,
@@ -3796,9 +3735,7 @@ body.theme-dark .photo-queue::before {
   }
 
   html.theme-dark .career-card-stack .career-card-layer,
-  body.theme-dark .career-card-stack .career-card-layer,
-  html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active,
-  body.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
+  html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
     background:
       linear-gradient(145deg, rgba(24, 24, 24, 0.94), rgba(12, 12, 12, 0.91));
     border-color: rgba(255, 255, 255, 0.16);
@@ -3808,9 +3745,7 @@ body.theme-dark .photo-queue::before {
   }
 
   html.theme-dark .career-card-stack .career-card-layer.is-active,
-  body.theme-dark .career-card-stack .career-card-layer.is-active,
-  html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active,
-  body.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
+  html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
     background:
       linear-gradient(145deg, rgba(24, 24, 24, 0.992), rgba(14, 14, 14, 0.985));
     box-shadow:
@@ -3856,7 +3791,6 @@ body.theme-dark .photo-queue::before {
   }
 
   html.theme-snapshot-active .career-card-stack .career-card-layer,
-  body.theme-snapshot-active .career-card-stack .career-card-layer,
   .career-card-stack.is-theme-locking .career-card-layer {
     animation: none !important;
     transition: none !important;
@@ -3864,7 +3798,6 @@ body.theme-dark .photo-queue::before {
   }
 
   html.theme-snapshot-active .career-card-stack[data-active-layer="1"] .career-card-layer-3,
-  body.theme-snapshot-active .career-card-stack[data-active-layer="1"] .career-card-layer-3,
   .career-card-stack.is-theme-locking[data-active-layer="1"] .career-card-layer-3 {
     animation: none !important;
   }
@@ -3890,13 +3823,11 @@ body.theme-dark .photo-queue::before {
       inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
   }
 
-  html.theme-dark .career-card-stack[data-active-layer="3"]::before,
-  body.theme-dark .career-card-stack[data-active-layer="3"]::before {
+  html.theme-dark .career-card-stack[data-active-layer="3"]::before {
     opacity: 0;
   }
 
-  html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active,
-  body.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
+  html.theme-dark .career-card-stack[data-active-layer="3"] .career-card-layer-3.is-active {
     background:
       linear-gradient(145deg, rgba(24, 24, 24, 0.995), rgba(18, 18, 18, 0.99));
     box-shadow:
@@ -4009,8 +3940,7 @@ body.theme-dark .photo-queue::before {
   }
 }
 
-html.theme-dark .photo-card-hover-glow,
-body.theme-dark .photo-card-hover-glow {
+html.theme-dark .photo-card-hover-glow {
   background: radial-gradient(
     circle at var(--hover-x, 50%) var(--hover-y, 50%),
     rgba(255, 255, 255, 0.12),
@@ -4068,8 +3998,8 @@ body.theme-dark .photo-card-hover-glow {
   transition: opacity 200ms ease;
 }
 
-body.intro-active .wordmark,
-body.intro-active .section-rail {
+html.intro-active .wordmark,
+html.intro-active .section-rail {
   opacity: 0;
 }
 

@@ -809,8 +809,7 @@ function scheduleCareerSceneResumeAfterTheme() {
       (
         isThemeTransitioning ||
         themeWave?.classList.contains("is-active") ||
-        root.classList.contains("theme-snapshot-active") ||
-        body.classList.contains("theme-snapshot-active")
+        root.classList.contains("theme-snapshot-active")
       )
     ) {
       careerThemeResumeFrame = window.requestAnimationFrame(resumeWhenThemeWaveSettles);
@@ -857,20 +856,17 @@ function isCareerSceneThemeLocked() {
     isThemeTransitioning ||
     careerThemeRestorePending ||
     themeTransitionLiteActive ||
-    root.classList.contains("theme-snapshot-active") ||
-    body.classList.contains("theme-snapshot-active")
+    root.classList.contains("theme-snapshot-active")
   );
 }
 
 function beginThemeTransitionContext(options = {}) {
   freezeCareerSceneForTheme(options);
   root.classList.add("theme-syncing");
-  body.classList.add("theme-syncing");
 }
 
 function endThemeTransitionContext() {
   root.classList.remove("theme-syncing");
-  body.classList.remove("theme-syncing");
   if (!themeTransitionLiteActive && !root.classList.contains("theme-snapshot-active")) {
     scheduleCareerSceneResumeAfterTheme();
   }
@@ -878,7 +874,6 @@ function endThemeTransitionContext() {
 
 async function finishThemeTransitionContext() {
   root.classList.remove("theme-syncing");
-  body.classList.remove("theme-syncing");
 
   if (!careerSceneFrozenForTheme && !careerGeometryLockCache.size) {
     return;
@@ -1065,7 +1060,6 @@ function applyTheme(theme, options = {}) {
      is the half a screen reader could not otherwise get. */
   themeToggle?.setAttribute("aria-pressed", `${theme === "dark"}`);
   root.classList.toggle("theme-dark", theme === "dark");
-  body.classList.toggle("theme-dark", theme === "dark");
   const rootStyles = getComputedStyle(root);
   const themeBg = rootStyles.getPropertyValue("--bg").trim();
   const chromeBg = rootStyles.getPropertyValue("--chrome-bg").trim() || themeBg;
@@ -2283,13 +2277,11 @@ function supportsSnapshotMaskReveal() {
 
 function beginSnapshotMaskReveal() {
   root.classList.add("theme-mask-reveal");
-  body.classList.add("theme-mask-reveal");
   root.style.setProperty("--snapshot-wave-radius", "0px");
 }
 
 function endSnapshotMaskReveal() {
   root.classList.remove("theme-mask-reveal");
-  body.classList.remove("theme-mask-reveal");
   root.style.removeProperty("--snapshot-wave-radius");
 }
 
@@ -2302,12 +2294,10 @@ async function commitThemeState(nextTheme, options = {}) {
 
 function beginViewTransitionDomLock() {
   root.classList.add("theme-vt-lock");
-  body.classList.add("theme-vt-lock");
 }
 
 function endViewTransitionDomLock() {
   root.classList.remove("theme-vt-lock");
-  body.classList.remove("theme-vt-lock");
 }
 
 function beginSnapshotThemeLiteMode() {
@@ -2317,7 +2307,6 @@ function beginSnapshotThemeLiteMode() {
 
   themeTransitionLiteActive = true;
   root.classList.add("theme-snapshot-active");
-  body.classList.add("theme-snapshot-active");
   return true;
 }
 
@@ -2328,7 +2317,6 @@ function endSnapshotThemeLiteMode(theme) {
 
   themeTransitionLiteActive = false;
   root.classList.remove("theme-snapshot-active");
-  body.classList.remove("theme-snapshot-active");
   scheduleCareerSceneResumeAfterTheme();
 
   window.requestAnimationFrame(() => {
@@ -4155,7 +4143,6 @@ function openPhotoZoom(sourceContent) {
 
   photoZoomActive = true;
   root.classList.add("is-photo-zoom-open");
-  body.classList.add("is-photo-zoom-open");
   photoZoomOverlay.style.opacity = "";
   photoZoomOverlay.style.visibility = "";
   photoZoomOverlay.style.transition = "";
@@ -4227,7 +4214,6 @@ function closePhotoZoom() {
   setPhotoZoomLoading(false);
   photoZoomOverlay.classList.remove("is-image-ready");
   root.classList.remove("is-photo-zoom-open");
-  body.classList.remove("is-photo-zoom-open");
   photoZoomOverlay.style.transition = "none";
   photoZoomOverlay.style.pointerEvents = "none";
   photoZoomOverlay.style.opacity = "0";
@@ -6983,7 +6969,6 @@ function runIntroAnimation() {
     textContainer.replaceChildren(host);
 
     root.classList.add("intro-active");
-    body.classList.add("intro-active");
 
     const at = (ms, fn) => window.setTimeout(fn, ms);
     const seamAt = 860;
@@ -7016,7 +7001,6 @@ function runIntroAnimation() {
       at(260, () => {
         overlay.remove();
         root.classList.remove("intro-active");
-        body.classList.remove("intro-active");
         resolve();
       });
     });
