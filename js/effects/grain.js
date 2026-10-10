@@ -1,7 +1,7 @@
 /* The film-grain overlay canvas. */
 
 import { isTouchFirst, shouldReduceMotion } from "../core/viewport.js?v=71b5eb94";
-import { activeTheme } from "../theme.js?v=70ec6705";
+import { activeTheme } from "../theme.js?v=ad29e4e7";
 
 /* ═══════════════════════════════════════════════════════════════
    Effect 2: Scroll Velocity Grain / Distortion

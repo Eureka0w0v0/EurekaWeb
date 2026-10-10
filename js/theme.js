@@ -544,61 +544,52 @@ async function runFallbackThemeWave(originX, originY, nextTheme) {
   }
 }
 
-async function runSnapshotThemeWave(originX, originY, nextTheme) {
-  if (!themeWave || !themeWaveCore) {
-    await commitThemeState(nextTheme);
+/* Undo what a snapshot wave set up: the lite mode on a touch device, or the
+   view-transition DOM lock and the mask reveal elsewhere. */
+function releaseSnapshotMode({ useLiteSnapshot, useMaskReveal }, theme) {
+  if (useLiteSnapshot) {
+    endSnapshotThemeLiteMode(theme);
     return;
   }
-
-  const useLiteSnapshot = beginSnapshotThemeLiteMode();
-  const useMaskReveal = !useLiteSnapshot && supportsSnapshotMaskReveal();
-  resetThemeWave();
-  const endRadius = useLiteSnapshot
-    ? prepareSnapshotWaveOrigin(originX, originY)
-    : prepareSnapshotWaveOrigin(originX, originY, SNAPSHOT_REVEAL_SAFETY_PADDING);
-  if (!useLiteSnapshot) {
-    beginViewTransitionDomLock();
-    if (useMaskReveal) {
-      beginSnapshotMaskReveal();
-    }
+  if (useMaskReveal) {
+    endSnapshotMaskReveal();
   }
-  beginThemeTransitionContext();
+  endViewTransitionDomLock();
+}
 
-  let transition;
+/* Starts the view transition that applies the theme inside its snapshot.
+   If the browser refuses, everything set up for it is released before the
+   error goes on to triggerThemeWave's fallback. */
+async function startThemeViewTransition(nextTheme, mode) {
+  const snapshotThemeOptions = mode.useLiteSnapshot
+    ? { deferHeavyWork: true, skipHeavyWork: true }
+    : {
+        deferSystemChrome: true,
+        deferHeavyWork: true,
+        skipHeavyWork: true,
+        syncSnapshotVisuals: true,
+      };
   try {
-    const snapshotThemeOptions = useLiteSnapshot
-      ? { deferHeavyWork: true, skipHeavyWork: true }
-      : {
-          deferSystemChrome: true,
-          deferHeavyWork: true,
-          skipHeavyWork: true,
-          syncSnapshotVisuals: true,
-        };
-    transition = document.startViewTransition(() => {
+    const transition = document.startViewTransition(() => {
       applyTheme(nextTheme, snapshotThemeOptions);
     });
     await transition.ready;
+    return transition;
   } catch (error) {
     endThemeTransitionContext();
     resetThemeWave();
-    if (useLiteSnapshot) {
-      endSnapshotThemeLiteMode(activeTheme);
-    } else {
-      if (useMaskReveal) {
-        endSnapshotMaskReveal();
-      }
-      endViewTransitionDomLock();
-    }
+    releaseSnapshotMode(mode, activeTheme);
     throw error;
   }
+}
 
-  if (!useLiteSnapshot) {
-    endThemeTransitionContext();
-  }
-
+/* Starts the circle that reveals the new theme and, outside lite mode, the
+   expanding outline that rides its edge. Returns their `finished` promises,
+   outline first. */
+function animateSnapshotReveal(originX, originY, endRadius, mode) {
+  const { useLiteSnapshot, useMaskReveal } = mode;
   const snapshotDuration = useLiteSnapshot ? 540 : themeWaveConfig.SNAPSHOT_DURATION_MS;
-
-  const transitionAnimations = [transition.finished];
+  const animations = [];
 
   if (!useLiteSnapshot) {
     prepareThemeWaveOutline(originX, originY, null, 220);
@@ -616,58 +607,66 @@ async function runSnapshotThemeWave(originX, originY, nextTheme) {
         fill: "forwards",
       }
     );
-    transitionAnimations.push(outlineAnimation.finished);
+    animations.push(outlineAnimation.finished);
   }
 
-  const revealAnimation = useMaskReveal
-    ? root.animate(
-        {
-          "--snapshot-wave-radius": ["0px", `${endRadius}px`],
-        },
-        {
-          duration: snapshotDuration,
-          easing: themeWaveConfig.SNAPSHOT_EASING,
-          fill: "both",
-          pseudoElement: "::view-transition-new(root)",
-        }
-      )
-    : root.animate(
-        {
-          clipPath: [
-            `circle(0px at ${originX}px ${originY}px)`,
-            `circle(${endRadius}px at ${originX}px ${originY}px)`,
-          ],
-        },
-        {
-          duration: snapshotDuration,
-          easing: themeWaveConfig.SNAPSHOT_EASING,
-          fill: "both",
-          pseudoElement: "::view-transition-new(root)",
-        }
-      );
+  const revealKeyframes = useMaskReveal
+    ? { "--snapshot-wave-radius": ["0px", `${endRadius}px`] }
+    : {
+        clipPath: [
+          `circle(0px at ${originX}px ${originY}px)`,
+          `circle(${endRadius}px at ${originX}px ${originY}px)`,
+        ],
+      };
+  const revealAnimation = root.animate(revealKeyframes, {
+    duration: snapshotDuration,
+    easing: themeWaveConfig.SNAPSHOT_EASING,
+    fill: "both",
+    pseudoElement: "::view-transition-new(root)",
+  });
+  animations.push(revealAnimation.finished);
+  return animations;
+}
 
-  transitionAnimations.push(revealAnimation.finished);
+async function runSnapshotThemeWave(originX, originY, nextTheme) {
+  if (!themeWave || !themeWaveCore) {
+    await commitThemeState(nextTheme);
+    return;
+  }
 
+  const useLiteSnapshot = beginSnapshotThemeLiteMode();
+  const mode = { useLiteSnapshot, useMaskReveal: !useLiteSnapshot && supportsSnapshotMaskReveal() };
+  resetThemeWave();
+  const endRadius = useLiteSnapshot
+    ? prepareSnapshotWaveOrigin(originX, originY)
+    : prepareSnapshotWaveOrigin(originX, originY, SNAPSHOT_REVEAL_SAFETY_PADDING);
+  if (!useLiteSnapshot) {
+    beginViewTransitionDomLock();
+    if (mode.useMaskReveal) {
+      beginSnapshotMaskReveal();
+    }
+  }
+  beginThemeTransitionContext();
+
+  const transition = await startThemeViewTransition(nextTheme, mode);
+  if (!useLiteSnapshot) {
+    endThemeTransitionContext();
+  }
+
+  const transitionAnimations = [transition.finished];
+  transitionAnimations.push(...animateSnapshotReveal(originX, originY, endRadius, mode));
   await Promise.allSettled(transitionAnimations);
+
   if (!useLiteSnapshot) {
     syncSystemChromeForTheme(nextTheme);
     scheduleThemeRenderWork(nextTheme);
     await waitForFrames(2);
-  }
-
-  if (useLiteSnapshot) {
+  } else {
     endThemeTransitionContext();
   }
 
   resetThemeWave();
-  if (useLiteSnapshot) {
-    endSnapshotThemeLiteMode(nextTheme);
-  } else {
-    if (useMaskReveal) {
-      endSnapshotMaskReveal();
-    }
-    endViewTransitionDomLock();
-  }
+  releaseSnapshotMode(mode, nextTheme);
 }
 
 async function runGeometryLockedSnapshotWave(originX, originY, nextTheme) {
