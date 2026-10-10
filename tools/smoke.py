@@ -352,6 +352,38 @@ def check_photos(page: Page, results: Results, tag: str) -> None:
         time.sleep(1.5)
 
 
+def _career_steps_after_theme_change(page: Page, results: Results, label: str) -> None:
+    page.wait_for(THEME_SETTLED, timeout=10, message="theme transition never settled")
+    time.sleep(1.0)
+    page.evaluate("document.querySelector('.career-card-stack').focus({ preventScroll: true })")
+    page.press_key("ArrowDown", key_code=40)
+    time.sleep(STEP_SETTLE_S)
+    active = page.evaluate(CAREER_STATE)["active"]
+    results.check(label, active == 2, f"active={active}")
+    page.press_key("Home", key_code=36)
+    time.sleep(STEP_SETTLE_S)
+
+
+def check_career_after_theme(page: Page, results: Results, tag: str) -> None:
+    """The career scene freezes while the theme changes and must let go after.
+
+    Two ways out, both covered: changed elsewhere on the page, the cards wait
+    for the visitor to scroll; changed with the cards on screen, they wait out
+    a short cooldown."""
+    scroll_photo_stage_into_view(page)
+    page.wait_for(THEME_SETTLED, timeout=10, message="theme transition never settled")
+    page.click_selector("#theme-toggle")
+    time.sleep(0.2)
+    page.wait_for(THEME_SETTLED, timeout=10, message="theme transition never settled")
+    scroll_to(page, section_top(page, "career-section"))
+    time.sleep(CAREER_SETTLE_S)
+    _career_steps_after_theme_change(page, results, f"{tag} career unlocks after a theme change elsewhere")
+
+    page.click_selector("#theme-toggle")
+    time.sleep(0.2)
+    _career_steps_after_theme_change(page, results, f"{tag} career unlocks after a theme change in view")
+
+
 def run_configuration(browser: Browser, server_url: str, device: str, dark: bool, results: Results) -> None:
     tag = f"[{device}/{'dark' if dark else 'light'}]"
     print(f"  {tag}", flush=True)
@@ -365,6 +397,7 @@ def run_configuration(browser: Browser, server_url: str, device: str, dark: bool
             lambda: check_language(page, results, tag),
             lambda: check_theme(page, results, tag, dark),
             lambda: check_photos(page, results, tag),
+            lambda: check_career_after_theme(page, results, tag),
         ):
             try:
                 step()
