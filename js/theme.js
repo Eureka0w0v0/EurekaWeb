@@ -2,6 +2,7 @@
 
 import { body, root } from "./core/dom.js?v=5057c320";
 import { pageEvents } from "./core/events.js?v=8c4a4d4a";
+import { createMachine } from "./core/machine.js?v=73a7d34e";
 import { waitForFrames, waitMilliseconds } from "./core/frames.js?v=0b68ae2a";
 import { safeStorageGet } from "./core/storage.js?v=55891515";
 import { isTouchFirst } from "./core/viewport.js?v=71b5eb94";
@@ -22,9 +23,29 @@ const themeWaveConfig = {
 const SNAPSHOT_REVEAL_SAFETY_PADDING = 36;
 
 export let activeTheme = "light";
-export let isThemeTransitioning = false;
 let themeRenderFrame = 0;
-export let themeTransitionLiteActive = false;
+
+/* Where a theme change stands. A transition is started by triggerThemeWave
+   and always finished by it, whatever path the wave took. "lite" is a
+   running transition that took the lighter snapshot path on a touch device;
+   it only ever exists inside a running one, so it is a state rather than a
+   second flag that could disagree with the first. */
+const themeTransition = createMachine("theme transition", {
+  initial: "idle",
+  states: {
+    idle: { start: "running" },
+    running: { enterLite: "lite", finish: "idle" },
+    lite: { exitLite: "running", finish: "idle" },
+  },
+});
+
+export function isThemeTransitionRunning() {
+  return !themeTransition.is("idle");
+}
+
+export function isThemeTransitionLite() {
+  return themeTransition.is("lite");
+}
 
 export const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 export const storageKey = "preferred-theme";
@@ -49,7 +70,7 @@ export function addThemeTransitionParticipant(participant) {
 }
 
 export function isThemeBusy() {
-  return isThemeTransitioning || themeTransitionParticipants.some((participant) => participant.isBusy());
+  return isThemeTransitionRunning() || themeTransitionParticipants.some((participant) => participant.isBusy());
 }
 
 function themeNeedsGeometryLockedWave() {
@@ -63,7 +84,7 @@ function beginThemeTransitionContext(options = {}) {
 
 function endThemeTransitionContext() {
   root.classList.remove("theme-syncing");
-  if (!themeTransitionLiteActive && !root.classList.contains("theme-snapshot-active")) {
+  if (!isThemeTransitionLite() && !root.classList.contains("theme-snapshot-active")) {
     themeTransitionParticipants.forEach((participant) => participant.scheduleResume());
   }
 }
@@ -305,17 +326,17 @@ function beginSnapshotThemeLiteMode() {
     return false;
   }
 
-  themeTransitionLiteActive = true;
+  themeTransition.send("enterLite");
   root.classList.add("theme-snapshot-active");
   return true;
 }
 
 function endSnapshotThemeLiteMode(theme) {
-  if (!themeTransitionLiteActive) {
+  if (!isThemeTransitionLite()) {
     return;
   }
 
-  themeTransitionLiteActive = false;
+  themeTransition.send("exitLite");
   root.classList.remove("theme-snapshot-active");
   themeTransitionParticipants.forEach((participant) => participant.scheduleResume());
 
@@ -710,7 +731,7 @@ export async function triggerThemeWave(originX, originY, nextTheme) {
   }
 
   themeTransitionParticipants.forEach((participant) => participant.prepare());
-  isThemeTransitioning = true;
+  themeTransition.send("start");
   pageEvents.emit("theme:will-transition", { theme: nextTheme });
 
   try {
@@ -730,6 +751,6 @@ export async function triggerThemeWave(originX, originY, nextTheme) {
       await runFallbackThemeWave(originX, originY, nextTheme);
     }
   } finally {
-    isThemeTransitioning = false;
+    themeTransition.send("finish");
   }
 }

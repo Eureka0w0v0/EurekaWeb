@@ -7,10 +7,10 @@ import { clamp01, easeInOut, mapScrollSegment } from "../core/math.js?v=54e566c4
 import { isTouchFirst, shouldReduceMotion, stableMobileAppHeight } from "../core/viewport.js?v=71b5eb94";
 import {
   addThemeTransitionParticipant,
-  isThemeTransitioning,
-  themeTransitionLiteActive,
+  isThemeTransitionLite,
+  isThemeTransitionRunning,
   themeWave,
-} from "../theme.js?v=c50aeccf";
+} from "../theme.js?v=70ec6705";
 
 const careerSection = document.querySelector("#career-section");
 const careerScene = document.querySelector(".career-scene");
@@ -290,7 +290,7 @@ function freezeCareerSceneForTheme({ lockGeometry = true } = {}) {
 }
 
 function clearStaleCareerThemeLockBeforeTransition() {
-  if (!isTouchFirst() || careerThemeRestorePending || isThemeTransitioning) {
+  if (!isTouchFirst() || careerThemeRestorePending || isThemeTransitionRunning()) {
     return;
   }
 
@@ -333,7 +333,7 @@ function scheduleCareerSceneResumeAfterTheme() {
     if (
       isTouchFirst() &&
       (
-        isThemeTransitioning ||
+        isThemeTransitionRunning() ||
         themeWave?.classList.contains("is-active") ||
         root.classList.contains("theme-snapshot-active")
       )
@@ -402,9 +402,9 @@ function isCareerSceneThemeLocked() {
   return (
     careerSceneFrozenForTheme ||
     isCoolingDown ||
-    isThemeTransitioning ||
+    isThemeTransitionRunning() ||
     careerThemeRestorePending ||
-    themeTransitionLiteActive ||
+    isThemeTransitionLite() ||
     root.classList.contains("theme-snapshot-active")
   );
 }
