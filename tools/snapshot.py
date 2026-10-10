@@ -46,9 +46,11 @@ INTERACTION_DELAY_S = 0.4
 # last thing clicked cannot leave a :hover state in the capture.
 NEUTRAL_POINTER = (2, -2)
 CHECKPOINT_SPACING = 0.5  # viewport heights between scroll stops
-PIXEL_TOLERANCE = 1.0
-RATIO_TOLERANCE = 0.01
+MOTION_TOLERANCE = 3.0   # px: box geometry, transform translations, page height
+STATIC_TOLERANCE = 0.05  # px: every other length -- static CSS must match
+RATIO_TOLERANCE = 0.01   # unitless: opacity, scale, matrix coefficients
 NUMBER = re.compile(r"-?\d+(?:\.\d+)?(?:e-?\d+)?")
+UNIT = re.compile(r"-?\d+(?:\.\d+)?(?:e-?\d+)?([a-z%]*)")
 NO_RUNNING_ANIMATIONS = """document.getAnimations().every((animation) =>
   animation.playState !== "running" || animation.effect?.getComputedTiming?.().iterations === Infinity)"""
 
@@ -152,15 +154,32 @@ def settled_capture(page: Page, viewport_only: bool) -> dict:
     return previous
 
 
-def numbers_close(a: str, b: str) -> bool:
+def _tolerances(prop: str, value: str, count: int) -> list[float]:
+    """Per-number tolerance for one computed value.
+
+    Box geometry and transform translations are what scroll- and
+    timer-driven scenes move, and they settle a pixel or two apart between
+    runs, so they get MOTION_TOLERANCE. Everything else -- radii, font
+    sizes, shadows, insets -- is static CSS and must match almost exactly,
+    or a one-pixel slip in a stylesheet refactor would go unseen."""
+    if prop in ("transform", "translate") and value.startswith("matrix3d("):
+        return [RATIO_TOLERANCE] * 12 + [MOTION_TOLERANCE] * 3 + [RATIO_TOLERANCE]
+    if prop in ("transform", "translate") and value.startswith("matrix("):
+        return [RATIO_TOLERANCE] * 4 + [MOTION_TOLERANCE] * 2
+    if prop == "translate":
+        return [MOTION_TOLERANCE] * count
+    return [STATIC_TOLERANCE if unit == "px" else RATIO_TOLERANCE for unit in UNIT.findall(value)]
+
+
+def numbers_close(prop: str, a: str, b: str) -> bool:
     if a == b:
         return True
     if NUMBER.sub("#", a) != NUMBER.sub("#", b):
         return False
-    for x, y in zip(NUMBER.findall(a), NUMBER.findall(b)):
-        x, y = float(x), float(y)
-        tolerance = PIXEL_TOLERANCE if max(abs(x), abs(y)) > 2 else RATIO_TOLERANCE
-        if abs(x - y) > tolerance:
+    xs, ys = NUMBER.findall(a), NUMBER.findall(b)
+    tolerances = _tolerances(prop, a, len(xs))
+    for x, y, tolerance in zip(xs, ys, tolerances):
+        if abs(float(x) - float(y)) > tolerance + 1e-9:
             return False
     return True
 
@@ -170,21 +189,21 @@ def diff_records(key: str, old: dict, new: dict) -> list[str]:
     for prop in sorted(set(old) | set(new)):
         a, b = old.get(prop), new.get(prop)
         if prop == "r" and a and b:
-            if any(abs(x - y) > PIXEL_TOLERANCE for x, y in zip(a, b)):
+            if any(abs(x - y) > MOTION_TOLERANCE for x, y in zip(a, b)):
                 lines.append(f"{key} box {a} -> {b}")
             continue
         if a is None or b is None:
             if (a or b) not in ("", "none", None):
                 lines.append(f"{key} {prop}: {a!r} -> {b!r}")
             continue
-        if not numbers_close(str(a), str(b)):
+        if not numbers_close(prop, str(a), str(b)):
             lines.append(f"{key} {prop}: {a!r} -> {b!r}")
     return lines
 
 
 def diff_snapshots(old: dict, new: dict) -> list[str]:
     lines = []
-    if abs(old.get("height", 0) - new.get("height", 0)) > 1:
+    if abs(old.get("height", 0) - new.get("height", 0)) > MOTION_TOLERANCE:
         lines.append(f"page height {old.get('height')} -> {new.get('height')}")
     if abs(old.get("scrollY", 0) - new.get("scrollY", 0)) > 1:
         lines.append(f"scrollY {old.get('scrollY')} -> {new.get('scrollY')}")
