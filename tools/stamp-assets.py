@@ -211,14 +211,20 @@ def main() -> int:
 
     names = list(DOCUMENTS) + module_documents()
     documents = {name: (ROOT / name).read_text(encoding="utf-8") for name in names}
+    # The preload list is generated, so regenerate it before judging it: a
+    # module that was just removed must drop out of it, not be reported as a
+    # missing file.
+    prepared = dict(documents)
+    if "index.html" in prepared:
+        prepared["index.html"] = with_preload_block(prepared["index.html"])
 
-    found = problems(documents)
+    found = problems(prepared)
     if found:
         for problem in found:
             print(problem, file=sys.stderr)
         return 2
 
-    stamped = stamp_all(documents)
+    stamped = stamp_all(prepared)
     changed = [name for name in names if stamped[name] != documents[name]]
     total = sum(1 for name in names for _, _, _, stamp in references(name, stamped[name]) if stamp)
 
