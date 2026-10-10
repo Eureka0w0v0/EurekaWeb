@@ -202,16 +202,6 @@ html[lang="zh-CN"] .hero-text {
   white-space: nowrap;
 }
 
-
-.glass-panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
-  will-change: transform;
-}
-
 .hero-visual {
   position: relative;
   min-height: 540px;
@@ -254,6 +244,12 @@ html[lang="zh-CN"] .hero-text {
   width: min(100%, 440px);
   border-radius: 28px;
   padding: var(--space-24);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  will-change: transform;
   transform-style: preserve-3d;
   transition:
     transform 180ms ease,

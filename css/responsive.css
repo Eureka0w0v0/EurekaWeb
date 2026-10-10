@@ -82,9 +82,6 @@
 @media (max-width: 920px) {
   .hero-shell {
     grid-template-columns: 1fr;
-  }
-
-  .hero-shell {
     padding: var(--space-32) 0 var(--space-40);
     align-content: center;
   }

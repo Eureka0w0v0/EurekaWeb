@@ -248,9 +248,6 @@ html.theme-dark .career-card-stack[data-active-layer="3"]::before {
     linear-gradient(115deg, color-mix(in srgb, white 18%, transparent), transparent 46%),
     radial-gradient(circle at 70% 14%, color-mix(in srgb, var(--text) 7%, transparent), transparent 34%);
   pointer-events: none;
-}
-
-.career-card-layer::before {
   z-index: 1;
 }
 
