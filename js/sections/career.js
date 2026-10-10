@@ -3,6 +3,7 @@
 import { root } from "../core/dom.js?v=5057c320";
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
 import { waitForFrames } from "../core/frames.js?v=0b68ae2a";
+import { createMachine } from "../core/machine.js?v=73a7d34e";
 import { clamp01, easeInOut, mapScrollSegment } from "../core/math.js?v=54e566c4";
 import { isTouchFirst, shouldReduceMotion, stableMobileAppHeight } from "../core/viewport.js?v=71b5eb94";
 import {
@@ -19,12 +20,58 @@ const careerUfo = document.querySelector(".career-ufo");
 const careerAlien = document.querySelector(".career-alien");
 const careerCardLayers = document.querySelectorAll("[data-career-layer]");
 let careerFrame = 0;
-let careerThemeResumeFrame = 0;
-let careerSceneFrozenForTheme = false;
-let careerThemeResumeCooldownUntil = 0;
-let careerThemeRestorePending = false;
-let careerThemeFrozenScrollY = 0;
-let careerThemeRequiresScrollResume = false;
+
+/* While the theme changes, a phone's career scene is held still so the
+   transition's snapshot never catches it mid-animation, then let go. The
+   phase of that hold:
+
+     idle       nothing held
+     frozen     a transition is running: the scroll animation is stopped, the
+                scene's variables are cached and (with lockGeometry) the
+                elements are pinned to where they were
+     resuming   the transition is over: wait for the wave to leave the
+                screen, then restore over a few frames
+     restoring  restored at once (after the geometry-locked wave), with two
+                frames to settle
+
+   frozen and resuming are what used to be careerSceneFrozenForTheme;
+   resuming and restoring what used to be careerThemeRestorePending.
+
+   Back in idle the scene can still be held, by data beside the phase:
+   holdUntilScroll keeps it still until the visitor scrolls more than 3px
+   from where it froze (set by every freeze, cleared by finish and by that
+   scroll), and cooldownUntil holds it for 320ms after a restore unless they
+   scroll sooner. */
+const themeLock = {
+  phase: createMachine("career theme lock", {
+    initial: "idle",
+    states: {
+      idle: { freeze: "frozen", clear: "idle", finish: "restoring" },
+      frozen: { freeze: "frozen", clear: "idle", resume: "resuming", finish: "restoring" },
+      resuming: { freeze: "frozen", resume: "resuming", resumed: "idle", finish: "restoring" },
+      restoring: { freeze: "frozen", finish: "restoring", restored: "idle" },
+    },
+  }),
+  resumeFrame: 0,
+  frozenScrollY: 0,
+  holdUntilScroll: false,
+  cooldownUntil: 0,
+};
+
+function isCareerFrozenForTheme() {
+  return themeLock.phase.is("frozen", "resuming");
+}
+
+function isCareerRestorePending() {
+  return themeLock.phase.is("resuming", "restoring");
+}
+
+function cancelThemeLockFrame() {
+  if (themeLock.resumeFrame) {
+    window.cancelAnimationFrame(themeLock.resumeFrame);
+    themeLock.resumeFrame = 0;
+  }
+}
 let activeCareerLayer = 1;
 let careerLayerTimer = 0;
 let careerWheelUnlockTimer = 0;
@@ -266,10 +313,7 @@ function freezeCareerSceneForTheme({ lockGeometry = true } = {}) {
     careerFrame = 0;
   }
 
-  if (careerThemeResumeFrame) {
-    window.cancelAnimationFrame(careerThemeResumeFrame);
-    careerThemeResumeFrame = 0;
-  }
+  cancelThemeLockFrame();
 
   const styles = getComputedStyle(careerSection);
   careerSceneThemeVars.forEach((propertyName) => {
@@ -283,14 +327,14 @@ function freezeCareerSceneForTheme({ lockGeometry = true } = {}) {
     }
   });
 
-  careerThemeFrozenScrollY = window.scrollY;
-  careerThemeResumeCooldownUntil = Number.POSITIVE_INFINITY;
-  careerThemeRequiresScrollResume = true;
-  careerSceneFrozenForTheme = true;
+  themeLock.frozenScrollY = window.scrollY;
+  themeLock.cooldownUntil = Number.POSITIVE_INFINITY;
+  themeLock.holdUntilScroll = true;
+  themeLock.phase.send("freeze");
 }
 
 function clearStaleCareerThemeLockBeforeTransition() {
-  if (!isTouchFirst() || careerThemeRestorePending || isThemeTransitionRunning()) {
+  if (!isTouchFirst() || isCareerRestorePending() || isThemeTransitionRunning()) {
     return;
   }
 
@@ -298,36 +342,29 @@ function clearStaleCareerThemeLockBeforeTransition() {
     careerGeometryLockCache.size ||
     careerGeometryLockTargets.length ||
     careerCardStack?.classList.contains("is-theme-locking") ||
-    careerSceneFrozenForTheme
+    isCareerFrozenForTheme()
   );
 
   if (!hasStaleLock) {
     return;
   }
 
-  if (careerThemeResumeFrame) {
-    window.cancelAnimationFrame(careerThemeResumeFrame);
-    careerThemeResumeFrame = 0;
-  }
-
+  cancelThemeLockFrame();
   restoreCareerSceneThemeCache();
   restoreCareerLayerStylesForTheme();
   careerCardStack?.classList.remove("is-theme-locking");
-  careerSceneFrozenForTheme = false;
-  careerThemeRequiresScrollResume = false;
-  careerThemeResumeCooldownUntil = 0;
+  themeLock.holdUntilScroll = false;
+  themeLock.cooldownUntil = 0;
+  themeLock.phase.send("clear");
 }
 
 function scheduleCareerSceneResumeAfterTheme() {
-  if (!careerSection || !careerSceneFrozenForTheme) {
+  if (!careerSection || !isCareerFrozenForTheme()) {
     return;
   }
 
-  careerThemeRestorePending = true;
-
-  if (careerThemeResumeFrame) {
-    window.cancelAnimationFrame(careerThemeResumeFrame);
-  }
+  themeLock.phase.send("resume");
+  cancelThemeLockFrame();
 
   const resumeWhenThemeWaveSettles = () => {
     if (
@@ -338,72 +375,69 @@ function scheduleCareerSceneResumeAfterTheme() {
         root.classList.contains("theme-snapshot-active")
       )
     ) {
-      careerThemeResumeFrame = window.requestAnimationFrame(resumeWhenThemeWaveSettles);
+      themeLock.resumeFrame = window.requestAnimationFrame(resumeWhenThemeWaveSettles);
       return;
     }
 
     restoreCareerSceneThemeCache();
-    careerThemeResumeFrame = window.requestAnimationFrame(() => {
+    themeLock.resumeFrame = window.requestAnimationFrame(() => {
       restoreCareerSceneThemeCache();
       restoreCareerLayerStylesForTheme();
-      careerThemeResumeFrame = window.requestAnimationFrame(() => {
-        careerThemeResumeFrame = window.requestAnimationFrame(() => {
-          careerThemeResumeFrame = 0;
+      themeLock.resumeFrame = window.requestAnimationFrame(() => {
+        themeLock.resumeFrame = window.requestAnimationFrame(() => {
+          /* Still "resuming": every freeze, finish or clear cancels this
+             chain before it can get here. */
+          themeLock.resumeFrame = 0;
           careerCardStack?.classList.remove("is-theme-locking");
-          careerSceneFrozenForTheme = false;
-          careerThemeResumeCooldownUntil = performance.now() + 320;
-          careerThemeRestorePending = false;
+          themeLock.cooldownUntil = performance.now() + 320;
+          themeLock.phase.send("resumed");
         });
       });
     });
   };
 
-  careerThemeResumeFrame = window.requestAnimationFrame(resumeWhenThemeWaveSettles);
+  themeLock.resumeFrame = window.requestAnimationFrame(resumeWhenThemeWaveSettles);
 }
 
 async function finishCareerSceneAfterTheme() {
-  if (!careerSceneFrozenForTheme && !careerGeometryLockCache.size) {
+  if (!isCareerFrozenForTheme() && !careerGeometryLockCache.size) {
     return;
   }
 
-  careerThemeRestorePending = true;
-
-  if (careerThemeResumeFrame) {
-    window.cancelAnimationFrame(careerThemeResumeFrame);
-    careerThemeResumeFrame = 0;
-  }
-
+  themeLock.phase.send("finish");
+  cancelThemeLockFrame();
   restoreCareerSceneThemeCache();
   restoreCareerLayerStylesForTheme();
   careerCardStack?.classList.remove("is-theme-locking");
-  careerSceneFrozenForTheme = false;
-  careerThemeRequiresScrollResume = false;
-  careerThemeResumeCooldownUntil = performance.now() + 320;
+  themeLock.holdUntilScroll = false;
+  themeLock.cooldownUntil = performance.now() + 320;
 
   await waitForFrames(2);
-  careerThemeRestorePending = false;
+  /* The two frames cannot be cancelled. A freeze that landed during them --
+     a system theme change, say -- has already moved the phase on, and wins. */
+  if (themeLock.phase.is("restoring")) {
+    themeLock.phase.send("restored");
+  }
 }
 
 function isCareerSceneThemeLocked() {
-  if (careerThemeRequiresScrollResume) {
-    if (Math.abs(window.scrollY - careerThemeFrozenScrollY) <= 3) {
+  const stillWhereItFroze = () => Math.abs(window.scrollY - themeLock.frozenScrollY) <= 3;
+
+  if (themeLock.holdUntilScroll) {
+    if (stillWhereItFroze()) {
       return true;
     }
 
-    careerThemeRequiresScrollResume = false;
-    careerThemeResumeCooldownUntil = 0;
+    themeLock.holdUntilScroll = false;
+    themeLock.cooldownUntil = 0;
   }
 
-  const isCoolingDown = (
-    performance.now() < careerThemeResumeCooldownUntil &&
-    Math.abs(window.scrollY - careerThemeFrozenScrollY) <= 3
-  );
+  const isCoolingDown = performance.now() < themeLock.cooldownUntil && stillWhereItFroze();
 
   return (
-    careerSceneFrozenForTheme ||
+    !themeLock.phase.is("idle") ||
     isCoolingDown ||
     isThemeTransitionRunning() ||
-    careerThemeRestorePending ||
     isThemeTransitionLite() ||
     root.classList.contains("theme-snapshot-active")
   );
@@ -720,7 +754,7 @@ export function updateCareerScene() {
 
 export function bindCareerReactions() {
   addThemeTransitionParticipant({
-    isBusy: () => careerThemeRestorePending,
+    isBusy: isCareerRestorePending,
     prepare: clearStaleCareerThemeLockBeforeTransition,
     /* On a phone with the cards in view, the wave has to pin their geometry
        before the snapshot is taken, or the captured frame jumps. */

@@ -67,7 +67,7 @@ import {
   requestCareerSceneUpdate,
   updateCareerLayerClasses,
   updateCareerScene,
-} from "./sections/career.js?v=b2964ac4";
+} from "./sections/career.js?v=9a6cba4b";
 import {
   bindHeroReactions,
   bindTiltReactions,
