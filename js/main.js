@@ -45,7 +45,7 @@ import {
   handlePhotoMainCardTouchPreload,
 } from "./photo/interaction.js?v=e3afb3c5";
 import { invalidatePhotoLayoutCaches } from "./photo/layout.js?v=c9fe971e";
-import { updatePhotoScene } from "./photo/scene.js?v=a3c8cae7";
+import { updatePhotoScene } from "./photo/scene.js?v=f181b0cb";
 import {
   cancelPhotoSceneFrame,
   isPhotoZoomOpen,

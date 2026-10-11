@@ -104,7 +104,7 @@ python3 tools/smoke.py           # desktop, phone and touch tablet, light and da
 python3 tools/smoke.py --quick   # desktop, light, plus the regression checks
 ```
 
-`smoke.py` serves the working tree locally and drives headless Chrome over the DevTools protocol (`tools/cdp.py`, standard library only). The page has to load with no exception, console error or failed request, scroll end to end, step the career cards, switch language and theme, and run the photo carousel, lightbox and Show All. It also checks that a slow `site-config.json` does not hold the page back, that maintenance mode still redirects, and that the service worker keeps one cached copy per asset. CI runs the stamp check, the photo-card check, `check-site.py` and the full smoke test before every Pages deploy.
+`smoke.py` serves the working tree locally and drives headless Chrome over the DevTools protocol (`tools/cdp.py`, standard library only). The page has to load with no exception, console error or failed request, scroll end to end, step the career cards, switch language and theme, and run the photo carousel, lightbox and Show All. It also checks that a slow `site-config.json` does not hold the page back, that maintenance mode still redirects, that the service worker keeps one cached copy per asset, and that Show All lays out its grid with reduced motion. CI runs the stamp check, the photo-card check, `check-site.py` and the full smoke test before every Pages deploy.
 
 For refactors that must not change the page, `tools/snapshot.py` records every element's box and computed styles at each stop of a fixed walk through the site, then compares a later run against it:
 

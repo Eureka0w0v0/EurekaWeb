@@ -14,11 +14,12 @@ end to end on a desktop, a phone and a touch tablet, in both themes:
   - the photo carousel steps, the lightbox opens and closes, Show All
     expands and collapses.
 
-Plus three regression checks that do not depend on the device:
+Plus four regression checks that do not depend on the device:
 
   - a slow site-config.json must not hold the page back;
   - maintenance mode still redirects;
-  - the service worker keeps one cached copy per asset path.
+  - the service worker keeps one cached copy per asset path;
+  - with reduced motion, Show All lays the grid out without a scroll.
 
     python3 tools/smoke.py            # everything
     python3 tools/smoke.py --quick    # desktop, light theme, regression checks
@@ -316,6 +317,32 @@ SHOW_ALL_TARGET = """(async () => {
 })()"""
 
 
+# The Show All state machine, read from the live module. The one white-box
+# probe in this file: whether the expand animation ran its last frame is not
+# visible from outside -- a grid stopped at 99.9% looks finished -- but the
+# machine stuck in "expanding" is the bug (the cards keep their animation
+# snapshots and, under reduced motion, never move at all).
+EXPAND_PHASE = """(async () => {
+  const href = [...document.querySelectorAll("link[rel=modulepreload]")]
+    .map((link) => link.href).find((url) => url.includes("/photo/state.js"));
+  return (await import(href)).expand.phase.state;
+})()"""
+SHOW_ALL_FINISH_TIMEOUT_S = 6.0
+
+
+def check_show_all_finishes(page: Page, results: Results, label: str, expected: str) -> None:
+    """The toggle's animation reaches its end state on its own, no scroll."""
+    settled = "expanded" if expected == "true" else "collapsed"
+    try:
+        page.wait_for(f"{EXPAND_PHASE}.then((phase) => phase === {json.dumps(settled)})",
+                      timeout=SHOW_ALL_FINISH_TIMEOUT_S)
+        finished = True
+    except CDPError:
+        finished = False
+    results.check(f"{label} show all animation finishes ({settled})", finished,
+                  f"phase={page.evaluate(EXPAND_PHASE)}")
+
+
 def wait_for_still_target(page: Page, expression: str, timeout: float) -> tuple[dict | None, dict | None]:
     """Poll a {x, y, still, hittable} expression until the element has not
     moved across three rendered frames and is the one under its own centre.
@@ -400,7 +427,8 @@ def check_photos(page: Page, results: Results, tag: str) -> None:
             except CDPError:
                 toggled, detail = False, (f"before the click {json.dumps(target)}, "
                                           f"after {json.dumps(page.evaluate(SHOW_ALL_TARGET))}")
-        results.check(f"{tag} show all -> {expected}", toggled, detail)
+        if results.check(f"{tag} show all -> {expected}", toggled, detail):
+            check_show_all_finishes(page, results, tag, expected)
         time.sleep(1.5)
 
 
@@ -517,6 +545,53 @@ def check_maintenance_redirect(browser: Browser, results: Results) -> None:
             page.close()
 
 
+CARD_RECTS = """[...document.querySelectorAll(".photo-stage .photo-card")]
+  .map((card) => { const r = card.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; })"""
+
+
+def check_show_all_reduced_motion(browser: Browser, server_url: str, results: Results) -> None:
+    """With reduced motion there is no animation to wait for: Show All has to
+    lay the grid out in the frame it is clicked, and put it back the same way.
+    It used to draw one frame of a 920ms animation and stop, leaving the cards
+    where they were until the visitor scrolled."""
+    print("  [reduced motion] show all", flush=True)
+    page = browser.new_page(DEVICES["desktop"], reduced_motion=True, init_script=SKIP_INTRO)
+    tag = "[reduced motion]"
+    try:
+        page.navigate(server_url)
+        page.wait_for("!document.getElementById('intro-overlay')", timeout=15, message="initApp never ran")
+        scroll_photo_stage_into_view(page)
+        before = page.evaluate(CARD_RECTS)
+        for expected in ("true", "false"):
+            target, last = wait_for_still_target(page, SHOW_ALL_TARGET, SHOW_ALL_READY_TIMEOUT_S)
+            if not results.check(f"{tag} show all clickable before -> {expected}", target is not None,
+                                 json.dumps(last)):
+                return
+            page.click(target["x"], target["y"])
+            try:
+                page.wait_for(f"({PHOTO_STATE}).showAll === {json.dumps(expected)}",
+                              timeout=SHOW_ALL_TOGGLE_TIMEOUT_S)
+                toggled = True
+            except CDPError:
+                toggled = False
+            if not results.check(f"{tag} show all -> {expected}", toggled):
+                return
+            check_show_all_finishes(page, results, tag, expected)
+            if expected == "true":
+                time.sleep(0.5)
+                after = page.evaluate(CARD_RECTS)
+                moved = sum(1 for a, b in zip(before, after) if abs(a[0] - b[0]) + abs(a[1] - b[1]) > 50)
+                results.check(f"{tag} show all moves the cards into the grid", moved >= len(before) // 2,
+                              f"{moved} of {len(before)} cards moved")
+        time.sleep(0.5)
+        restored = page.evaluate(CARD_RECTS)
+        results.check(f"{tag} show all puts the cards back", restored == before,
+                      f"{sum(1 for a, b in zip(before, restored) if a != b)} cards elsewhere")
+        results.check(f"{tag} no runtime errors", not page.errors, "; ".join(page.errors[:5]))
+    finally:
+        page.close()
+
+
 def check_service_worker_cache(browser: Browser, server_url: str, results: Results) -> None:
     print("  [sw] one cached copy per asset", flush=True)
     page = browser.new_page(DEVICES["desktop"], init_script=SKIP_INTRO)
@@ -567,6 +642,7 @@ def main() -> int:
             for device, dark in configurations:
                 run_configuration(browser, server.url, device, dark, results)
             check_service_worker_cache(browser, server.url, results)
+            check_show_all_reduced_motion(browser, server.url, results)
         check_config_does_not_block(browser, results)
         check_maintenance_redirect(browser, results)
 

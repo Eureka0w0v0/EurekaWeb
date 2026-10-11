@@ -404,11 +404,16 @@ function followCarouselTarget(frame) {
   }
 }
 
-/* Show All's progress along its eased animation. */
+/* Show All's progress along its eased animation. With reduced motion there
+   is no animation: the toggle lands in the frame that draws it. (It used to
+   run the 920ms clock anyway, and no further frames are requested under
+   reduced motion, so the cards stayed where they were until a scroll.) */
 function advanceExpandAnimation(frame) {
-  const { timestamp } = frame;
+  const { reduceMotion, timestamp } = frame;
   if (isExpandAnimating()) {
-    const rawAnimationProgress = clamp01((timestamp - expand.animationStart) / expand.duration);
+    const rawAnimationProgress = reduceMotion
+      ? 1
+      : clamp01((timestamp - expand.animationStart) / expand.duration);
     const easedAnimationProgress = easeOutCubic(rawAnimationProgress);
     expand.progress = expand.phase.is("expanding")
       ? easedAnimationProgress
@@ -709,13 +714,20 @@ function getFloatingCardIdentity(frame, pass) {
   return { data, attributes };
 }
 
-/* Whether anything is still moving and another frame is needed. */
+/* Whether anything is still moving and another frame is needed.
+
+   A Show All animation counts until its own last frame has run. Its eased
+   progress is within 0.001 of the end from 90% of the duration on, so going
+   by progress alone stopped the frames there: the machine stayed in
+   "expanding", the cards kept their animation snapshots, and the staggered
+   cards stopped short of the grid. */
 function photoSceneNeedsAnotherFrame(frame) {
   const { photoSectionIsNearViewport, reduceMotion } = frame;
   return !reduceMotion && photoSectionIsNearViewport && (
     Math.abs(progressState.target - progressState.visual) > 0.00005 ||
     Math.abs(progressState.velocity) > 0.00005 ||
     ((isCarouselEnabled() || isCarouselSettling()) && Math.abs(carousel.targetIndex - carousel.visualIndex) > 0.001) ||
+    isExpandAnimating() ||
     Math.abs(expandTarget() - expand.progress) > 0.001
   );
 }

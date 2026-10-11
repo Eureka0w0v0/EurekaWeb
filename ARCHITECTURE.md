@@ -106,7 +106,7 @@ Any state that moves through three or more phases is an explicit machine from `c
 | theme transition | `theme.js` | `idle` → `running` ⇄ `lite` → `idle` | `lite` is a running transition on the lighter snapshot path for touch devices. |
 | career theme lock | `sections/career.js` | `idle`, `frozen`, `resuming`, `restoring` | Holds the card scene still while a theme transition captures it, then lets it go. |
 | photo carousel | `photo/state.js` | `inactive`, `active`, `settling`, `reinserting`, `reinserted` | Every frame chooses between `enable`, `replay` and `reset` from the scroll position. Gestures `settle` and `step`, and arriving at the target is `converge`. |
-| photo show all | `photo/state.js` | `collapsed`, `expanding`, `expanded`, `collapsing` | A `toggle` mid-animation reverses from where the cards actually are. |
+| photo show all | `photo/state.js` | `collapsed`, `expanding`, `expanded`, `collapsing` | A `toggle` mid-animation reverses from where the cards actually are. Frames keep coming until the animation's last frame sends `finish`. With reduced motion, a toggle settles in the frame it is drawn. |
 | photo touch gesture | `photo/state.js` | `idle`, `tracking`, `locked`, `released` | Decides between a swipe and a vertical scroll. `locked` makes one swipe step exactly one card. |
 | photo lightbox | `photo/state.js` | `closed`, `open` | |
 
@@ -159,7 +159,7 @@ Both tools have a `--check` mode. CI runs both checks, and so does `tools/deploy
 | `tools/check-site.py` | Static checks: one canonical origin everywhere the site names itself, and a clean module graph. |
 | `tools/stamp-assets.py --check` | Every stamp matches its file's content. |
 | `tools/build-photos.py --check` | The photo cards match `data/photos.json`. |
-| `tools/smoke.py` | The page works end to end on a desktop, a phone and a touch tablet, in both themes. It also checks that a slow config does not block the page, that maintenance mode redirects, and that the service worker keeps one copy per asset. Use `--quick` for desktop only, plus those three checks. |
+| `tools/smoke.py` | The page works end to end on a desktop, a phone and a touch tablet, in both themes. It also checks that a slow config does not block the page, that maintenance mode redirects, that the service worker keeps one copy per asset, and that Show All works with reduced motion. Use `--quick` for desktop only, plus those three checks. |
 | `tools/snapshot.py` | A golden master for refactors. It records each element's box and computed styles at fixed stops through the site, then compares a later run with that record. |
 
 The browser tools drive a local Chrome through `tools/cdp.py`, a DevTools Protocol client that talks over a pipe instead of a debugging port. They serve the working tree with `tools/devserver.py` on an ephemeral local port. Neither needs a third-party package. CI runs the three checks and the full smoke test, and Pages deploys only if they pass.
