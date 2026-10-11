@@ -58,7 +58,15 @@ CONFIG_DELAY_S = 2.0
 # config. Generous for CI; the old blocking behaviour sat at the full delay.
 CONFIG_INDEPENDENCE_BUDGET_MS = 800
 CAREER_SETTLE_S = 2.8
+# The career cards ignore keys until a theme change has fully settled, which
+# on a slow CI runner can be well over a second after the <html> classes
+# clear. Long enough for that; a scene that never lets go still fails.
+CAREER_UNLOCK_TIMEOUT_S = 8.0
 PHOTO_BUTTON_TARGET_Y = 120
+# Show All moves with the cards while they animate; it is clicked once it has
+# stopped and is the element actually under its centre.
+SHOW_ALL_READY_TIMEOUT_S = 15.0
+SHOW_ALL_TOGGLE_TIMEOUT_S = 10.0
 STEP_SETTLE_S = 1.6
 
 # Scrolls with behavior "instant": the page sets scroll-behavior: smooth, and
@@ -292,6 +300,33 @@ def check_theme(page: Page, results: Results, tag: str, dark: bool) -> None:
     page.wait_for(THEME_SETTLED, timeout=10, message="theme transition never settled")
 
 
+SHOW_ALL_TARGET = """(() => {
+  const button = document.getElementById("photo-show-all");
+  const r = button.getBoundingClientRect();
+  const x = r.left + r.width / 2;
+  const y = r.top + r.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return { x, y, aria: button.getAttribute("aria-expanded"),
+           hittable: button.classList.contains("is-visible") && !!hit && (hit === button || button.contains(hit)),
+           hit: hit ? (hit.id || hit.className || hit.tagName) : null };
+})()"""
+
+
+def wait_for_still_target(page: Page, expression: str, timeout: float) -> tuple[dict | None, dict | None]:
+    """Poll an {x, y, hittable} expression until two samples in a row agree
+    and the element is the one under its own centre. Returns (target, last)."""
+    deadline = time.monotonic() + timeout
+    previous = last = None
+    while time.monotonic() < deadline:
+        last = page.evaluate(expression)
+        if (last and last["hittable"] and previous
+                and abs(last["x"] - previous["x"]) < 0.5 and abs(last["y"] - previous["y"]) < 0.5):
+            return last, last
+        previous = last
+        time.sleep(0.15)
+    return None, last
+
+
 def scroll_photo_stage_into_view(page: Page) -> None:
     """Run the whole drop-in, then come back up until Show All is on screen.
 
@@ -342,24 +377,41 @@ def check_photos(page: Page, results: Results, tag: str) -> None:
         time.sleep(0.8)
 
     for expected in ("true", "false"):
-        page.click_selector("#photo-show-all")
-        try:
-            page.wait_for(f"({PHOTO_STATE}).showAll === {json.dumps(expected)}", timeout=6)
-            toggled = True
-        except CDPError:
-            toggled = False
-        results.check(f"{tag} show all -> {expected}", toggled)
+        target, last = wait_for_still_target(page, SHOW_ALL_TARGET, SHOW_ALL_READY_TIMEOUT_S)
+        if target:
+            page.click(target["x"], target["y"])
+            try:
+                page.wait_for(f"({PHOTO_STATE}).showAll === {json.dumps(expected)}",
+                              timeout=SHOW_ALL_TOGGLE_TIMEOUT_S)
+                toggled, detail = True, ""
+            except CDPError:
+                toggled, detail = False, f"clicked, still {json.dumps(page.evaluate(SHOW_ALL_TARGET))}"
+        else:
+            toggled, detail = False, f"never still and clickable: {json.dumps(last)}"
+        results.check(f"{tag} show all -> {expected}", toggled, detail)
         time.sleep(1.5)
 
 
 def _career_steps_after_theme_change(page: Page, results: Results, label: str) -> None:
+    """Press ArrowDown until the cards take it, as a visitor would.
+
+    While the scene holds still a key is dropped, not queued, so one press at
+    a fixed delay tests the machine's speed rather than the page. A press that
+    lands updates data-active-layer before the key event returns, so checking
+    right after each press never steps twice."""
     page.wait_for(THEME_SETTLED, timeout=10, message="theme transition never settled")
-    time.sleep(1.0)
     page.evaluate("document.querySelector('.career-card-stack').focus({ preventScroll: true })")
-    page.press_key("ArrowDown", key_code=40)
+    started = time.monotonic()
+    active = page.evaluate(CAREER_STATE)["active"]
+    while active == 1 and time.monotonic() - started < CAREER_UNLOCK_TIMEOUT_S:
+        page.press_key("ArrowDown", key_code=40)
+        active = page.evaluate(CAREER_STATE)["active"]
+        if active == 1:
+            time.sleep(0.25)
+    waited = time.monotonic() - started
     time.sleep(STEP_SETTLE_S)
     active = page.evaluate(CAREER_STATE)["active"]
-    results.check(label, active == 2, f"active={active}")
+    results.check(label, active == 2, f"active={active} after {waited:.1f}s of pressing")
     page.press_key("Home", key_code=36)
     time.sleep(STEP_SETTLE_S)
 

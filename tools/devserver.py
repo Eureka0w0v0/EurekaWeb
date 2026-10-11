@@ -11,6 +11,7 @@ is how a test switches maintenance mode on without touching the repository.
 from __future__ import annotations
 
 import functools
+import sys
 import threading
 import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -61,6 +62,14 @@ class _Server(ThreadingHTTPServer):
     # which the browser reports as a failed request that is not the site's.
     request_queue_size = 128
     daemon_threads = True
+
+    def handle_error(self, request, client_address) -> None:
+        # A page that navigates or closes drops its in-flight image requests;
+        # writing the rest of the file then fails with a broken pipe. That is
+        # the browser's choice, not a server fault, so it is not printed as one.
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
+            return
+        super().handle_error(request, client_address)
 
 
 class DevServer:
