@@ -300,30 +300,37 @@ def check_theme(page: Page, results: Results, tag: str, dark: bool) -> None:
     page.wait_for(THEME_SETTLED, timeout=10, message="theme transition never settled")
 
 
-SHOW_ALL_TARGET = """(() => {
+SHOW_ALL_TARGET = """(async () => {
   const button = document.getElementById("photo-show-all");
+  const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  const before = button.getBoundingClientRect();
+  for (let i = 0; i < 3; i += 1) await frame();
   const r = button.getBoundingClientRect();
   const x = r.left + r.width / 2;
   const y = r.top + r.height / 2;
   const hit = document.elementFromPoint(x, y);
   return { x, y, aria: button.getAttribute("aria-expanded"),
+           still: Math.abs(r.left - before.left) < 0.5 && Math.abs(r.top - before.top) < 0.5,
            hittable: button.classList.contains("is-visible") && !!hit && (hit === button || button.contains(hit)),
            hit: hit ? (hit.id || hit.className || hit.tagName) : null };
 })()"""
 
 
 def wait_for_still_target(page: Page, expression: str, timeout: float) -> tuple[dict | None, dict | None]:
-    """Poll an {x, y, hittable} expression until two samples in a row agree
-    and the element is the one under its own centre. Returns (target, last)."""
+    """Poll a {x, y, still, hittable} expression until the element has not
+    moved across three rendered frames and is the one under its own centre.
+    Returns (target, last sample).
+
+    Frames, not wall time: on the CI runner one frame of the expanding photo
+    grid can take half a second, so two samples 150ms apart can both fall
+    between the same two frames and call a moving button still."""
     deadline = time.monotonic() + timeout
-    previous = last = None
+    last = None
     while time.monotonic() < deadline:
         last = page.evaluate(expression)
-        if (last and last["hittable"] and previous
-                and abs(last["x"] - previous["x"]) < 0.5 and abs(last["y"] - previous["y"]) < 0.5):
+        if last and last["still"] and last["hittable"]:
             return last, last
-        previous = last
-        time.sleep(0.15)
+        time.sleep(0.1)
     return None, last
 
 
@@ -378,16 +385,21 @@ def check_photos(page: Page, results: Results, tag: str) -> None:
 
     for expected in ("true", "false"):
         target, last = wait_for_still_target(page, SHOW_ALL_TARGET, SHOW_ALL_READY_TIMEOUT_S)
-        if target:
+        if not target:
+            toggled, detail = False, f"never still and clickable: {json.dumps(last)}"
+        elif target["aria"] == expected:
+            # Already there before the click: the grid opened or closed by
+            # itself, which is a page bug, not a missed click.
+            toggled, detail = False, f"was already {expected} before the click: {json.dumps(target)}"
+        else:
             page.click(target["x"], target["y"])
             try:
                 page.wait_for(f"({PHOTO_STATE}).showAll === {json.dumps(expected)}",
                               timeout=SHOW_ALL_TOGGLE_TIMEOUT_S)
                 toggled, detail = True, ""
             except CDPError:
-                toggled, detail = False, f"clicked, still {json.dumps(page.evaluate(SHOW_ALL_TARGET))}"
-        else:
-            toggled, detail = False, f"never still and clickable: {json.dumps(last)}"
+                toggled, detail = False, (f"before the click {json.dumps(target)}, "
+                                          f"after {json.dumps(page.evaluate(SHOW_ALL_TARGET))}")
         results.check(f"{tag} show all -> {expected}", toggled, detail)
         time.sleep(1.5)
 
