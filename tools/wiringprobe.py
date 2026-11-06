@@ -47,6 +47,7 @@ CONFIGURATIONS = ("desktop", "mobile", "tablet")
 EVENTS_MODULE = "js/core/events.js"
 LOAD_SETTLE_S = 1.0
 THEME_SETTLE_S = 1.2
+TRACE_QUIET_TIMEOUT_S = 15.0
 LANGUAGE_SETTLE_S = 2.0
 # Loops that request a frame every frame, whatever else is going on.
 FRAME_LOOPS = ("animateBrain", "renderGrain")
@@ -133,11 +134,19 @@ INSTRUMENT = r"""
 })();
 """
 
-FRAMES_AFTER = """(async (action) => {
+# A request still pending from earlier would absorb the one being measured, so
+# the page has to go a couple of frames with nothing but its loops first.
+FRAMES_AFTER = """(async ([action, loops]) => {
   const wiring = window.__wiring;
   const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
-  await frame();
-  await frame();
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    wiring.frames.length = 0;
+    await frame();
+    await frame();
+    if (wiring.frames.every((name) => name === "<anonymous>" || loops.includes(name))) {
+      break;
+    }
+  }
   wiring.frames.length = 0;
   if (action === "scroll") {
     scrollTo({ top: scrollY + 40, behavior: "instant" });
@@ -193,6 +202,20 @@ def collapse(rows: list) -> list:
     return kept
 
 
+def wait_for_trace_to_stop(page: Page) -> None:
+    """A theme change's last steps land frames after its classes clear, and a
+    machine under load draws few frames, so wait for the log rather than a clock."""
+    size = "(({ animations, emits, mutations }) => animations.length + emits.length + mutations.length)(window.__wiring)"
+    previous = None
+    deadline = time.monotonic() + TRACE_QUIET_TIMEOUT_S
+    while time.monotonic() < deadline:
+        time.sleep(THEME_SETTLE_S)
+        current = page.evaluate(size)
+        if current == previous:
+            return
+        previous = current
+
+
 def read_trace(page: Page) -> dict:
     trace = page.evaluate(TRACE_READ)
     trace["emits"] = collapse([name for name in trace["emits"] if name not in NOISY_EVENTS])
@@ -206,7 +229,7 @@ def theme_trace(page: Page) -> dict:
     page.click_selector("#theme-toggle")
     time.sleep(0.2)
     page.wait_for(THEME_SETTLED, timeout=10, message="theme transition never settled")
-    time.sleep(THEME_SETTLE_S)
+    wait_for_trace_to_stop(page)
     return read_trace(page)
 
 
@@ -214,7 +237,7 @@ def capture(page: Page) -> dict:
     page.evaluate("window.__wiring.watch()")
     record: dict = {"frames": {}, "theme": {}}
     for action in ("scroll", "resize"):
-        frames = page.evaluate(f"{FRAMES_AFTER}({json.dumps(action)})")
+        frames = page.evaluate(f"{FRAMES_AFTER}({json.dumps([action, FRAME_LOOPS])})", timeout=60)
         record["frames"][action] = [name for name in frames if name not in FRAME_LOOPS]
 
     scroll_to(page, 0)
