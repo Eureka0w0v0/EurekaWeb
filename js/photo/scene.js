@@ -21,7 +21,7 @@ import {
   clearCarouselWheelState,
   resetPhotoCarouselTouchState,
   setPhotoSelectedSlot,
-} from "./carousel.js?v=001575e3";
+} from "./carousel.js?v=df4fe182";
 import {
   PHOTO_DROP_EXTRA_DISTANCE_PX,
   PHOTO_INTRO_PHASES,
@@ -68,7 +68,7 @@ import {
   progressState,
   setPhotoSceneUpdater,
 } from "./state.js?v=00213f2e";
-import { preloadNearbyPhotoZoomImages } from "./zoom.js?v=3c85aa78";
+import { preloadNearbyPhotoZoomImages } from "./zoom.js?v=1e10b972";
 
 /* updatePhotoScene runs once per frame while the photo section is near the
    viewport or something in it is still moving. It is a pipeline: each step

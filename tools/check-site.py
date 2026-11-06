@@ -17,6 +17,7 @@
 - Imports follow the layers in ARCHITECTURE.md. A graph with no cycles can
   still point the wrong way: core importing a section would pass every check
   above and quietly make the shared layer depend on the page.
+- A package with a public entry is only imported through that entry.
 """
 
 from __future__ import annotations
@@ -69,6 +70,11 @@ LAYERS = {
     "theme": {"core"},
     "i18n": {"core"},
     "core": set(),
+}
+
+# A package's files are private to it: from outside, only the entry is imported.
+PACKAGES = {
+    "photo/": "photo/index.js",
 }
 
 
@@ -131,6 +137,16 @@ def layer_of(module: Path) -> str:
     return module.relative_to(MODULE_ROOT).parts[0].removesuffix(".js")
 
 
+def private_to(module: Path, target: Path) -> str | None:
+    """The entry `module` should have imported, if `target` is out of bounds."""
+    importer = module.relative_to(MODULE_ROOT).as_posix()
+    imported = target.relative_to(MODULE_ROOT).as_posix()
+    for prefix, entry in PACKAGES.items():
+        if imported.startswith(prefix) and imported != entry and not importer.startswith(prefix) and importer != entry:
+            return entry
+    return None
+
+
 def check_module_layers() -> list[str]:
     problems: list[str] = []
     for module in modules():
@@ -145,6 +161,10 @@ def check_module_layers() -> list[str]:
             if destination != source and destination not in LAYERS[source]:
                 problems.append(f"{module.relative_to(ROOT)} imports {target.relative_to(ROOT)}: "
                                 f"{source} may not depend on {destination}")
+            entry = private_to(module, target)
+            if entry:
+                problems.append(f"{module.relative_to(ROOT)} imports {target.relative_to(ROOT)}: "
+                                f"from outside its package, import js/{entry}")
     return problems
 
 

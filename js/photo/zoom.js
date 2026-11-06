@@ -476,6 +476,31 @@ export function closePhotoZoom() {
   });
 }
 
+/* True when the key was the lightbox's to handle.
+
+   aria-modal="true" tells a screen reader that nothing outside the dialog
+   exists, so Tab leaving it puts the two in disagreement: focus lands on
+   something the user has just been told is not there. The dialog holds
+   exactly one focusable element, so trapping is simply keeping it. */
+export function handlePhotoZoomKeydown(event) {
+  if (!isPhotoZoomOpen()) {
+    return false;
+  }
+
+  if (event.key === "Escape") {
+    closePhotoZoom();
+    return true;
+  }
+
+  if (event.key === "Tab") {
+    event.preventDefault();
+    photoZoomCloseButton?.focus({ preventScroll: true });
+    return true;
+  }
+
+  return false;
+}
+
 export function handlePhotoZoomClosePointerDown(event) {
   event.preventDefault();
   event.stopPropagation();

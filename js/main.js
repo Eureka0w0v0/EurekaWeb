@@ -22,41 +22,15 @@ import {
   toggleLanguageMenu,
 } from "./i18n/language.js?v=ebcf5f60";
 import { initJumpLinks, initSectionRail } from "./nav.js?v=2bf12000";
-import { initPhotoQueueCards } from "./photo/cards.js?v=3fd32651";
 import {
-  handlePhotoCarouselTouchEnd,
-  handlePhotoCarouselTouchMove,
-  handlePhotoCarouselTouchStart,
-  handlePhotoCarouselWheel,
-} from "./photo/carousel.js?v=001575e3";
-import {
-  photoSection,
-  photoShowAllButton,
-  photoStage,
-  photoZoomCloseButton,
-  photoZoomOverlay,
-} from "./photo/dom.js?v=64ce044a";
-import { bindPhotoReactions, togglePhotoAllExpanded } from "./photo/expand.js?v=afe9eb2f";
-import { initPhotoCardHoverGlow } from "./photo/hover-glow.js?v=a03d1150";
-import {
-  handlePhotoCardKeydown,
-  handlePhotoMainCardClick,
-  handlePhotoMainCardPointerPreload,
-  handlePhotoMainCardTouchPreload,
-} from "./photo/interaction.js?v=b777cfeb";
-import { invalidatePhotoLayoutCaches } from "./photo/layout.js?v=87da4d8f";
-import { updatePhotoScene } from "./photo/scene.js?v=9fcf8e15";
-import {
+  bindPhotoReactions,
   cancelPhotoSceneFrame,
-  isPhotoZoomOpen,
+  handlePhotoZoomKeydown,
+  initPhotoTheatre,
+  invalidatePhotoLayoutCaches,
   requestPhotoSceneUpdate,
-} from "./photo/state.js?v=00213f2e";
-import {
-  closePhotoZoom,
-  handlePhotoZoomClosePointerDown,
-  handlePhotoZoomOverlayPointerDown,
-  stopPhotoZoomScroll,
-} from "./photo/zoom.js?v=3c85aa78";
+  updatePhotoScene,
+} from "./photo/index.js?v=5b281865";
 import {
   bindBrainReactions,
   brainSceneController,
@@ -119,7 +93,7 @@ import {
 
 syncInputDeviceClass();
 
-initPhotoQueueCards();
+initPhotoTheatre();
 /* Re-read on change like the theme query does. Everything that consults
    shouldReduceMotion() asks per call rather than caching, so turning the
    preference on mid-session takes effect from the next frame; this listener
@@ -251,21 +225,12 @@ function wireThemeToggle() {
 }
 
 function handleGlobalKeydown(event) {
-  if (event.key === "Escape") {
-    if (isPhotoZoomOpen()) {
-      closePhotoZoom();
-      return;
-    }
-    closeLanguageMenu();
+  if (handlePhotoZoomKeydown(event)) {
+    return;
   }
 
-  /* aria-modal="true" tells a screen reader that nothing outside the dialog
-     exists, so Tab leaving it puts the two in disagreement: focus lands on
-     something the user has just been told is not there. The dialog holds
-     exactly one focusable element, so trapping is simply keeping it. */
-  if (isPhotoZoomOpen() && event.key === "Tab") {
-    event.preventDefault();
-    photoZoomCloseButton?.focus({ preventScroll: true });
+  if (event.key === "Escape") {
+    closeLanguageMenu();
   }
 }
 
@@ -297,26 +262,6 @@ function wireSectionGestures() {
   careerCardStack?.addEventListener("touchstart", handleCareerLayerTouchStart, { passive: true, capture: true });
   careerCardStack?.addEventListener("touchmove", handleCareerLayerTouchMove, { passive: false, capture: true });
   careerCardStack?.addEventListener("touchend", handleCareerLayerTouchEnd, { passive: true, capture: true });
-  photoStage?.addEventListener("pointerover", handlePhotoMainCardPointerPreload);
-  photoStage?.addEventListener("touchstart", handlePhotoMainCardTouchPreload, { passive: true });
-  photoStage?.addEventListener("click", handlePhotoMainCardClick);
-  photoStage?.addEventListener("keydown", handlePhotoCardKeydown);
-  photoZoomCloseButton?.addEventListener("pointerdown", handlePhotoZoomClosePointerDown);
-  photoZoomCloseButton?.addEventListener("mousedown", handlePhotoZoomClosePointerDown);
-  photoZoomCloseButton?.addEventListener("touchstart", handlePhotoZoomClosePointerDown, { passive: false });
-  photoZoomCloseButton?.addEventListener("click", handlePhotoZoomClosePointerDown);
-  photoZoomOverlay?.addEventListener("pointerdown", handlePhotoZoomOverlayPointerDown);
-  photoZoomOverlay?.addEventListener("mousedown", handlePhotoZoomOverlayPointerDown);
-  photoZoomOverlay?.addEventListener("touchstart", handlePhotoZoomOverlayPointerDown, { passive: false });
-  photoZoomOverlay?.addEventListener("click", handlePhotoZoomOverlayPointerDown);
-  photoZoomOverlay?.addEventListener("wheel", stopPhotoZoomScroll, { passive: false });
-  photoZoomOverlay?.addEventListener("touchmove", stopPhotoZoomScroll, { passive: false });
-  photoShowAllButton?.addEventListener("click", togglePhotoAllExpanded);
-  photoSection?.addEventListener("wheel", handlePhotoCarouselWheel, { passive: false, capture: true });
-  photoSection?.addEventListener("touchstart", handlePhotoCarouselTouchStart, { passive: true, capture: true });
-  photoSection?.addEventListener("touchmove", handlePhotoCarouselTouchMove, { passive: false, capture: true });
-  photoSection?.addEventListener("touchend", handlePhotoCarouselTouchEnd, { passive: true, capture: true });
-  photoSection?.addEventListener("touchcancel", handlePhotoCarouselTouchEnd, { passive: true, capture: true });
   careerCardStack?.addEventListener("keydown", handleCareerLayerKeydown);
   window.addEventListener("resize", measureMagnetChars, { passive: true });
   document.fonts?.ready?.then(requestLanguageNetworkSync);
@@ -379,7 +324,6 @@ async function initApp() {
   /* Initialize visual effects */
   initCinematicParallax();
   initGrainCanvas();
-  initPhotoCardHoverGlow();
   initMarsClock();
 
   /* Bound before the intro is awaited. The intro runs ~3.5s, and until these
