@@ -163,6 +163,7 @@ Both tools have a `--check` mode. CI runs both checks, and so does `tools/deploy
 | `tools/snapshot.py` | A golden master for refactors. It records each element's box and computed styles at fixed stops through the site, then compares a later run with that record. |
 | `tools/brainprobe.py` | What `snapshot.py` leaves out of the language section. It swaps three.js for a recording wrapper and compares the geometry, materials, animation trace, silhouettes, connector lines, pills and rendered pixels exactly. |
 | `tools/welcomeprobe.py` | The welcome canvas, reseeded and read back at fixed scroll positions. |
+| `tools/photoprobe.py` | The photo theatre frame by frame, on a virtual clock: a fixed journey through the drop-in, the carousel, Show All and back, compared exactly after every frame. |
 | `tools/wiringprobe.py` | The order things are wired in: listeners per target and event, page event subscriptions, who requests which animation frame, and a theme change seen from the inside. |
 
 The browser tools drive a local Chrome through `tools/cdp.py`, a DevTools Protocol client that talks over a pipe instead of a debugging port. They serve the working tree with `tools/devserver.py` on an ephemeral local port. Neither needs a third-party package. CI runs the three checks and the full smoke test, and Pages deploys only if they pass.
