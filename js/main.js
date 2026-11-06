@@ -26,7 +26,7 @@ import {
   resizeBrainScene,
   resumeBrainScene,
   scheduleBrainSceneLoad,
-} from "./sections/brain.js?v=a0bcad17";
+} from "./sections/brain.js?v=9d3a504a";
 import {
   bindCareerReactions,
   requestCareerSceneUpdate,
@@ -50,7 +50,7 @@ import {
   renderActiveLanguageNode,
   requestLanguageNetworkSync,
   wireLanguageUniverseControls,
-} from "./sections/language-universe.js?v=845f8e85";
+} from "./sections/language-universe.js?v=cda98a63";
 import { initMarsClock } from "./sections/mars-clock.js?v=060a7c24";
 import {
   bindWelcomeReactions,

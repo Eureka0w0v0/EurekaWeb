@@ -75,6 +75,7 @@ LAYERS = {
 # A package's files are private to it: from outside, only the entry is imported.
 PACKAGES = {
     "photo/": "photo/index.js",
+    "sections/brain/": "sections/brain.js",
 }
 
 
