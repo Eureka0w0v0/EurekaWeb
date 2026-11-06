@@ -161,6 +161,9 @@ Both tools have a `--check` mode. CI runs both checks, and so does `tools/deploy
 | `tools/build-photos.py --check` | The photo cards match `data/photos.json`. |
 | `tools/smoke.py` | The page works end to end on a desktop, a phone and a touch tablet, in both themes. It also checks that a slow config does not block the page, that maintenance mode redirects, that the service worker keeps one copy per asset, and that Show All works with reduced motion. Use `--quick` for desktop only, plus those three checks. |
 | `tools/snapshot.py` | A golden master for refactors. It records each element's box and computed styles at fixed stops through the site, then compares a later run with that record. |
+| `tools/brainprobe.py` | What `snapshot.py` leaves out of the language section. It swaps three.js for a recording wrapper and compares the geometry, materials, animation trace, silhouettes, connector lines, pills and rendered pixels exactly. |
+| `tools/welcomeprobe.py` | The welcome canvas, reseeded and read back at fixed scroll positions. |
+| `tools/wiringprobe.py` | The order things are wired in: listeners per target and event, page event subscriptions, who requests which animation frame, and a theme change seen from the inside. |
 
 The browser tools drive a local Chrome through `tools/cdp.py`, a DevTools Protocol client that talks over a pipe instead of a debugging port. They serve the working tree with `tools/devserver.py` on an ephemeral local port. Neither needs a third-party package. CI runs the three checks and the full smoke test, and Pages deploys only if they pass.
 

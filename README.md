@@ -115,6 +115,8 @@ python3 tools/snapshot.py compare /tmp/before.json   # on the new code
 
 Baselines depend on the machine's fonts and rasteriser, so record and compare on the same machine; they are not committed.
 
+`snapshot.py` cannot see what changes on its own every frame, or the order things happen in. Three probes take the same `record` / `compare` arguments and cover that: `tools/brainprobe.py` for the WebGL brain, the connector lines and the pills, `tools/welcomeprobe.py` for the welcome canvas, and `tools/wiringprobe.py` for listener order, animation frame order and the inside of a theme change.
+
 ## Deploying
 
 Pushing to `main` deploys GitHub Pages through `.github/workflows/pages.yml`. The main site, `https://eureka-web.com/`, does not follow git and is deployed with `tools/deploy.py`; both name it as the canonical URL. See [deploy/README.md](deploy/README.md) for the details and the nginx configuration.
