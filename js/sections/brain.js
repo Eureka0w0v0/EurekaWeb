@@ -13,6 +13,7 @@ import {
   isDesktopInputDevice,
   isElementInViewport,
   isTouchFirst,
+  reducedMotionQuery,
   shouldReduceMotion,
 } from "../core/viewport.js?v=c7860737";
 import { activeTheme } from "../theme.js?v=875a3d80";
@@ -43,7 +44,7 @@ export let brainSceneController = null;
 /* Whether the brain is close enough to the viewport to be worth rendering.
    Defaults to true so that a browser without IntersectionObserver keeps the
    old always-on behaviour instead of a scene that never starts. */
-export let brainSceneOnScreen = true;
+let brainSceneOnScreen = true;
 
 const smoothstep = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -980,6 +981,33 @@ export function bindBrainReactions() {
   pageEvents.on("theme:applied", setTheme);
   pageEvents.on("theme:render-now", setTheme);
   pageEvents.on("theme:render-frame", setTheme);
+
+  /* Re-read on change like the theme query does. Everything that consults
+     shouldReduceMotion() asks per call rather than caching, so turning the
+     preference on mid-session takes effect from the next frame; this listener
+     exists so the layers that latch -- the brain scene, the grain canvas --
+     settle instead of running on with a stale answer. */
+  reducedMotionQuery.addEventListener?.("change", () => {
+    if (reducedMotionQuery.matches) {
+      brainSceneController?.stop();
+    }
+  });
+}
+
+export function resizeBrainScene() {
+  brainSceneController?.resize();
+}
+
+export function pauseBrainScene() {
+  brainSceneController?.stop();
+}
+
+/* Only resume what is actually on screen -- otherwise switching back to the
+   tab restarts the brain no matter where the page is scrolled. */
+export function resumeBrainScene() {
+  if (brainSceneOnScreen) {
+    brainSceneController?.start();
+  }
 }
 
 /* observeTarget is what has to come near the viewport before three.js is

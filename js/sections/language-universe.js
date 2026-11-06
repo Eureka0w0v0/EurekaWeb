@@ -2,8 +2,8 @@
 
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
 import { isCompactLayout, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
-import { getActiveCopy } from "../i18n/language.js?v=a2602265";
-import { brainMount, brainSceneController, brainWrap } from "./brain.js?v=18b252ce";
+import { getActiveCopy } from "../i18n/language.js?v=1cf55dc0";
+import { brainMount, brainSceneController, brainWrap } from "./brain.js?v=e663fa45";
 
 export const languageUniverse = document.querySelector("#language-universe");
 const languageNetwork = document.querySelector(".language-network");
@@ -55,7 +55,7 @@ const languageNodeInfo = {
   },
 };
 
-export let activeLanguageNode = "js";
+let activeLanguageNode = "js";
 
 function getLanguageNodeTags(nodeInfo, copy) {
   const translatedTags = copy[nodeInfo.tagsKey];
@@ -64,7 +64,7 @@ function getLanguageNodeTags(nodeInfo, copy) {
     : nodeInfo.fallbackTags;
 }
 
-export function setActiveLanguageNode(nodeKey) {
+function setActiveLanguageNode(nodeKey) {
   const nodeInfo = languageNodeInfo[nodeKey] || languageNodeInfo.js;
   const copy = getActiveCopy();
 
@@ -104,6 +104,10 @@ export function setActiveLanguageNode(nodeKey) {
   }
 
   requestLanguageNetworkSync();
+}
+
+export function renderActiveLanguageNode() {
+  setActiveLanguageNode(activeLanguageNode);
 }
 
 function toNetworkPoint(networkRect, x, y) {

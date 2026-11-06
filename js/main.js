@@ -2,20 +2,14 @@
 
 import { redirectIfInMaintenance } from "./core/config.js?v=aee1329a";
 import { handlePointerMove } from "./core/pointer.js?v=c2183471";
-import {
-  reducedMotionQuery,
-  syncInputDeviceClass,
-  syncViewportHeightVar,
-  visualViewportWidthChanged,
-} from "./core/viewport.js?v=c7860737";
+import { syncInputDeviceClass, syncViewportHeightVar, visualViewportWidthChanged } from "./core/viewport.js?v=c7860737";
 import { initGrainCanvas } from "./effects/grain.js?v=32f9adca";
 import {
-  applyLanguage,
+  applyPreferredLanguage,
   bindLanguageMenuReactions,
   closeLanguageMenu,
-  resolveLanguage,
   wireLanguageMenu,
-} from "./i18n/language.js?v=a2602265";
+} from "./i18n/language.js?v=1cf55dc0";
 import { initJumpLinks, initSectionRail } from "./nav.js?v=2bf12000";
 import {
   bindPhotoReactions,
@@ -25,13 +19,14 @@ import {
   invalidatePhotoLayoutCaches,
   requestPhotoSceneUpdate,
   updatePhotoScene,
-} from "./photo/index.js?v=1fd46847";
+} from "./photo/index.js?v=b6fbc2f9";
 import {
   bindBrainReactions,
-  brainSceneController,
-  brainSceneOnScreen,
+  pauseBrainScene,
+  resizeBrainScene,
+  resumeBrainScene,
   scheduleBrainSceneLoad,
-} from "./sections/brain.js?v=18b252ce";
+} from "./sections/brain.js?v=e663fa45";
 import {
   bindCareerReactions,
   requestCareerSceneUpdate,
@@ -47,55 +42,33 @@ import {
   requestHeroParallaxUpdate,
   updateHeroParallax,
 } from "./sections/hero.js?v=8a3b28b2";
-import { runIntroAnimation } from "./sections/intro.js?v=0fae4618";
+import { runIntroAnimation } from "./sections/intro.js?v=8960667f";
 import {
-  activeLanguageNode,
   bindLanguageUniverseMotion,
   bindLanguageUniverseReactions,
   languageUniverse,
+  renderActiveLanguageNode,
   requestLanguageNetworkSync,
-  setActiveLanguageNode,
   wireLanguageUniverseControls,
-} from "./sections/language-universe.js?v=0ab191c6";
+} from "./sections/language-universe.js?v=db8256ee";
 import { initMarsClock } from "./sections/mars-clock.js?v=060a7c24";
 import {
   bindWelcomeReactions,
-  buildWelcomeCanvas,
   drawWelcome,
   requestWelcomeRender,
-} from "./sections/welcome.js?v=55155a02";
+  scheduleWelcomeRebuild,
+} from "./sections/welcome.js?v=14be6ef3";
 import { commitThemeState, followSystemTheme, resolveTheme, wireThemeToggle } from "./theme.js?v=875a3d80";
 
 syncInputDeviceClass();
-
 initPhotoTheatre();
-/* Re-read on change like the theme query does. Everything that consults
-   shouldReduceMotion() asks per call rather than caching, so turning the
-   preference on mid-session takes effect from the next frame; this listener
-   exists so the layers that latch -- the brain scene, the grain canvas --
-   settle instead of running on with a stale answer. */
-reducedMotionQuery.addEventListener?.("change", () => {
-  if (reducedMotionQuery.matches) {
-    brainSceneController?.stop();
-  }
-});
 
 /* Resize fires continuously -- dozens a second while a window is dragged, and
    once per address-bar collapse on a phone -- so the work is split by cost.
-
    Everything here is cheap or already rAF-coalesced downstream, and is run on
-   a frame so a burst of events collapses into one pass.
-
-   buildWelcomeCanvas is the exception and is deferred to the trailing edge
-   instead. It calls buildWelcomeLayer, which allocates three fresh canvases
-   per layer -- sample, texture and dust, around 22MB together at desktop size
-   -- then runs a full getImageData scan and a nested sampling loop over the
-   result. Doing that per resize event churned tens of megabytes a second; on
-   iOS Safari, where total canvas memory is capped, that kind of churn is how
-   you lose the WebGL context. The canvas is invisible mid-drag anyway. */
-const RESIZE_SETTLE_MS = 150;
+   a frame so a burst of events collapses into one pass. The welcome canvas is
+   the exception, and waits for the trailing edge. */
 let resizeFrame = 0;
-let welcomeRebuildTimer = 0;
 
 function handleWindowResize() {
   if (!resizeFrame) {
@@ -107,19 +80,12 @@ function handleWindowResize() {
       updateHeroParallax();
       requestCareerSceneUpdate();
       requestPhotoSceneUpdate();
-      brainSceneController?.resize();
+      resizeBrainScene();
       requestLanguageNetworkSync();
     });
   }
 
-  if (welcomeRebuildTimer) {
-    window.clearTimeout(welcomeRebuildTimer);
-  }
-  welcomeRebuildTimer = window.setTimeout(() => {
-    welcomeRebuildTimer = 0;
-    buildWelcomeCanvas();
-    requestWelcomeRender();
-  }, RESIZE_SETTLE_MS);
+  scheduleWelcomeRebuild();
 }
 
 function handleVisualViewportResize() {
@@ -146,11 +112,7 @@ function bindSectionReactions() {
 }
 
 function handleGlobalKeydown(event) {
-  if (handlePhotoZoomKeydown(event)) {
-    return;
-  }
-
-  if (event.key === "Escape") {
+  if (!handlePhotoZoomKeydown(event) && event.key === "Escape") {
     closeLanguageMenu();
   }
 }
@@ -178,8 +140,8 @@ function wireGlobalListeners() {
    scenes that draw with them. */
 async function renderFirstFrame() {
   syncViewportHeightVar();
-  applyLanguage(resolveLanguage());
-  setActiveLanguageNode(activeLanguageNode);
+  applyPreferredLanguage();
+  renderActiveLanguageNode();
   updateCareerLayerClasses();
   await commitThemeState(resolveTheme());
   scheduleBrainSceneLoad(languageUniverse);
@@ -196,13 +158,9 @@ function wireLifecycle() {
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       cancelPhotoSceneFrame();
-      brainSceneController?.stop();
+      pauseBrainScene();
     } else {
-      /* Only resume what is actually on screen -- otherwise switching back to
-         the tab restarts the brain no matter where the page is scrolled. */
-      if (brainSceneOnScreen) {
-        brainSceneController?.start();
-      }
+      resumeBrainScene();
       requestPhotoSceneUpdate();
     }
   });
@@ -221,7 +179,6 @@ async function initApp() {
   wireCareerGestures();
   await renderFirstFrame();
 
-  /* Initialize visual effects */
   initCinematicParallax();
   initGrainCanvas();
   initMarsClock();

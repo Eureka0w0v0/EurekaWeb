@@ -4,7 +4,7 @@ import { body } from "../core/dom.js?v=5057c320";
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
 import { clamp01 } from "../core/math.js?v=54e566c4";
 import { isElementInViewport, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
-import { getActiveCopy } from "../i18n/language.js?v=a2602265";
+import { getActiveCopy } from "../i18n/language.js?v=1cf55dc0";
 
 export const welcomeSection = document.querySelector("#welcome-section");
 const welcomeWord = document.querySelector("#welcome-word");
@@ -380,6 +380,27 @@ export function requestWelcomeRender() {
     drawWelcome();
     welcomeRenderFrame = 0;
   });
+}
+
+/* The word has to be rebuilt after a resize, but not during one. A rebuild
+   allocates three fresh canvases per layer -- sample, texture and dust, around
+   22MB together at desktop size -- then runs a full getImageData scan and a
+   nested sampling loop over the result. Doing that per resize event churned
+   tens of megabytes a second; on iOS Safari, where total canvas memory is
+   capped, that kind of churn is how you lose the WebGL context. The canvas is
+   invisible mid-drag anyway, so this waits for the trailing edge. */
+const RESIZE_SETTLE_MS = 150;
+let welcomeRebuildTimer = 0;
+
+export function scheduleWelcomeRebuild() {
+  if (welcomeRebuildTimer) {
+    window.clearTimeout(welcomeRebuildTimer);
+  }
+  welcomeRebuildTimer = window.setTimeout(() => {
+    welcomeRebuildTimer = 0;
+    buildWelcomeCanvas();
+    requestWelcomeRender();
+  }, RESIZE_SETTLE_MS);
 }
 
 export function bindWelcomeReactions() {

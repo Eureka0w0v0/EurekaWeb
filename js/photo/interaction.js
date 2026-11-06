@@ -1,6 +1,6 @@
 /* Clicks, keys and hovers on the cards: open a photo, or step to it. */
 
-import { readPhotoCardContent } from "./cards.js?v=b5b4d990";
+import { readPhotoCardContent } from "./cards.js?v=1fddb821";
 import { navigatePhotoCarouselToSlot } from "./carousel.js?v=df4fe182";
 import { photoShowAllButton, photoStage } from "./dom.js?v=64ce044a";
 import {

@@ -33,7 +33,7 @@ function getSystemLanguage() {
   return "zh";
 }
 
-export function resolveLanguage() {
+function resolveLanguage() {
   const storedLanguage = getStoredLanguage();
   if (storedLanguage && pageTranslations[storedLanguage]) {
     return storedLanguage;
@@ -174,7 +174,7 @@ function toggleLanguageMenu() {
   languageMenu.setAttribute("aria-hidden", `${!isOpen}`);
 }
 
-export function applyLanguage(language) {
+function applyLanguage(language) {
   const nextLanguage = pageTranslations[language] ? language : "zh";
   const copy = pageTranslations[nextLanguage];
 
@@ -190,6 +190,11 @@ export function applyLanguage(language) {
   });
 
   pageEvents.emit("language:change", { language: nextLanguage, copy, animated: false });
+}
+
+/* The language the page opens in: the stored choice, or else the system's. */
+export function applyPreferredLanguage() {
+  applyLanguage(resolveLanguage());
 }
 
 let isLanguageTransitioning = false;
