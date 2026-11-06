@@ -14,12 +14,13 @@ end to end on a desktop, a phone and a touch tablet, in both themes:
   - the photo carousel steps, the lightbox opens and closes, Show All
     expands and collapses.
 
-Plus four regression checks that do not depend on the device:
+Plus five regression checks that do not depend on the device:
 
   - a slow site-config.json must not hold the page back;
   - maintenance mode still redirects;
   - the service worker keeps one cached copy per asset path;
-  - with reduced motion, Show All lays the grid out without a scroll.
+  - with reduced motion, Show All lays the grid out without a scroll;
+  - a brain scene that fails while building cleans up after itself.
 
     python3 tools/smoke.py            # everything
     python3 tools/smoke.py --quick    # desktop, light theme, regression checks
@@ -39,7 +40,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from cdp import DEVICES, Browser, CDPError, Page  # noqa: E402
-from devserver import DevServer  # noqa: E402
+from devserver import ROOT, DevServer  # noqa: E402
 
 SKIP_INTRO = 'try { sessionStorage.setItem("eurekaweb:intro-seen", "1"); } catch (error) {}'
 SECTIONS = ("welcome-section", "hero-section", "language-section", "career-section", "photo-section")
@@ -541,6 +542,60 @@ def check_config_does_not_block(browser: Browser, results: Results) -> None:
             page.close()
 
 
+# three.js loads, but the first geometry the scene builds throws: by then the
+# renderer exists and its canvas is in the page.
+BROKEN_THREE = b"""
+export * from "./three-real.js";
+export class Float32BufferAttribute {
+  constructor() {
+    throw new Error("injected by smoke.py");
+  }
+}
+"""
+RECORD_GL_CONTEXTS = """
+window.__glContexts = [];
+const getContext = HTMLCanvasElement.prototype.getContext;
+HTMLCanvasElement.prototype.getContext = function (...args) {
+  const context = getContext.apply(this, args);
+  if (context && String(args[0]).startsWith("webgl")) {
+    window.__glContexts.push(context);
+  }
+  return context;
+};
+"""
+BRAIN_FAILURE_TIMEOUT_S = 20.0
+
+
+def check_brain_failure_cleans_up(browser: Browser, results: Results) -> None:
+    """A failed scene must not leave a dead canvas or a live WebGL context."""
+    print("  [brain] scene fails while building", flush=True)
+    tag = "[brain failure]"
+    overrides = {
+        "/vendor/three.module.min.js": BROKEN_THREE,
+        "/vendor/three-real.js": (ROOT / "vendor/three.module.min.js").read_bytes(),
+    }
+    with DevServer(overrides=overrides) as server:
+        page = browser.new_page(DEVICES["desktop"], init_script=SKIP_INTRO + RECORD_GL_CONTEXTS)
+        try:
+            page.navigate(server.url)
+            page.wait_for("!document.getElementById('intro-overlay')", timeout=15, message="initApp never ran")
+            scroll_to(page, section_top(page, "language-section"))
+            deadline = time.monotonic() + BRAIN_FAILURE_TIMEOUT_S
+            while not any("Failed to initialize" in warning for warning in page.warnings):
+                if time.monotonic() > deadline:
+                    break
+                time.sleep(0.1)
+            results.check(f"{tag} the failure is reported",
+                          any("Failed to initialize" in warning for warning in page.warnings), str(page.warnings[:3]))
+            canvases = page.evaluate("document.querySelectorAll('#brain-three-mount canvas').length")
+            results.check(f"{tag} no canvas left behind", canvases == 0, f"{canvases} canvases")
+            contexts = page.evaluate("window.__glContexts.map((context) => context.isContextLost())")
+            results.check(f"{tag} the WebGL context is released", bool(contexts) and all(contexts), str(contexts))
+            results.check(f"{tag} no runtime errors", not page.errors, "; ".join(page.errors[:5]))
+        finally:
+            page.close()
+
+
 def check_maintenance_redirect(browser: Browser, results: Results) -> None:
     print("  [config] maintenance mode", flush=True)
     overrides = {"/site-config.json": b'{ "maintenance": true }'}
@@ -659,6 +714,7 @@ def main() -> int:
             check_show_all_reduced_motion(browser, server.url, results)
         check_config_does_not_block(browser, results)
         check_maintenance_redirect(browser, results)
+        check_brain_failure_cleans_up(browser, results)
 
     elapsed = time.monotonic() - started
     print(f"\n{results.passed} passed, {len(results.failures)} failed in {elapsed:.0f}s")

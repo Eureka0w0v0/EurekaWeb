@@ -716,17 +716,24 @@ function stopBrain(brain) {
   }
 }
 
+/* Undoes a scene that failed part-way, so anything may still be missing. The
+   renderer's dispose() frees what it allocated but keeps the WebGL context,
+   and browsers cap how many a page may hold. */
 function disposeBrain(brain) {
   const { mount, renderer } = brain;
   stopBrain(brain);
-  brain.pointGeometry.dispose();
-  brain.lineGeometry.dispose();
-  brain.dustGeometry.dispose();
-  brain.nodeMaterial.dispose();
-  brain.glowMaterial.dispose();
-  brain.lineMaterial.dispose();
-  brain.dustMaterial.dispose();
+  brain.pointGeometry?.dispose();
+  brain.lineGeometry?.dispose();
+  brain.dustGeometry?.dispose();
+  brain.nodeMaterial?.dispose();
+  brain.glowMaterial?.dispose();
+  brain.lineMaterial?.dispose();
+  brain.dustMaterial?.dispose();
+  if (!renderer) {
+    return;
+  }
   renderer.dispose();
+  renderer.forceContextLoss();
   if (renderer.domElement.parentNode === mount) {
     mount.removeChild(renderer.domElement);
   }
@@ -884,6 +891,7 @@ async function createBrainWireframeScene(mount) {
     return null;
   }
 
+  let brain = null;
   try {
     /* Vendored rather than pulled from unpkg. r185 ships as two files -- this
        one and the ./three.core.min.js it imports -- so the CDN version cost
@@ -894,7 +902,7 @@ async function createBrainWireframeScene(mount) {
     /* Relative to this module, not the page: an import() specifier resolves
        against the importing module's URL. */
     const THREE = await import("../../vendor/three.module.min.js?v=86bcee24");
-    const brain = {
+    brain = {
       THREE,
       mount,
       scene: new THREE.Scene(),
@@ -949,10 +957,12 @@ async function createBrainWireframeScene(mount) {
       setTheme: (theme) => setBrainTheme(brain, theme),
       getShellSilhouette: () => getShellSilhouette(brain),
       getBrainSilhouette: () => getBrainSilhouette(brain),
-      dispose: () => disposeBrain(brain),
     };
   } catch (error) {
     console.warn("Failed to initialize the Three.js brain model.", error);
+    if (brain) {
+      disposeBrain(brain);
+    }
     return null;
   }
 }

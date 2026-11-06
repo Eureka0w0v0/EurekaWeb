@@ -159,7 +159,7 @@ Both tools have a `--check` mode. CI runs both checks, and so does `tools/deploy
 | `tools/check-site.py` | Static checks: one canonical origin everywhere the site names itself, a clean module graph, and imports that follow the layers. |
 | `tools/stamp-assets.py --check` | Every stamp matches its file's content. |
 | `tools/build-photos.py --check` | The photo cards match `data/photos.json`. |
-| `tools/smoke.py` | The page works end to end on a desktop, a phone and a touch tablet, in both themes. It also checks that a slow config does not block the page, that maintenance mode redirects, that the service worker keeps one copy per asset, and that Show All works with reduced motion. Use `--quick` for desktop only, plus those three checks. |
+| `tools/smoke.py` | The page works end to end on a desktop, a phone and a touch tablet, in both themes. It also checks that a slow config does not block the page, that maintenance mode redirects, that the service worker keeps one copy per asset, that Show All works with reduced motion, and that a brain scene failing while it builds cleans up after itself. Use `--quick` for desktop only, plus those checks. |
 | `tools/snapshot.py` | A golden master for refactors. It records each element's box and computed styles at fixed stops through the site, then compares a later run with that record. |
 | `tools/brainprobe.py` | What `snapshot.py` leaves out of the language section. It swaps three.js for a recording wrapper and compares the geometry, materials, animation trace, silhouettes, connector lines, pills and rendered pixels exactly. |
 | `tools/welcomeprobe.py` | The welcome canvas, reseeded and read back at fixed scroll positions. |

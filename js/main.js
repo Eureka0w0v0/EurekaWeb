@@ -62,7 +62,7 @@ import {
   brainSceneController,
   brainSceneOnScreen,
   scheduleBrainSceneLoad,
-} from "./sections/brain.js?v=a8e3da05";
+} from "./sections/brain.js?v=e377b90d";
 import {
   bindCareerReactions,
   careerCardStack,
@@ -97,7 +97,7 @@ import {
   resetLanguageUniverseParallax,
   revealLanguageUniverse,
   setActiveLanguageNode,
-} from "./sections/language-universe.js?v=555fdada";
+} from "./sections/language-universe.js?v=c2e5c542";
 import { initMarsClock } from "./sections/mars-clock.js?v=060a7c24";
 import {
   bindWelcomeReactions,
