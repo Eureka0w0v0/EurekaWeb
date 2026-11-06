@@ -4,6 +4,7 @@ import { redirectIfInMaintenance } from "./core/config.js?v=aee1329a";
 import { handlePointerMove } from "./core/pointer.js?v=c2183471";
 import { syncInputDeviceClass, syncViewportHeightVar, visualViewportWidthChanged } from "./core/viewport.js?v=c7860737";
 import { initGrainCanvas } from "./effects/grain.js?v=0d4f5285";
+import { initCinematicParallax } from "./effects/section-parallax.js?v=91133294";
 import {
   applyPreferredLanguage,
   bindLanguageMenuReactions,
@@ -37,11 +38,10 @@ import {
 import {
   bindHeroReactions,
   bindTiltReactions,
-  initCinematicParallax,
   measureMagnetChars,
   requestHeroParallaxUpdate,
   updateHeroParallax,
-} from "./sections/hero.js?v=8a3b28b2";
+} from "./sections/hero.js?v=b2229141";
 import { runIntroAnimation } from "./sections/intro.js?v=5f3eddaf";
 import {
   bindLanguageUniverseMotion,
