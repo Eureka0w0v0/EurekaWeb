@@ -74,7 +74,7 @@ main.js
   └── core/                  (nothing outside core)
 ```
 
-`tools/check-site.py` enforces the graph mechanically. Every import must resolve, the graph must have no cycles, every module must be reachable from `js/main.js`, and each module must be imported under exactly one URL. Two `?v=` stamps for one file would make the browser run two copies of it, each with its own state.
+`tools/check-site.py` enforces the graph mechanically. Every import must resolve, the graph must have no cycles, every module must be reachable from `js/main.js`, and each module must be imported under exactly one URL. Two `?v=` stamps for one file would make the browser run two copies of it, each with its own state. It also enforces the layers above, from the `LAYERS` table at the top of the module checks: an import that points the wrong way fails even when it forms no cycle.
 
 When a lower layer needs something to happen in a higher one, it does not import upwards. It uses one of three mechanisms:
 
@@ -156,7 +156,7 @@ Both tools have a `--check` mode. CI runs both checks, and so does `tools/deploy
 
 | Tool | What it proves |
 |---|---|
-| `tools/check-site.py` | Static checks: one canonical origin everywhere the site names itself, and a clean module graph. |
+| `tools/check-site.py` | Static checks: one canonical origin everywhere the site names itself, a clean module graph, and imports that follow the layers. |
 | `tools/stamp-assets.py --check` | Every stamp matches its file's content. |
 | `tools/build-photos.py --check` | The photo cards match `data/photos.json`. |
 | `tools/smoke.py` | The page works end to end on a desktop, a phone and a touch tablet, in both themes. It also checks that a slow config does not block the page, that maintenance mode redirects, that the service worker keeps one copy per asset, and that Show All works with reduced motion. Use `--quick` for desktop only, plus those three checks. |

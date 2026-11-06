@@ -14,6 +14,9 @@
   js/main.js (anything else is dead code), and each module is imported under
   one URL only -- two stamps for one file would make the browser run two
   separate copies of it, each with its own state.
+- Imports follow the layers in ARCHITECTURE.md. A graph with no cycles can
+  still point the wrong way: core importing a section would pass every check
+  above and quietly make the shared layer depend on the page.
 """
 
 from __future__ import annotations
@@ -54,28 +57,49 @@ ENTRY_MODULE = MODULE_ROOT / "main.js"
 STATIC_IMPORT = re.compile(r"""(?:\bfrom\s*|^\s*import\s+)(["'])(?P<spec>\.\.?/[^"'\s]+)\1""", re.MULTILINE)
 DYNAMIC_IMPORT = re.compile(r"""\bimport\s*\(\s*(["'])(?P<spec>\.\.?/[^"'\s]+)\1""")
 
+# Which other layers each layer may import. A module's layer is the first path
+# segment under js/, so js/theme.js and anything in js/theme/ would both be
+# "theme". Every layer may import itself, and a new layer has to be added here.
+LAYERS = {
+    "main": {"sections", "effects", "photo", "nav", "theme", "i18n", "core"},
+    "sections": {"theme", "i18n", "core"},
+    "effects": {"theme", "core"},
+    "photo": {"i18n", "core"},
+    "nav": {"core"},
+    "theme": {"core"},
+    "i18n": {"core"},
+    "core": set(),
+}
+
+
+def modules() -> list[Path]:
+    return sorted(path.resolve() for path in MODULE_ROOT.rglob("*.js"))
+
+
+def module_imports(module: Path):
+    """(specifier, resolved path, is static) for every relative import."""
+    text = module.read_text(encoding="utf-8")
+    for pattern, static in ((STATIC_IMPORT, True), (DYNAMIC_IMPORT, False)):
+        for match in pattern.finditer(text):
+            spec = match.group("spec")
+            yield spec, (module.parent / spec.partition("?")[0]).resolve(), static
+
 
 def check_module_graph() -> list[str]:
     if not ENTRY_MODULE.is_file():
         return [f"{ENTRY_MODULE.relative_to(ROOT)} is missing"]
     problems: list[str] = []
-    modules = sorted(path.resolve() for path in MODULE_ROOT.rglob("*.js"))
     edges: dict[Path, list[Path]] = {}
     urls: dict[Path, set[str]] = {}
-    for module in modules:
-        text = module.read_text(encoding="utf-8")
+    for module in modules():
         edges[module] = []
-        for pattern, static in ((STATIC_IMPORT, True), (DYNAMIC_IMPORT, False)):
-            for match in pattern.finditer(text):
-                spec = match.group("spec")
-                path, _, query = spec.partition("?")
-                target = (module.parent / path).resolve()
-                if not target.is_file():
-                    problems.append(f"{module.relative_to(ROOT)} imports {spec}, which does not exist")
-                    continue
-                if static:
-                    edges[module].append(target)
-                    urls.setdefault(target, set()).add(query)
+        for spec, target, static in module_imports(module):
+            if not target.is_file():
+                problems.append(f"{module.relative_to(ROOT)} imports {spec}, which does not exist")
+                continue
+            if static:
+                edges[module].append(target)
+                urls.setdefault(target, set()).add(spec.partition("?")[2])
 
     for target, queries in urls.items():
         if len(queries) > 1:
@@ -97,15 +121,37 @@ def check_module_graph() -> list[str]:
         state[module] = "done"
 
     visit(ENTRY_MODULE.resolve())
-    for module in modules:
+    for module in edges:
         if module not in state:
             problems.append(f"{module.relative_to(ROOT)} is not reachable from js/main.js")
+    return problems
+
+
+def layer_of(module: Path) -> str:
+    return module.relative_to(MODULE_ROOT).parts[0].removesuffix(".js")
+
+
+def check_module_layers() -> list[str]:
+    problems: list[str] = []
+    for module in modules():
+        source = layer_of(module)
+        if source not in LAYERS:
+            problems.append(f"{module.relative_to(ROOT)} is in no layer; add {source!r} to LAYERS")
+            continue
+        for _, target, _ in module_imports(module):
+            if not target.is_relative_to(MODULE_ROOT):
+                continue
+            destination = layer_of(target)
+            if destination != source and destination not in LAYERS[source]:
+                problems.append(f"{module.relative_to(ROOT)} imports {target.relative_to(ROOT)}: "
+                                f"{source} may not depend on {destination}")
     return problems
 
 
 CHECKS = (
     ("canonical origin", check_self_references),
     ("module graph", check_module_graph),
+    ("module layers", check_module_layers),
 )
 
 
