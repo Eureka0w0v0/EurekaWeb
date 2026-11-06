@@ -1,15 +1,15 @@
 /* Show All: toggling between the carousel and the grid. */
 
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
-import { getPhotoCardLayoutSnapshot, syncPhotoShowAllButtonCopy } from "./cards.js?v=d3ea5c57";
-import { clearCarouselWheelState, resetPhotoCarouselTouchState } from "./carousel.js?v=df4fe182";
+import { getPhotoCardLayoutSnapshot, syncPhotoShowAllButtonCopy } from "./cards.js?v=2f0d70a0";
+import { clearCarouselWheelState, resetPhotoCarouselTouchState } from "./carousel.js?v=9d3c42d5";
 import { photoCarouselCards } from "./dom.js?v=64ce044a";
 import {
   expand,
   isCarouselEnabled,
   isCarouselSettling,
   requestPhotoSceneUpdate,
-} from "./state.js?v=00213f2e";
+} from "./state.js?v=9e5ef0e0";
 
 export function bindPhotoReactions() {
   pageEvents.on("language:change", () => {

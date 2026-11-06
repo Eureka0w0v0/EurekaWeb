@@ -12,8 +12,8 @@ import {
   isCarouselSettling,
   photoCardSlotMap,
   requestPhotoSceneUpdate,
-} from "./state.js?v=00213f2e";
-import { preloadNearbyPhotoZoomImages } from "./zoom.js?v=1e10b972";
+} from "./state.js?v=9e5ef0e0";
+import { preloadNearbyPhotoZoomImages } from "./preload.js?v=71d12224";
 
 export function navigatePhotoCarouselToSlot(slot) {
   if (!isCarouselEnabled() || expandTarget() > 0 || expand.progress > 0.01) {

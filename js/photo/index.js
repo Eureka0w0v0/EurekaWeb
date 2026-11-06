@@ -1,13 +1,13 @@
 /* The photo theatre's public face. Everything outside js/photo/ goes through
    here, and tools/check-site.py enforces that. */
 
-import { initPhotoQueueCards } from "./cards.js?v=d3ea5c57";
+import { initPhotoQueueCards } from "./cards.js?v=2f0d70a0";
 import {
   handlePhotoCarouselTouchEnd,
   handlePhotoCarouselTouchMove,
   handlePhotoCarouselTouchStart,
   handlePhotoCarouselWheel,
-} from "./carousel.js?v=df4fe182";
+} from "./carousel.js?v=9d3c42d5";
 import {
   photoSection,
   photoShowAllButton,
@@ -15,25 +15,25 @@ import {
   photoZoomCloseButton,
   photoZoomOverlay,
 } from "./dom.js?v=64ce044a";
-import { togglePhotoAllExpanded } from "./expand.js?v=0c2baa79";
+import { togglePhotoAllExpanded } from "./expand.js?v=f25e1e3c";
 import { initPhotoCardHoverGlow } from "./hover-glow.js?v=a03d1150";
 import {
   handlePhotoCardKeydown,
   handlePhotoMainCardClick,
   handlePhotoMainCardPointerPreload,
   handlePhotoMainCardTouchPreload,
-} from "./interaction.js?v=bdca3b3b";
+} from "./interaction.js?v=df38f1ab";
 import {
   handlePhotoZoomClosePointerDown,
   handlePhotoZoomOverlayPointerDown,
   stopPhotoZoomScroll,
-} from "./zoom.js?v=1e10b972";
+} from "./zoom.js?v=40b9a5bf";
 
-export { bindPhotoReactions } from "./expand.js?v=0c2baa79";
-export { invalidatePhotoLayoutCaches } from "./layout.js?v=87da4d8f";
-export { updatePhotoScene } from "./scene.js?v=223cd557";
-export { cancelPhotoSceneFrame, requestPhotoSceneUpdate } from "./state.js?v=00213f2e";
-export { handlePhotoZoomKeydown } from "./zoom.js?v=1e10b972";
+export { bindPhotoReactions } from "./expand.js?v=f25e1e3c";
+export { invalidatePhotoLayoutCaches } from "./layout.js?v=9b3638be";
+export { updatePhotoScene } from "./scene.js?v=30607484";
+export { cancelPhotoSceneFrame, requestPhotoSceneUpdate } from "./state.js?v=9e5ef0e0";
+export { handlePhotoZoomKeydown } from "./zoom.js?v=40b9a5bf";
 
 /* All on the theatre's own elements, so none of it shares a target with the
    page-wide listeners in main.js. Listeners on one element keep their order. */

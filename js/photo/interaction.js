@@ -1,7 +1,7 @@
 /* Clicks, keys and hovers on the cards: open a photo, or step to it. */
 
-import { readPhotoCardContent } from "./cards.js?v=d3ea5c57";
-import { navigatePhotoCarouselToSlot } from "./carousel.js?v=df4fe182";
+import { readPhotoCardContent } from "./cards.js?v=2f0d70a0";
+import { navigatePhotoCarouselToSlot } from "./carousel.js?v=9d3c42d5";
 import { photoShowAllButton, photoStage } from "./dom.js?v=64ce044a";
 import {
   carousel,
@@ -13,8 +13,9 @@ import {
   photoCardSlotMap,
   photoSlotContentMap,
   zoom,
-} from "./state.js?v=00213f2e";
-import { openPhotoZoom, preloadPhotoZoomContent } from "./zoom.js?v=1e10b972";
+} from "./state.js?v=9e5ef0e0";
+import { preloadPhotoZoomContent } from "./preload.js?v=71d12224";
+import { openPhotoZoom } from "./zoom.js?v=40b9a5bf";
 
 function getActivePhotoMainCard() {
   if (!isCarouselEnabled() || expandTarget() > 0 || expand.progress > 0.01) {

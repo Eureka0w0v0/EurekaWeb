@@ -19,7 +19,7 @@ import {
   invalidatePhotoLayoutCaches,
   requestPhotoSceneUpdate,
   updatePhotoScene,
-} from "./photo/index.js?v=82953d97";
+} from "./photo/index.js?v=58c350ca";
 import {
   bindBrainReactions,
   pauseBrainScene,

@@ -16,12 +16,12 @@ import {
   createPhotoHitRectCollector,
   ensurePhotoSlotContentMap,
   syncPhotoCardImageContent,
-} from "./cards.js?v=d3ea5c57";
+} from "./cards.js?v=2f0d70a0";
 import {
   clearCarouselWheelState,
   resetPhotoCarouselTouchState,
   setPhotoSelectedSlot,
-} from "./carousel.js?v=df4fe182";
+} from "./carousel.js?v=9d3c42d5";
 import {
   PHOTO_DROP_EXTRA_DISTANCE_PX,
   PHOTO_INTRO_PHASES,
@@ -52,7 +52,7 @@ import {
   getQueueExpandedLayout,
   getQueueLineMetrics,
   resolveExpandedLayout,
-} from "./layout.js?v=87da4d8f";
+} from "./layout.js?v=9b3638be";
 import {
   carousel,
   clampPhotoCarouselIndex,
@@ -67,8 +67,8 @@ import {
   photoSlotContentMap,
   progressState,
   setPhotoSceneUpdater,
-} from "./state.js?v=00213f2e";
-import { preloadNearbyPhotoZoomImages } from "./zoom.js?v=1e10b972";
+} from "./state.js?v=9e5ef0e0";
+import { preloadNearbyPhotoZoomImages } from "./preload.js?v=71d12224";
 
 /* updatePhotoScene runs once per frame while the photo section is near the
    viewport or something in it is still moving. It is a pipeline: each step

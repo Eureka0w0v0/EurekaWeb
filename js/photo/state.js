@@ -15,10 +15,6 @@ export const zoom = {
   }),
   openToken: 0,
   triggerCard: null,
-  preloadCache: new Map(),
-  preloadQueue: [],
-  preloadActiveCount: 0,
-  preloadLastActiveSlot: 0,
 };
 
 export function isPhotoZoomOpen() {

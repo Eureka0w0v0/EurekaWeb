@@ -1,4 +1,4 @@
-/* The lightbox, and preloading the photos it is likely to open next. */
+/* The lightbox. */
 
 import { root } from "../core/dom.js?v=5057c320";
 import { waitForNextAnimationFrame } from "../core/frames.js?v=0b68ae2a";
@@ -11,13 +11,18 @@ import {
   photoZoomOverlay,
 } from "./dom.js?v=64ce044a";
 import {
+  decodePhotoZoomElement,
+  getDecodedPhotoZoomEntry,
+  getPhotoZoomSourceDescriptor,
+  preloadNearbyPhotoZoomImages,
+} from "./preload.js?v=71d12224";
+import {
   carousel,
   clampPhotoCarouselIndex,
   isPhotoZoomOpen,
-  photoSlotContentMap,
   requestPhotoSceneUpdate,
   zoom,
-} from "./state.js?v=00213f2e";
+} from "./state.js?v=9e5ef0e0";
 
 function ensurePhotoZoomViewer() {
   return Boolean(photoZoomOverlay && photoZoomImage && photoZoomCloseButton && photoZoomLoading);
@@ -124,222 +129,6 @@ async function recoverFromPhotoZoomFailure(token, sourceContent, failedSrc) {
   }
 }
 
-function decodePhotoZoomElement(image) {
-  if (!image) {
-    return Promise.resolve(false);
-  }
-
-  if (typeof image.decode === "function") {
-    return image.decode().then(() => true).catch(() => false);
-  }
-
-  if (image.complete) {
-    return Promise.resolve(image.naturalWidth > 0);
-  }
-
-  return new Promise((resolve) => {
-    image.addEventListener("load", () => resolve(true), { once: true });
-    image.addEventListener("error", () => resolve(false), { once: true });
-  });
-}
-
-function getPhotoZoomSourceDescriptor(sourceContent) {
-  if (!sourceContent?.src) {
-    return null;
-  }
-
-  return {
-    src: sourceContent.fullSrc || sourceContent.src,
-    srcset: sourceContent.fullSrcset || "",
-    sizes: sourceContent.fullSizes || "(max-width: 900px) 92vw, min(88vw, 1200px)",
-  };
-}
-
-function getPhotoZoomPreloadKey(sourceContent) {
-  const descriptor = getPhotoZoomSourceDescriptor(sourceContent);
-  if (!descriptor?.src) {
-    return "";
-  }
-
-  return [
-    descriptor.src,
-    descriptor.srcset,
-    descriptor.sizes,
-  ].join("|");
-}
-
-/* The ceiling has to cover the working set preloadNearbyPhotoZoomImages
-   actually builds -- radius 1 on phones, 2 elsewhere, so 3 and 5 entries. It
-   used to be 6 and 10, exactly double, and every extra entry holds a decoded
-   1920w bitmap: roughly 9.8MB once the browser has expanded it. */
-function getPhotoZoomPreloadLimit() {
-  return isTouchFirst() ? 3 : 5;
-}
-
-function getPhotoZoomPreloadConcurrency() {
-  return isTouchFirst() ? 1 : 2;
-}
-
-function prunePhotoZoomPreloadCache(activeSlot = zoom.preloadLastActiveSlot) {
-  const decodedEntries = [...zoom.preloadCache.entries()]
-    .filter(([, entry]) => entry.status === "decoded");
-  const limit = getPhotoZoomPreloadLimit();
-
-  if (decodedEntries.length <= limit) {
-    return;
-  }
-
-  decodedEntries
-    .sort(([, a], [, b]) => {
-      const distanceA = Number.isFinite(a.slot) ? Math.abs(a.slot - activeSlot) : Number.POSITIVE_INFINITY;
-      const distanceB = Number.isFinite(b.slot) ? Math.abs(b.slot - activeSlot) : Number.POSITIVE_INFINITY;
-      return distanceB - distanceA;
-    })
-    .slice(0, decodedEntries.length - limit)
-    .forEach(([key]) => {
-      zoom.preloadCache.delete(key);
-    });
-}
-
-function pumpPhotoZoomPreloadQueue() {
-  const concurrency = getPhotoZoomPreloadConcurrency();
-
-  while (zoom.preloadActiveCount < concurrency && zoom.preloadQueue.length > 0) {
-    const preloadTask = zoom.preloadQueue.shift();
-    const entry = zoom.preloadCache.get(preloadTask.key);
-
-    if (!entry || entry.status !== "queued") {
-      continue;
-    }
-
-    entry.status = "loading";
-    zoom.preloadActiveCount += 1;
-
-    const image = new Image();
-    image.decoding = "async";
-    try {
-      image.fetchPriority = preloadTask.priority ? "high" : "low";
-    } catch (error) {
-      // Older browsers may expose fetchPriority as read-only or not at all.
-    }
-    if (preloadTask.srcset) {
-      image.srcset = preloadTask.srcset;
-    }
-    if (preloadTask.sizes) {
-      image.sizes = preloadTask.sizes;
-    }
-    image.src = preloadTask.src;
-
-    entry.promise = decodePhotoZoomElement(image).then((decoded) => {
-      if (decoded) {
-        Object.assign(entry, {
-          status: "decoded",
-          image,
-          src: preloadTask.src,
-          srcset: preloadTask.srcset,
-          sizes: preloadTask.sizes,
-        });
-        prunePhotoZoomPreloadCache(entry.slot);
-        return entry;
-      }
-
-      entry.status = "error";
-      return null;
-    }).finally(() => {
-      zoom.preloadActiveCount = Math.max(0, zoom.preloadActiveCount - 1);
-      pumpPhotoZoomPreloadQueue();
-    });
-  }
-}
-
-export function preloadPhotoZoomContent(sourceContent, priority = false, slot = null) {
-  const descriptor = getPhotoZoomSourceDescriptor(sourceContent);
-  const key = getPhotoZoomPreloadKey(sourceContent);
-
-  if (!descriptor?.src || !key) {
-    return;
-  }
-
-  const existingEntry = zoom.preloadCache.get(key);
-  if (existingEntry) {
-    if (Number.isFinite(slot)) {
-      existingEntry.slot = slot;
-    }
-    if (existingEntry.status === "decoded" || existingEntry.status === "loading") {
-      return;
-    }
-    if (existingEntry.status === "queued") {
-      if (priority && !existingEntry.priority) {
-        existingEntry.priority = true;
-        const queueIndex = zoom.preloadQueue.findIndex((task) => task.key === key);
-        if (queueIndex > 0) {
-          const [task] = zoom.preloadQueue.splice(queueIndex, 1);
-          task.priority = true;
-          zoom.preloadQueue.unshift(task);
-        }
-      }
-      return;
-    }
-  }
-
-  const entry = {
-    status: "queued",
-    priority,
-    slot,
-    src: descriptor.src,
-    srcset: descriptor.srcset,
-    sizes: descriptor.sizes,
-    image: null,
-    promise: null,
-  };
-  zoom.preloadCache.set(key, entry);
-
-  const preloadTask = {
-    key,
-    priority,
-    slot,
-    src: descriptor.src,
-    srcset: descriptor.srcset,
-    sizes: descriptor.sizes,
-  };
-
-  if (priority) {
-    zoom.preloadQueue.unshift(preloadTask);
-  } else {
-    zoom.preloadQueue.push(preloadTask);
-  }
-
-  pumpPhotoZoomPreloadQueue();
-}
-
-export function preloadNearbyPhotoZoomImages(activeSlot, radius = (isTouchFirst() ? 1 : 2)) {
-  if (!Number.isFinite(activeSlot) || photoSlotContentMap.size === 0) {
-    return;
-  }
-
-  const clampedActiveSlot = clampPhotoCarouselIndex(Math.round(activeSlot));
-  zoom.preloadLastActiveSlot = clampedActiveSlot;
-  const slots = [clampedActiveSlot];
-
-  for (let offset = 1; offset <= radius; offset += 1) {
-    slots.push(clampedActiveSlot - offset, clampedActiveSlot + offset);
-  }
-
-  slots.forEach((slot) => {
-    if (slot < carousel.minIndex || slot > carousel.maxIndex) {
-      return;
-    }
-
-    const sourceContent = photoSlotContentMap.get(slot);
-    if (!sourceContent) {
-      return;
-    }
-
-    preloadPhotoZoomContent(sourceContent, slot === clampedActiveSlot, slot);
-  });
-  prunePhotoZoomPreloadCache(clampedActiveSlot);
-}
-
 export function openPhotoZoom(sourceContent) {
   if (!sourceContent?.src) {
     return;
@@ -358,8 +147,7 @@ export function openPhotoZoom(sourceContent) {
   const zoomSrcset = zoomDescriptor.srcset;
   const zoomSizes = zoomDescriptor.sizes;
   const zoomAlt = sourceContent.label || "Expanded photo";
-  const zoomCacheKey = getPhotoZoomPreloadKey(sourceContent);
-  const cachedZoom = zoom.preloadCache.get(zoomCacheKey);
+  const cachedZoom = getDecodedPhotoZoomEntry(sourceContent);
 
   photoZoomImage.style.opacity = "0";
   photoZoomImage.style.visibility = "hidden";
@@ -387,7 +175,7 @@ export function openPhotoZoom(sourceContent) {
   photoZoomOverlay.setAttribute("aria-hidden", "false");
   photoZoomCloseButton?.focus({ preventScroll: true });
 
-  if (cachedZoom?.status === "decoded") {
+  if (cachedZoom) {
     applyPhotoZoomImageSource({
       token,
       src: cachedZoom.src,

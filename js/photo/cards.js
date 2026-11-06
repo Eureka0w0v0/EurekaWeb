@@ -31,7 +31,7 @@ import {
   photoCardSlotMap,
   photoCardStyleCache,
   photoSlotContentMap,
-} from "./state.js?v=00213f2e";
+} from "./state.js?v=9e5ef0e0";
 
 export function initPhotoQueueCards() {
   if (!photoStage) {

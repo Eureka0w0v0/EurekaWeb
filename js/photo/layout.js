@@ -18,7 +18,7 @@ import {
   getPhotoDropStartProgress,
 } from "./config.js?v=0c53704a";
 import { photoFloatingCards, photoQueueAnchor, photoQueueCards } from "./dom.js?v=64ce044a";
-import { carousel, expand, isExpandAnimating } from "./state.js?v=00213f2e";
+import { carousel, expand, isExpandAnimating } from "./state.js?v=9e5ef0e0";
 
 let photoLayoutMetricsCache = null;
 
