@@ -3,7 +3,7 @@
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
 import { isCompactLayout, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
 import { getActiveCopy } from "../i18n/language.js?v=1cf55dc0";
-import { brainMount, brainSceneController, brainWrap } from "./brain.js?v=e663fa45";
+import { brainMount, brainSceneController, brainWrap } from "./brain.js?v=e27f5664";
 
 export const languageUniverse = document.querySelector("#language-universe");
 const languageNetwork = document.querySelector(".language-network");
