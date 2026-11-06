@@ -9,7 +9,7 @@ import {
   bindLanguageMenuReactions,
   closeLanguageMenu,
   wireLanguageMenu,
-} from "./i18n/language.js?v=1cf55dc0";
+} from "./i18n/language.js?v=3f7a40af";
 import { initJumpLinks, initSectionRail } from "./nav.js?v=2bf12000";
 import {
   bindPhotoReactions,
@@ -19,7 +19,7 @@ import {
   invalidatePhotoLayoutCaches,
   requestPhotoSceneUpdate,
   updatePhotoScene,
-} from "./photo/index.js?v=b6fbc2f9";
+} from "./photo/index.js?v=82953d97";
 import {
   bindBrainReactions,
   pauseBrainScene,
@@ -42,7 +42,7 @@ import {
   requestHeroParallaxUpdate,
   updateHeroParallax,
 } from "./sections/hero.js?v=8a3b28b2";
-import { runIntroAnimation } from "./sections/intro.js?v=8960667f";
+import { runIntroAnimation } from "./sections/intro.js?v=5f3eddaf";
 import {
   bindLanguageUniverseMotion,
   bindLanguageUniverseReactions,
@@ -50,14 +50,14 @@ import {
   renderActiveLanguageNode,
   requestLanguageNetworkSync,
   wireLanguageUniverseControls,
-} from "./sections/language-universe.js?v=ea686ae4";
+} from "./sections/language-universe.js?v=8f18359f";
 import { initMarsClock } from "./sections/mars-clock.js?v=060a7c24";
 import {
   bindWelcomeReactions,
   drawWelcome,
   requestWelcomeRender,
   scheduleWelcomeRebuild,
-} from "./sections/welcome.js?v=14be6ef3";
+} from "./sections/welcome.js?v=10190814";
 import { commitThemeState, followSystemTheme, resolveTheme, wireThemeToggle } from "./theme/index.js?v=1035ba95";
 
 syncInputDeviceClass();
