@@ -19,7 +19,8 @@ Per device it records:
   - theme          a theme change seen from the inside, with the career cards
                    off screen and in view: the page events, the view
                    transition, every WAAPI animation and every class change
-  - language       the page events of an animated language switch
+  - language       an animated language switch from the top of the page and
+                   from the hero: the page events and every WAAPI animation
 
 Handlers and callers are recorded by name, so code that moves between files
 compares equal; the order is the thing being compared. Use --ignore for a
@@ -51,6 +52,8 @@ TRACE_QUIET_TIMEOUT_S = 15.0
 LANGUAGE_SETTLE_S = 2.0
 # Loops that request a frame every frame, whatever else is going on.
 FRAME_LOOPS = ("animateBrain", "renderGrain")
+# On a timer, so whether it lands inside the frames being read is timing.
+RESIZE_TIMER_FRAMES = ("requestWelcomeRender",)
 # Fired continuously while the pointer or the brain moves.
 NOISY_EVENTS = ("pointer:frame", "brain:frame")
 
@@ -233,12 +236,25 @@ def theme_trace(page: Page) -> dict:
     return read_trace(page)
 
 
+def language_trace(page: Page, y: float, language: str) -> dict:
+    scroll_to(page, y)
+    page.evaluate(TRACE_RESET)
+    page.click_selector("#language-toggle")
+    page.wait_for("document.getElementById('language-toggle').getAttribute('aria-expanded') === 'true'", timeout=5)
+    page.click_selector(f'[data-language="{language}"]')
+    page.wait_for(f"document.documentElement.lang === {json.dumps(language)}", timeout=8)
+    time.sleep(LANGUAGE_SETTLE_S)
+    trace = read_trace(page)
+    return {"emits": trace["emits"], "animations": trace["animations"]}
+
+
 def capture(page: Page) -> dict:
     page.evaluate("window.__wiring.watch()")
     record: dict = {"frames": {}, "theme": {}}
     for action in ("scroll", "resize"):
         frames = page.evaluate(f"{FRAMES_AFTER}({json.dumps([action, FRAME_LOOPS])})", timeout=60)
-        record["frames"][action] = [name for name in frames if name not in FRAME_LOOPS]
+        skipped = FRAME_LOOPS + (RESIZE_TIMER_FRAMES if action == "resize" else ())
+        record["frames"][action] = [name for name in frames if name not in skipped]
 
     scroll_to(page, 0)
     record["theme"]["cards off screen"] = theme_trace(page)
@@ -246,14 +262,10 @@ def capture(page: Page) -> dict:
     time.sleep(CAREER_SETTLE_S)
     record["theme"]["cards in view"] = theme_trace(page)
 
-    scroll_to(page, 0)
-    page.evaluate(TRACE_RESET)
-    page.click_selector("#language-toggle")
-    page.wait_for("document.getElementById('language-toggle').getAttribute('aria-expanded') === 'true'", timeout=5)
-    page.click_selector('[data-language="en"]')
-    page.wait_for("document.documentElement.lang === 'en'", timeout=8)
-    time.sleep(LANGUAGE_SETTLE_S)
-    record["language"] = read_trace(page)["emits"]
+    record["language"] = {
+        "top": language_trace(page, 0, "en"),
+        "hero": language_trace(page, section_top(page, "hero-section"), "ja"),
+    }
 
     wired = page.evaluate(WIRING_READ)
     record["listeners"] = group_listeners(wired["listeners"])
