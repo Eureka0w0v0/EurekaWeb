@@ -2,7 +2,7 @@
    page, brighter while the page scrolls and fading back to a faint base. */
 
 import { isTouchFirst, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
-import { activeTheme } from "../theme.js?v=875a3d80";
+import { activeTheme } from "../theme/index.js?v=1035ba95";
 
 const GRAIN_W = 128;
 const GRAIN_H = 128;

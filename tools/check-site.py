@@ -76,6 +76,7 @@ LAYERS = {
 PACKAGES = {
     "photo/": "photo/index.js",
     "sections/brain/": "sections/brain.js",
+    "theme/": "theme/index.js",
 }
 
 

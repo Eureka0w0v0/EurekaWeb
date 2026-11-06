@@ -1,16 +1,28 @@
-/* Light/dark theme: state, the transition waves, and the participant hooks. */
+/* The five ways a theme change can look. They are not interchangeable: view
+   transition, lite snapshot, clip wave, geometry-locked and fallback each exist
+   for an environment the others fail in, which is why they share constants and
+   helpers but not a flow. triggerThemeWave in theme/index.js picks one. */
 
-import { body, root } from "./core/dom.js?v=5057c320";
-import { pageEvents } from "./core/events.js?v=8c4a4d4a";
-import { createMachine } from "./core/machine.js?v=73a7d34e";
-import { waitForFrames, waitMilliseconds } from "./core/frames.js?v=0b68ae2a";
-import { safeStorageGet, safeStorageSet } from "./core/storage.js?v=55891515";
-import { isTouchFirst } from "./core/viewport.js?v=c7860737";
+import { root } from "../core/dom.js?v=5057c320";
+import { waitForFrames, waitMilliseconds } from "../core/frames.js?v=0b68ae2a";
+import { isTouchFirst } from "../core/viewport.js?v=c7860737";
+import {
+  activeTheme,
+  applyTheme,
+  beginThemeTransitionContext,
+  commitThemeState,
+  endThemeTransitionContext,
+  finishThemeTransitionContext,
+  isThemeTransitionLite,
+  resumeThemeParticipants,
+  scheduleThemeRenderWork,
+  syncSystemChromeForTheme,
+  themeNeedsGeometryLockedWave,
+  themeTransition,
+} from "./state.js?v=4f819fef";
 
-const themeToggle = document.querySelector("#theme-toggle");
 export const themeWave = document.querySelector(".theme-wave");
 const themeWaveCore = document.querySelector(".theme-wave-core");
-const themeColorMeta = document.querySelector('meta[name="theme-color"]');
 
 const themeWaveConfig = {
   EXPAND_DURATION_MS: 560,
@@ -21,168 +33,6 @@ const themeWaveConfig = {
   SNAPSHOT_EASING: "cubic-bezier(0.22, 1, 0.36, 1)",
 };
 const SNAPSHOT_REVEAL_SAFETY_PADDING = 36;
-
-export let activeTheme = "light";
-let themeRenderFrame = 0;
-
-/* Where a theme change stands. A transition is started by triggerThemeWave
-   and always finished by it, whatever path the wave took. "lite" is a
-   running transition that took the lighter snapshot path on a touch device;
-   it only ever exists inside a running one, so it is a state rather than a
-   second flag that could disagree with the first. */
-const themeTransition = createMachine("theme transition", {
-  initial: "idle",
-  states: {
-    idle: { start: "running" },
-    running: { enterLite: "lite", finish: "idle" },
-    lite: { exitLite: "running", finish: "idle" },
-  },
-});
-
-export function isThemeTransitionRunning() {
-  return !themeTransition.is("idle");
-}
-
-export function isThemeTransitionLite() {
-  return themeTransition.is("lite");
-}
-
-const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-const storageKey = "preferred-theme";
-
-/* Sections that must hold still while the theme changes -- today only the
-   career scene, whose cards are mid-scroll animation on a phone -- register a
-   participant instead of the theme code calling into them:
-
-     isBusy()                    a transition must not start yet
-     prepare()                   clear leftovers before one starts
-     wantsGeometryLockedWave()   needs the wave that locks geometry first
-     freeze({ lockGeometry })    the transition is starting
-     scheduleResume()            it is over; settle back once the wave clears
-     finish()                    it is over; restore now (returns a promise)
-
-   They are called at the moments the theme code used to call the career
-   scene directly, in the same order. */
-const themeTransitionParticipants = [];
-
-export function addThemeTransitionParticipant(participant) {
-  themeTransitionParticipants.push(participant);
-}
-
-function isThemeBusy() {
-  return isThemeTransitionRunning() || themeTransitionParticipants.some((participant) => participant.isBusy());
-}
-
-function themeNeedsGeometryLockedWave() {
-  return themeTransitionParticipants.some((participant) => participant.wantsGeometryLockedWave());
-}
-
-function beginThemeTransitionContext(options = {}) {
-  themeTransitionParticipants.forEach((participant) => participant.freeze(options));
-  root.classList.add("theme-syncing");
-}
-
-function endThemeTransitionContext() {
-  root.classList.remove("theme-syncing");
-  if (!isThemeTransitionLite() && !root.classList.contains("theme-snapshot-active")) {
-    themeTransitionParticipants.forEach((participant) => participant.scheduleResume());
-  }
-}
-
-async function finishThemeTransitionContext() {
-  root.classList.remove("theme-syncing");
-  await Promise.all(themeTransitionParticipants.map((participant) => participant.finish()));
-}
-
-/* Theme-dependent rendering -- the brain's materials, the welcome canvas --
-   belongs to those sections; the theme only says when. Four moments:
-
-     theme:snapshot      inside a view transition's update callback: redraw
-                         only what is on screen, because only that is captured
-     theme:applied       the theme has just been applied
-     theme:render-now    redraw everything now
-     theme:render-frame  redraw on the next frame, cheaply where off screen
-
-   The brain subscribes before the welcome canvas (see initApp), which is the
-   order this work used to run in. */
-function syncThemeSnapshotVisuals(theme) {
-  pageEvents.emit("theme:snapshot", { theme });
-}
-
-function runThemeRenderWork(theme) {
-  pageEvents.emit("theme:render-now", { theme });
-}
-
-function scheduleThemeRenderWork(theme) {
-  if (themeRenderFrame) {
-    window.cancelAnimationFrame(themeRenderFrame);
-  }
-
-  themeRenderFrame = window.requestAnimationFrame(() => {
-    themeRenderFrame = 0;
-    pageEvents.emit("theme:render-frame", { theme });
-  });
-}
-
-function syncSystemChromeForTheme(theme) {
-  body.style.colorScheme = theme;
-  root.style.colorScheme = theme;
-  const rootStyles = getComputedStyle(root);
-  const themeBg = rootStyles.getPropertyValue("--bg").trim();
-  const chromeBg = rootStyles.getPropertyValue("--chrome-bg").trim() || themeBg;
-  themeColorMeta?.setAttribute("content", chromeBg);
-}
-
-function applyTheme(theme, options = {}) {
-  const {
-    deferHeavyWork = isTouchFirst(),
-    skipHeavyWork = false,
-    syncSnapshotVisuals = false,
-    deferSystemChrome = false,
-  } = options;
-  activeTheme = theme;
-  /* The label says what the button does; this says which way it is set, which
-     is the half a screen reader could not otherwise get. */
-  themeToggle?.setAttribute("aria-pressed", `${theme === "dark"}`);
-  root.classList.toggle("theme-dark", theme === "dark");
-  const rootStyles = getComputedStyle(root);
-  const themeBg = rootStyles.getPropertyValue("--bg").trim();
-  const chromeBg = rootStyles.getPropertyValue("--chrome-bg").trim() || themeBg;
-  root.style.backgroundColor = chromeBg;
-  body.style.backgroundColor = chromeBg;
-
-  if (!deferSystemChrome) {
-    syncSystemChromeForTheme(theme);
-  }
-
-  if (syncSnapshotVisuals) {
-    syncThemeSnapshotVisuals(theme);
-  }
-
-  if (skipHeavyWork) {
-    return;
-  }
-
-  pageEvents.emit("theme:applied", { theme });
-
-  if (deferHeavyWork) {
-    scheduleThemeRenderWork(theme);
-  } else {
-    runThemeRenderWork(theme);
-  }
-}
-
-function getStoredTheme() {
-  return safeStorageGet(storageKey);
-}
-
-function getSystemTheme() {
-  return mediaQuery.matches ? "dark" : "light";
-}
-
-export function resolveTheme() {
-  return getStoredTheme() || getSystemTheme();
-}
 
 function getWaveEndRadius(originX, originY, safetyPadding = 0) {
   const viewport = window.visualViewport;
@@ -203,7 +53,7 @@ function getWaveEndRadius(originX, originY, safetyPadding = 0) {
   return Math.hypot(horizontal, vertical) + safetyPadding;
 }
 
-function supportsSnapshotThemeWave() {
+export function supportsSnapshotThemeWave() {
   return typeof document.startViewTransition === "function";
 }
 
@@ -305,13 +155,6 @@ function endSnapshotMaskReveal() {
   root.style.removeProperty("--snapshot-wave-radius");
 }
 
-export async function commitThemeState(nextTheme, options = {}) {
-  beginThemeTransitionContext();
-  applyTheme(nextTheme, options);
-  await waitForFrames(2);
-  endThemeTransitionContext();
-}
-
 function beginViewTransitionDomLock() {
   root.classList.add("theme-vt-lock");
 }
@@ -337,14 +180,14 @@ function endSnapshotThemeLiteMode(theme) {
 
   themeTransition.send("exitLite");
   root.classList.remove("theme-snapshot-active");
-  themeTransitionParticipants.forEach((participant) => participant.scheduleResume());
+  resumeThemeParticipants();
 
   window.requestAnimationFrame(() => {
     scheduleThemeRenderWork(theme);
   });
 }
 
-async function runMobileThemeWave(originX, originY, nextTheme) {
+export async function runMobileThemeWave(originX, originY, nextTheme) {
   if (!themeWave || typeof themeWave.animate !== "function") {
     await runMobileThemeSafetyFade(nextTheme);
     return;
@@ -424,7 +267,7 @@ async function runMobileThemeWave(originX, originY, nextTheme) {
   }
 }
 
-async function runMobileThemeSafetyFade(nextTheme) {
+export async function runMobileThemeSafetyFade(nextTheme) {
   if (!themeWave || typeof themeWave.animate !== "function") {
     beginThemeTransitionContext();
     applyTheme(nextTheme, { deferHeavyWork: true });
@@ -490,7 +333,7 @@ async function runMobileThemeSafetyFade(nextTheme) {
   }
 }
 
-async function runFallbackThemeWave(originX, originY, nextTheme) {
+export async function runFallbackThemeWave(originX, originY, nextTheme) {
   if (!themeWave || !themeWaveCore) {
     await commitThemeState(nextTheme);
     return;
@@ -630,7 +473,7 @@ function animateSnapshotReveal(originX, originY, endRadius, mode) {
   return animations;
 }
 
-async function runSnapshotThemeWave(originX, originY, nextTheme) {
+export async function runSnapshotThemeWave(originX, originY, nextTheme) {
   if (!themeWave || !themeWaveCore) {
     await commitThemeState(nextTheme);
     return;
@@ -671,7 +514,7 @@ async function runSnapshotThemeWave(originX, originY, nextTheme) {
   releaseSnapshotMode(mode, nextTheme);
 }
 
-async function runGeometryLockedSnapshotWave(originX, originY, nextTheme) {
+export async function runGeometryLockedSnapshotWave(originX, originY, nextTheme) {
   if (!supportsSnapshotThemeWave()) {
     await runMobileThemeWave(originX, originY, nextTheme);
     return;
@@ -723,64 +566,5 @@ async function runGeometryLockedSnapshotWave(originX, originY, nextTheme) {
   await finishThemeTransitionContext();
   window.requestAnimationFrame(() => {
     scheduleThemeRenderWork(nextTheme);
-  });
-}
-
-async function triggerThemeWave(originX, originY, nextTheme) {
-  themeTransitionParticipants.forEach((participant) => participant.prepare());
-  themeTransition.send("start");
-  pageEvents.emit("theme:will-transition", { theme: nextTheme });
-
-  try {
-    if (themeNeedsGeometryLockedWave() && supportsSnapshotThemeWave()) {
-      await runGeometryLockedSnapshotWave(originX, originY, nextTheme);
-    } else if (supportsSnapshotThemeWave()) {
-      await runSnapshotThemeWave(originX, originY, nextTheme);
-    } else if (isTouchFirst()) {
-      await runMobileThemeWave(originX, originY, nextTheme);
-    } else {
-      await runFallbackThemeWave(originX, originY, nextTheme);
-    }
-  } catch (error) {
-    console.warn("[EurekaWeb] The theme transition failed; falling back to a plainer one.", error);
-    if (isTouchFirst()) {
-      await runMobileThemeSafetyFade(nextTheme);
-    } else {
-      await runFallbackThemeWave(originX, originY, nextTheme);
-    }
-  } finally {
-    themeTransition.send("finish");
-  }
-}
-
-/* A visitor's choice, rippling out from origin. The preference is stored only
-   past this check, so it never flips while the wave refuses to run. */
-async function toggleTheme(origin) {
-  if (isThemeBusy()) {
-    return;
-  }
-
-  const nextTheme = activeTheme === "dark" ? "light" : "dark";
-  const rect = origin.getBoundingClientRect();
-  const originX = rect.left + rect.width / 2;
-  const originY = rect.top + rect.height / 2;
-
-  safeStorageSet(storageKey, nextTheme);
-  await triggerThemeWave(originX, originY, nextTheme);
-}
-
-export function wireThemeToggle() {
-  themeToggle?.addEventListener("click", (event) => toggleTheme(event.currentTarget));
-}
-
-/* With no stored preference the page follows the system. onApplied runs once
-   the change has settled. */
-export function followSystemTheme(onApplied) {
-  mediaQuery.addEventListener("change", (event) => {
-    if (getStoredTheme()) {
-      return;
-    }
-
-    commitThemeState(event.matches ? "dark" : "light").then(onApplied);
   });
 }

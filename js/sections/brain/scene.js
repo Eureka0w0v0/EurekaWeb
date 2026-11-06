@@ -7,7 +7,7 @@
 import { pageEvents } from "../../core/events.js?v=8c4a4d4a";
 import { createSeededRandom } from "../../core/math.js?v=54e566c4";
 import { isDesktopInputDevice, isTouchFirst, shouldReduceMotion } from "../../core/viewport.js?v=c7860737";
-import { activeTheme } from "../../theme.js?v=875a3d80";
+import { activeTheme } from "../../theme/index.js?v=1035ba95";
 import { buildBrainGeometry } from "./geometry.js?v=216bd6f9";
 import { createShellOutline, getBrainSilhouette, getShellSilhouette } from "./silhouette.js?v=6dc518a5";
 
