@@ -33,7 +33,7 @@ import {
   updateCareerLayerClasses,
   updateCareerScene,
   wireCareerGestures,
-} from "./sections/career.js?v=5b305ea8";
+} from "./sections/career.js?v=2c8dbca2";
 import {
   bindHeroReactions,
   bindTiltReactions,
