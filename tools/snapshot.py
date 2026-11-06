@@ -60,6 +60,11 @@ NUMBER = re.compile(r"-?\d+(?:\.\d+)?(?:e-?\d+)?")
 UNIT = re.compile(r"-?\d+(?:\.\d+)?(?:e-?\d+)?([a-z%]*)")
 NO_RUNNING_ANIMATIONS = """document.getAnimations().every((animation) =>
   animation.playState !== "running" || animation.effect?.getComputedTiming?.().iterations === Infinity)"""
+THREE_FRAMES = """new Promise((resolve) => {
+  let left = 3;
+  const step = () => (--left ? requestAnimationFrame(step) : resolve(true));
+  requestAnimationFrame(step);
+})"""
 
 CAPTURE = r"""((viewportOnly) => {
   for (const animation of document.getAnimations()) {
@@ -141,7 +146,9 @@ def settled_capture(page: Page, viewport_only: bool) -> dict:
     since the last stretch of an ease-out moves less than the tolerance and
     would read as settled while a colour is still mid-interpolation. Motion
     driven from requestAnimationFrame is invisible to that API, so also wait
-    for STABLE_CAPTURES consecutive captures that agree."""
+    for STABLE_CAPTURES consecutive captures that agree -- with frames drawn in
+    between, because on a loaded machine a frame can outlast the interval, and
+    two captures of the same frame agree about nothing."""
     time.sleep(INTERACTION_DELAY_S)
     deadline = time.monotonic() + SETTLE_TIMEOUT_S
     try:
@@ -152,6 +159,7 @@ def settled_capture(page: Page, viewport_only: bool) -> dict:
     stable = 0
     while stable < STABLE_CAPTURES:
         time.sleep(SETTLE_INTERVAL_S)
+        page.evaluate(THREE_FRAMES, timeout=SETTLE_TIMEOUT_S)
         current = capture(page, viewport_only)
         # Strict equality here, tolerance only when comparing runs: an
         # exponential follow moves less than the tolerance near its end and
