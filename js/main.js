@@ -46,10 +46,8 @@ import {
   initCinematicParallax,
   measureMagnetChars,
   requestHeroParallaxUpdate,
-  resetTilt,
-  tiltCard,
   updateHeroParallax,
-} from "./sections/hero.js?v=566bf2da";
+} from "./sections/hero.js?v=8a3b28b2";
 import { runIntroAnimation } from "./sections/intro.js?v=0fae4618";
 import {
   activeLanguageNode,
@@ -192,7 +190,6 @@ function handleGlobalKeydown(event) {
 function wireGlobalListeners() {
   window.addEventListener("pointermove", handlePointerMove, { passive: true });
   window.addEventListener("keydown", handleGlobalKeydown);
-  tiltCard?.addEventListener("mouseleave", resetTilt);
   window.addEventListener("resize", handleWindowResize, { passive: true });
   window.visualViewport?.addEventListener("resize", handleVisualViewportResize);
   window.addEventListener("scroll", requestWelcomeRender, { passive: true });

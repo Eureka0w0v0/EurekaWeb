@@ -4,7 +4,7 @@ import { pageEvents } from "../core/events.js?v=8c4a4d4a";
 import { clamp01 } from "../core/math.js?v=54e566c4";
 import { isTouchFirst, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
 
-export const tiltCard = document.querySelector("#feature-card");
+const tiltCard = document.querySelector("#feature-card");
 const heroSection = document.querySelector("[data-hero-section]");
 const heroCopy = document.querySelector("[data-hero-copy]");
 const heroVisual = document.querySelector("[data-hero-visual]");
@@ -67,9 +67,10 @@ function applyTilt(event) {
 
 export function bindTiltReactions() {
   pageEvents.on("pointer:frame", applyTilt);
+  tiltCard?.addEventListener("mouseleave", resetTilt);
 }
 
-export function resetTilt() {
+function resetTilt() {
   if (tiltCard) {
     tiltCard.style.transform = "perspective(1100px) rotateX(0deg) rotateY(0deg)";
   }
