@@ -2,8 +2,8 @@
 
 import { root } from "../core/dom.js?v=5057c320";
 import { isCompactLayout, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
-import { getActiveCopy } from "../i18n/language.js?v=ebcf5f60";
-import { runWelcomeEntrance, welcomeSection } from "./welcome.js?v=bc8e52e1";
+import { getActiveCopy } from "../i18n/language.js?v=a2602265";
+import { runWelcomeEntrance, welcomeSection } from "./welcome.js?v=55155a02";
 
 const INTRO_SEEN_KEY = "eurekaweb:intro-seen";
 

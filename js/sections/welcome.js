@@ -4,7 +4,7 @@ import { body } from "../core/dom.js?v=5057c320";
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
 import { clamp01 } from "../core/math.js?v=54e566c4";
 import { isElementInViewport, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
-import { getActiveCopy } from "../i18n/language.js?v=ebcf5f60";
+import { getActiveCopy } from "../i18n/language.js?v=a2602265";
 
 export const welcomeSection = document.querySelector("#welcome-section");
 const welcomeWord = document.querySelector("#welcome-word");

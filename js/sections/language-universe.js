@@ -2,13 +2,13 @@
 
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
 import { isCompactLayout, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
-import { getActiveCopy } from "../i18n/language.js?v=ebcf5f60";
+import { getActiveCopy } from "../i18n/language.js?v=a2602265";
 import { brainMount, brainSceneController, brainWrap } from "./brain.js?v=e377b90d";
 
 export const languageUniverse = document.querySelector("#language-universe");
 const languageNetwork = document.querySelector(".language-network");
-export const languageNodeButtons = document.querySelectorAll(".language-node[data-language-node]");
-export const languageIndexButtons = document.querySelectorAll(".language-index-item");
+const languageNodeButtons = document.querySelectorAll(".language-node[data-language-node]");
+const languageIndexButtons = document.querySelectorAll(".language-index-item");
 const languageInsightTitle = document.querySelector("[data-language-insight-title]");
 const languageInsightText = document.querySelector("[data-language-insight-text]");
 const languageInsightTags = document.querySelector("[data-language-insight-tags]");
@@ -532,7 +532,7 @@ function updateLanguageUniverseParallax(event) {
   requestLanguageNetworkSync();
 }
 
-export function resetLanguageUniverseParallax() {
+function resetLanguageUniverseParallax() {
   languageUniverse?.style.setProperty("--universe-x", "0");
   languageUniverse?.style.setProperty("--universe-y", "0");
   requestLanguageNetworkSync();
@@ -551,7 +551,7 @@ export function bindLanguageUniverseReactions() {
   });
 }
 
-export function revealLanguageUniverse() {
+function revealLanguageUniverse() {
   if (!languageUniverse || shouldReduceMotion()) {
     languageUniverse?.classList.add("is-visible");
     return;
@@ -572,4 +572,29 @@ export function revealLanguageUniverse() {
   );
 
   observer.observe(languageUniverse);
+}
+
+export function wireLanguageUniverseControls() {
+  languageNodeButtons.forEach((button) => {
+    button.addEventListener("mouseenter", () => {
+      setActiveLanguageNode(button.dataset.languageNode || "js");
+    });
+    button.addEventListener("focus", () => {
+      setActiveLanguageNode(button.dataset.languageNode || "js");
+    });
+    button.addEventListener("click", () => {
+      setActiveLanguageNode(button.dataset.languageNode || "js");
+    });
+    button.addEventListener("transitionend", requestLanguageNetworkSync);
+  });
+
+  languageIndexButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setActiveLanguageNode(button.dataset.languageNode || "js");
+    });
+  });
+
+  languageUniverse?.addEventListener("mouseleave", resetLanguageUniverseParallax);
+
+  revealLanguageUniverse();
 }

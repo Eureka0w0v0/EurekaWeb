@@ -6,10 +6,10 @@ import { safeStorageGet, safeStorageSet } from "../core/storage.js?v=55891515";
 import { isTouchFirst, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
 import { pageTranslations } from "./translations.js?v=2ea6af69";
 
-export const languageSwitcher = document.querySelector("#language-switcher");
-export const languageToggle = document.querySelector("#language-toggle");
+const languageSwitcher = document.querySelector("#language-switcher");
+const languageToggle = document.querySelector("#language-toggle");
 const languageMenu = document.querySelector("#language-menu");
-export const languageOptions = document.querySelectorAll("[data-language]");
+const languageOptions = document.querySelectorAll("[data-language]");
 const i18nNodes = document.querySelectorAll("[data-i18n]");
 /* Queried live rather than cached: the photo carousel clones cards at runtime,
    and a clone carrying data-i18n-aria has to be picked up by the next language
@@ -164,7 +164,7 @@ export function closeLanguageMenu() {
   languageMenu?.setAttribute("aria-hidden", "true");
 }
 
-export function toggleLanguageMenu() {
+function toggleLanguageMenu() {
   if (!languageSwitcher || !languageToggle || !languageMenu) {
     return;
   }
@@ -463,7 +463,7 @@ async function runKineticLanguageBatches(animated, liteNodes, pool) {
   await Promise.all(running);
 }
 
-export async function switchLanguageWithAnimation(language) {
+async function switchLanguageWithAnimation(language) {
   const nextLanguage = pageTranslations[language] ? language : "zh";
 
   if (nextLanguage === activeLanguage) {
@@ -505,4 +505,23 @@ export async function switchLanguageWithAnimation(language) {
     isLanguageTransitioning = false;
     pageEvents.emit("language:did-change", { language: nextLanguage });
   }
+}
+
+export function wireLanguageMenu() {
+  languageToggle?.addEventListener("click", () => {
+    toggleLanguageMenu();
+  });
+
+  languageOptions.forEach((option) => {
+    option.addEventListener("click", async () => {
+      const nextLanguage = option.dataset.language || "zh";
+      await switchLanguageWithAnimation(nextLanguage);
+    });
+  });
+
+  window.addEventListener("click", (event) => {
+    if (!languageSwitcher?.contains(event.target)) {
+      closeLanguageMenu();
+    }
+  });
 }

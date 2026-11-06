@@ -14,13 +14,9 @@ import {
   applyLanguage,
   bindLanguageMenuReactions,
   closeLanguageMenu,
-  languageOptions,
-  languageSwitcher,
-  languageToggle,
   resolveLanguage,
-  switchLanguageWithAnimation,
-  toggleLanguageMenu,
-} from "./i18n/language.js?v=ebcf5f60";
+  wireLanguageMenu,
+} from "./i18n/language.js?v=a2602265";
 import { initJumpLinks, initSectionRail } from "./nav.js?v=2bf12000";
 import {
   bindPhotoReactions,
@@ -30,7 +26,7 @@ import {
   invalidatePhotoLayoutCaches,
   requestPhotoSceneUpdate,
   updatePhotoScene,
-} from "./photo/index.js?v=5b281865";
+} from "./photo/index.js?v=1fd46847";
 import {
   bindBrainReactions,
   brainSceneController,
@@ -54,26 +50,23 @@ import {
   tiltCard,
   updateHeroParallax,
 } from "./sections/hero.js?v=566bf2da";
-import { runIntroAnimation } from "./sections/intro.js?v=d008e694";
+import { runIntroAnimation } from "./sections/intro.js?v=0fae4618";
 import {
   activeLanguageNode,
   bindLanguageUniverseMotion,
   bindLanguageUniverseReactions,
-  languageIndexButtons,
-  languageNodeButtons,
   languageUniverse,
   requestLanguageNetworkSync,
-  resetLanguageUniverseParallax,
-  revealLanguageUniverse,
   setActiveLanguageNode,
-} from "./sections/language-universe.js?v=c2e5c542";
+  wireLanguageUniverseControls,
+} from "./sections/language-universe.js?v=9454bb4f";
 import { initMarsClock } from "./sections/mars-clock.js?v=060a7c24";
 import {
   bindWelcomeReactions,
   buildWelcomeCanvas,
   drawWelcome,
   requestWelcomeRender,
-} from "./sections/welcome.js?v=bc8e52e1";
+} from "./sections/welcome.js?v=55155a02";
 import {
   activeTheme,
   commitThemeState,
@@ -165,42 +158,6 @@ function bindSectionReactions() {
   bindLanguageUniverseMotion();
 }
 
-function wireLanguageControls() {
-  languageToggle?.addEventListener("click", () => {
-    toggleLanguageMenu();
-  });
-
-  languageOptions.forEach((option) => {
-    option.addEventListener("click", async () => {
-      const nextLanguage = option.dataset.language || "zh";
-      await switchLanguageWithAnimation(nextLanguage);
-    });
-  });
-
-  languageNodeButtons.forEach((button) => {
-    button.addEventListener("mouseenter", () => {
-      setActiveLanguageNode(button.dataset.languageNode || "js");
-    });
-    button.addEventListener("focus", () => {
-      setActiveLanguageNode(button.dataset.languageNode || "js");
-    });
-    button.addEventListener("click", () => {
-      setActiveLanguageNode(button.dataset.languageNode || "js");
-    });
-    button.addEventListener("transitionend", requestLanguageNetworkSync);
-  });
-
-  languageIndexButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      setActiveLanguageNode(button.dataset.languageNode || "js");
-    });
-  });
-
-  languageUniverse?.addEventListener("mouseleave", resetLanguageUniverseParallax);
-
-  revealLanguageUniverse();
-}
-
 function wireThemeToggle() {
   themeToggle?.addEventListener("click", async (event) => {
     /* Mirror the guard inside triggerThemeWave so the stored preference
@@ -234,11 +191,6 @@ function handleGlobalKeydown(event) {
    the order their rAF callbacks run within a frame -- so this order is kept. */
 function wireGlobalListeners() {
   window.addEventListener("pointermove", handlePointerMove, { passive: true });
-  window.addEventListener("click", (event) => {
-    if (!languageSwitcher?.contains(event.target)) {
-      closeLanguageMenu();
-    }
-  });
   window.addEventListener("keydown", handleGlobalKeydown);
   tiltCard?.addEventListener("mouseleave", resetTilt);
   window.addEventListener("resize", handleWindowResize, { passive: true });
@@ -306,7 +258,8 @@ async function initApp() {
 
   const introPromise = runIntroAnimation();
 
-  wireLanguageControls();
+  wireLanguageMenu();
+  wireLanguageUniverseControls();
   wireThemeToggle();
   wireGlobalListeners();
   wireSectionGestures();

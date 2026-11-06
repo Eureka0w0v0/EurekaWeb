@@ -1,7 +1,7 @@
 /* Show All: toggling between the carousel and the grid. */
 
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
-import { getPhotoCardLayoutSnapshot, syncPhotoShowAllButtonCopy } from "./cards.js?v=3fd32651";
+import { getPhotoCardLayoutSnapshot, syncPhotoShowAllButtonCopy } from "./cards.js?v=b5b4d990";
 import { clearCarouselWheelState, resetPhotoCarouselTouchState } from "./carousel.js?v=df4fe182";
 import { photoCarouselCards } from "./dom.js?v=64ce044a";
 import {
