@@ -1,6 +1,7 @@
 /* The hero: parallax, the tilt card and the magnetic heading. */
 
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
+import { clamp01 } from "../core/math.js?v=54e566c4";
 import { isTouchFirst, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
 
 export const tiltCard = document.querySelector("#feature-card");
@@ -13,10 +14,7 @@ export function updateHeroParallax() {
   const desktopBoost = isWideLayout() ? 1.55 : 1;
   if (heroSection && heroCopy && heroVisual) {
     const heroRect = heroSection.getBoundingClientRect();
-    const heroProgress = Math.min(
-      1,
-      Math.max((window.innerHeight - heroRect.top) / (window.innerHeight * 1.2), 0)
-    );
+    const heroProgress = clamp01((window.innerHeight - heroRect.top) / (window.innerHeight * 1.2));
     const heroDepth = heroProgress - 0.4;
     const heroCopyShift = heroDepth * -48 * desktopBoost;
     const heroVisualShift = heroDepth * 42 * desktopBoost;

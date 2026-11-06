@@ -2,6 +2,7 @@
 
 import { body } from "../core/dom.js?v=5057c320";
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
+import { clamp01 } from "../core/math.js?v=54e566c4";
 import { isElementInViewport, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
 import { getActiveCopy } from "../i18n/language.js?v=651a14fb";
 
@@ -212,8 +213,7 @@ function getWelcomeProgress() {
 
   const sectionTop = welcomeSection.offsetTop;
   const sectionHeight = welcomeSection.offsetHeight;
-  const rawProgress = (window.scrollY - sectionTop) / Math.max(sectionHeight * 0.72, 1);
-  return Math.min(Math.max(rawProgress, 0), 1);
+  return clamp01((window.scrollY - sectionTop) / Math.max(sectionHeight * 0.72, 1));
 }
 
 export function drawWelcome() {
@@ -230,7 +230,7 @@ export function drawWelcome() {
      kicker above the word must not fade while the word is still condensing. */
   const unformed = 1 - welcomeEntrance;
   const eased = Math.max(scrollEased, unformed);
-  const crumble = Math.max(Math.min(1, Math.max(0, (progress - 0.06) / 0.9)), unformed);
+  const crumble = Math.max(clamp01((progress - 0.06) / 0.9), unformed);
 
   /* Everything above is cheap and has to run on every scroll frame: the CSS
      variable drives the kicker fade, which is readable while the canvas is
@@ -270,10 +270,7 @@ function paintWelcomeWord(layer, eased, crumble) {
   context.globalCompositeOperation = "destination-out";
   points.forEach((point) => {
     const threshold = point.delay * 0.78 + (1 - point.edgeFactor) * 0.18;
-    const localProgress = Math.max(
-      0,
-      Math.min(1, (crumble - threshold) / Math.max(1 - threshold, 0.001))
-    );
+    const localProgress = clamp01((crumble - threshold) / Math.max(1 - threshold, 0.001));
     if (localProgress <= 0) {
       return;
     }
@@ -301,10 +298,7 @@ function paintWelcomeDust(layer, eased, crumble) {
   dustCtx.fillStyle = textColor;
 
   points.forEach((point) => {
-    const localProgress = Math.max(
-      0,
-      Math.min(1, (crumble - point.delay) / Math.max(1 - point.delay, 0.001))
-    );
+    const localProgress = clamp01((crumble - point.delay) / Math.max(1 - point.delay, 0.001));
     if (localProgress <= 0) {
       return;
     }
