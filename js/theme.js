@@ -4,10 +4,10 @@ import { body, root } from "./core/dom.js?v=5057c320";
 import { pageEvents } from "./core/events.js?v=8c4a4d4a";
 import { createMachine } from "./core/machine.js?v=73a7d34e";
 import { waitForFrames, waitMilliseconds } from "./core/frames.js?v=0b68ae2a";
-import { safeStorageGet } from "./core/storage.js?v=55891515";
+import { safeStorageGet, safeStorageSet } from "./core/storage.js?v=55891515";
 import { isTouchFirst } from "./core/viewport.js?v=c7860737";
 
-export const themeToggle = document.querySelector("#theme-toggle");
+const themeToggle = document.querySelector("#theme-toggle");
 export const themeWave = document.querySelector(".theme-wave");
 const themeWaveCore = document.querySelector(".theme-wave-core");
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
@@ -47,8 +47,8 @@ export function isThemeTransitionLite() {
   return themeTransition.is("lite");
 }
 
-export const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-export const storageKey = "preferred-theme";
+const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+const storageKey = "preferred-theme";
 
 /* Sections that must hold still while the theme changes -- today only the
    career scene, whose cards are mid-scroll animation on a phone -- register a
@@ -69,7 +69,7 @@ export function addThemeTransitionParticipant(participant) {
   themeTransitionParticipants.push(participant);
 }
 
-export function isThemeBusy() {
+function isThemeBusy() {
   return isThemeTransitionRunning() || themeTransitionParticipants.some((participant) => participant.isBusy());
 }
 
@@ -172,7 +172,7 @@ function applyTheme(theme, options = {}) {
   }
 }
 
-export function getStoredTheme() {
+function getStoredTheme() {
   return safeStorageGet(storageKey);
 }
 
@@ -726,11 +726,7 @@ async function runGeometryLockedSnapshotWave(originX, originY, nextTheme) {
   });
 }
 
-export async function triggerThemeWave(originX, originY, nextTheme) {
-  if (isThemeBusy()) {
-    return;
-  }
-
+async function triggerThemeWave(originX, originY, nextTheme) {
   themeTransitionParticipants.forEach((participant) => participant.prepare());
   themeTransition.send("start");
   pageEvents.emit("theme:will-transition", { theme: nextTheme });
@@ -755,4 +751,36 @@ export async function triggerThemeWave(originX, originY, nextTheme) {
   } finally {
     themeTransition.send("finish");
   }
+}
+
+/* A visitor's choice, rippling out from origin. The preference is stored only
+   past this check, so it never flips while the wave refuses to run. */
+async function toggleTheme(origin) {
+  if (isThemeBusy()) {
+    return;
+  }
+
+  const nextTheme = activeTheme === "dark" ? "light" : "dark";
+  const rect = origin.getBoundingClientRect();
+  const originX = rect.left + rect.width / 2;
+  const originY = rect.top + rect.height / 2;
+
+  safeStorageSet(storageKey, nextTheme);
+  await triggerThemeWave(originX, originY, nextTheme);
+}
+
+export function wireThemeToggle() {
+  themeToggle?.addEventListener("click", (event) => toggleTheme(event.currentTarget));
+}
+
+/* With no stored preference the page follows the system. onApplied runs once
+   the change has settled. */
+export function followSystemTheme(onApplied) {
+  mediaQuery.addEventListener("change", (event) => {
+    if (getStoredTheme()) {
+      return;
+    }
+
+    commitThemeState(event.matches ? "dark" : "light").then(onApplied);
+  });
 }

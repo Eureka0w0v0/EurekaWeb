@@ -2,14 +2,13 @@
 
 import { redirectIfInMaintenance } from "./core/config.js?v=aee1329a";
 import { handlePointerMove } from "./core/pointer.js?v=c2183471";
-import { safeStorageSet } from "./core/storage.js?v=55891515";
 import {
   reducedMotionQuery,
   syncInputDeviceClass,
   syncViewportHeightVar,
   visualViewportWidthChanged,
 } from "./core/viewport.js?v=c7860737";
-import { initGrainCanvas } from "./effects/grain.js?v=074e3a5a";
+import { initGrainCanvas } from "./effects/grain.js?v=32f9adca";
 import {
   applyLanguage,
   bindLanguageMenuReactions,
@@ -32,14 +31,14 @@ import {
   brainSceneController,
   brainSceneOnScreen,
   scheduleBrainSceneLoad,
-} from "./sections/brain.js?v=e377b90d";
+} from "./sections/brain.js?v=18b252ce";
 import {
   bindCareerReactions,
   requestCareerSceneUpdate,
   updateCareerLayerClasses,
   updateCareerScene,
   wireCareerGestures,
-} from "./sections/career.js?v=96cf31da";
+} from "./sections/career.js?v=efdb84a2";
 import {
   bindHeroReactions,
   bindTiltReactions,
@@ -57,7 +56,7 @@ import {
   requestLanguageNetworkSync,
   setActiveLanguageNode,
   wireLanguageUniverseControls,
-} from "./sections/language-universe.js?v=9454bb4f";
+} from "./sections/language-universe.js?v=0ab191c6";
 import { initMarsClock } from "./sections/mars-clock.js?v=060a7c24";
 import {
   bindWelcomeReactions,
@@ -65,17 +64,7 @@ import {
   drawWelcome,
   requestWelcomeRender,
 } from "./sections/welcome.js?v=55155a02";
-import {
-  activeTheme,
-  commitThemeState,
-  getStoredTheme,
-  isThemeBusy,
-  mediaQuery,
-  resolveTheme,
-  storageKey,
-  themeToggle,
-  triggerThemeWave,
-} from "./theme.js?v=ce83fa63";
+import { commitThemeState, followSystemTheme, resolveTheme, wireThemeToggle } from "./theme.js?v=875a3d80";
 
 syncInputDeviceClass();
 
@@ -156,24 +145,6 @@ function bindSectionReactions() {
   bindLanguageUniverseMotion();
 }
 
-function wireThemeToggle() {
-  themeToggle?.addEventListener("click", async (event) => {
-    /* Mirror the guard inside triggerThemeWave so the stored preference
-       never flips while the wave silently refuses to run. */
-    if (isThemeBusy()) {
-      return;
-    }
-
-    const nextTheme = activeTheme === "dark" ? "light" : "dark";
-    const rect = event.currentTarget.getBoundingClientRect();
-    const originX = rect.left + rect.width / 2;
-    const originY = rect.top + rect.height / 2;
-
-    safeStorageSet(storageKey, nextTheme);
-    await triggerThemeWave(originX, originY, nextTheme);
-  });
-}
-
 function handleGlobalKeydown(event) {
   if (handlePhotoZoomKeydown(event)) {
     return;
@@ -199,10 +170,6 @@ function wireGlobalListeners() {
   window.addEventListener("scroll", requestLanguageNetworkSync, { passive: true });
   window.addEventListener("hashchange", requestCareerSceneUpdate);
   window.addEventListener("load", requestLanguageNetworkSync);
-}
-
-function wireSectionGestures() {
-  wireCareerGestures();
   window.addEventListener("resize", measureMagnetChars, { passive: true });
   document.fonts?.ready?.then(requestLanguageNetworkSync);
 }
@@ -224,15 +191,7 @@ async function renderFirstFrame() {
 }
 
 function wireLifecycle() {
-  mediaQuery.addEventListener("change", (event) => {
-    if (getStoredTheme()) {
-      return;
-    }
-
-    commitThemeState(event.matches ? "dark" : "light").then(() => {
-      updateHeroParallax();
-    });
-  });
+  followSystemTheme(updateHeroParallax);
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
@@ -259,7 +218,7 @@ async function initApp() {
   wireLanguageUniverseControls();
   wireThemeToggle();
   wireGlobalListeners();
-  wireSectionGestures();
+  wireCareerGestures();
   await renderFirstFrame();
 
   /* Initialize visual effects */
