@@ -310,9 +310,10 @@ SHOW_ALL_TARGET = """(async () => {
   const x = r.left + r.width / 2;
   const y = r.top + r.height / 2;
   const hit = document.elementFromPoint(x, y);
-  return { x, y, aria: button.getAttribute("aria-expanded"),
+  const visible = button.classList.contains("is-visible");
+  return { x, y, aria: button.getAttribute("aria-expanded"), visible,
            still: Math.abs(r.left - before.left) < 0.5 && Math.abs(r.top - before.top) < 0.5,
-           hittable: button.classList.contains("is-visible") && !!hit && (hit === button || button.contains(hit)),
+           hittable: visible && !!hit && (hit === button || button.contains(hit)),
            hit: hit ? (hit.id || hit.className || hit.tagName) : null };
 })()"""
 
@@ -361,6 +362,17 @@ def wait_for_still_target(page: Page, expression: str, timeout: float) -> tuple[
     return None, last
 
 
+def wait_for_show_all_to_rest(page: Page) -> None:
+    """Wait out the drop-in. It advances per frame, and a machine under load
+    draws few of them, so where Show All ends up cannot be read off a clock."""
+    deadline = time.monotonic() + SHOW_ALL_READY_TIMEOUT_S
+    while time.monotonic() < deadline:
+        target = page.evaluate(SHOW_ALL_TARGET)
+        if target["visible"] and target["still"]:
+            return
+        time.sleep(0.1)
+
+
 def scroll_photo_stage_into_view(page: Page) -> None:
     """Run the whole drop-in, then come back up until Show All is on screen.
 
@@ -368,10 +380,12 @@ def scroll_photo_stage_into_view(page: Page) -> None:
     leave: the cards are visible but the button above them is not."""
     scroll_to(page, 1e9)
     time.sleep(2.0)
+    wait_for_show_all_to_rest(page)
     button_top = page.evaluate("document.getElementById('photo-show-all').getBoundingClientRect().top")
     current = page.evaluate("scrollY")
     scroll_to(page, current + min(0.0, button_top - PHOTO_BUTTON_TARGET_Y))
     time.sleep(2.5)
+    wait_for_show_all_to_rest(page)
 
 
 def check_photos(page: Page, results: Results, tag: str) -> None:
