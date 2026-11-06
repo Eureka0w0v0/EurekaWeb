@@ -8,7 +8,7 @@ import {
   setStylePropertyIfChanged,
 } from "../core/style-writes.js?v=d4be61ed";
 import { isTouchFirst } from "../core/viewport.js?v=c7860737";
-import { getActiveCopy } from "../i18n/language.js?v=651a14fb";
+import { getActiveCopy } from "../i18n/language.js?v=ebcf5f60";
 import { pageTranslations } from "../i18n/translations.js?v=2ea6af69";
 import {
   PHOTO_AFTER_COMPLETE_SCROLL_PX,
@@ -364,6 +364,7 @@ export function getPhotoCardLayoutSnapshot(card) {
       scale = Math.hypot(matrix.a, matrix.b) || 1;
       rotate = Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
     } catch (error) {
+      console.warn("[EurekaWeb] Could not read a photo card's transform; assuming none.", transform, error);
       x = 0;
       y = 0;
       scale = 1;

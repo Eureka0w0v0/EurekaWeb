@@ -9,7 +9,7 @@ import {
   syncViewportHeightVar,
   visualViewportWidthChanged,
 } from "./core/viewport.js?v=c7860737";
-import { initGrainCanvas } from "./effects/grain.js?v=7c43266b";
+import { initGrainCanvas } from "./effects/grain.js?v=074e3a5a";
 import {
   applyLanguage,
   bindLanguageMenuReactions,
@@ -20,9 +20,9 @@ import {
   resolveLanguage,
   switchLanguageWithAnimation,
   toggleLanguageMenu,
-} from "./i18n/language.js?v=651a14fb";
+} from "./i18n/language.js?v=ebcf5f60";
 import { initJumpLinks, initSectionRail } from "./nav.js?v=2bf12000";
-import { initPhotoQueueCards } from "./photo/cards.js?v=0d2fe9e6";
+import { initPhotoQueueCards } from "./photo/cards.js?v=3fd32651";
 import {
   handlePhotoCarouselTouchEnd,
   handlePhotoCarouselTouchMove,
@@ -36,16 +36,16 @@ import {
   photoZoomCloseButton,
   photoZoomOverlay,
 } from "./photo/dom.js?v=64ce044a";
-import { bindPhotoReactions, togglePhotoAllExpanded } from "./photo/expand.js?v=ad147372";
+import { bindPhotoReactions, togglePhotoAllExpanded } from "./photo/expand.js?v=afe9eb2f";
 import { initPhotoCardHoverGlow } from "./photo/hover-glow.js?v=a03d1150";
 import {
   handlePhotoCardKeydown,
   handlePhotoMainCardClick,
   handlePhotoMainCardPointerPreload,
   handlePhotoMainCardTouchPreload,
-} from "./photo/interaction.js?v=36983a24";
+} from "./photo/interaction.js?v=b777cfeb";
 import { invalidatePhotoLayoutCaches } from "./photo/layout.js?v=87da4d8f";
-import { updatePhotoScene } from "./photo/scene.js?v=84b701ef";
+import { updatePhotoScene } from "./photo/scene.js?v=9fcf8e15";
 import {
   cancelPhotoSceneFrame,
   isPhotoZoomOpen,
@@ -62,7 +62,7 @@ import {
   brainSceneController,
   brainSceneOnScreen,
   scheduleBrainSceneLoad,
-} from "./sections/brain.js?v=a1992977";
+} from "./sections/brain.js?v=a8e3da05";
 import {
   bindCareerReactions,
   careerCardStack,
@@ -74,7 +74,7 @@ import {
   requestCareerSceneUpdate,
   updateCareerLayerClasses,
   updateCareerScene,
-} from "./sections/career.js?v=4652fee4";
+} from "./sections/career.js?v=86af8c4b";
 import {
   bindHeroReactions,
   bindTiltReactions,
@@ -85,7 +85,7 @@ import {
   tiltCard,
   updateHeroParallax,
 } from "./sections/hero.js?v=566bf2da";
-import { runIntroAnimation } from "./sections/intro.js?v=5e7e69ed";
+import { runIntroAnimation } from "./sections/intro.js?v=d008e694";
 import {
   activeLanguageNode,
   bindLanguageUniverseMotion,
@@ -97,14 +97,14 @@ import {
   resetLanguageUniverseParallax,
   revealLanguageUniverse,
   setActiveLanguageNode,
-} from "./sections/language-universe.js?v=8f97804b";
+} from "./sections/language-universe.js?v=555fdada";
 import { initMarsClock } from "./sections/mars-clock.js?v=060a7c24";
 import {
   bindWelcomeReactions,
   buildWelcomeCanvas,
   drawWelcome,
   requestWelcomeRender,
-} from "./sections/welcome.js?v=82460b43";
+} from "./sections/welcome.js?v=bc8e52e1";
 import {
   activeTheme,
   commitThemeState,
@@ -115,7 +115,7 @@ import {
   storageKey,
   themeToggle,
   triggerThemeWave,
-} from "./theme.js?v=00394b9c";
+} from "./theme.js?v=ce83fa63";
 
 syncInputDeviceClass();
 

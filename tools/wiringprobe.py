@@ -261,7 +261,7 @@ def run(configurations, root: Path) -> dict:
                 page.navigate(server.url)
                 page.wait_for("!document.getElementById('intro-overlay')", timeout=15, message="initApp never ran")
                 time.sleep(LOAD_SETTLE_S)
-                result[device] = {"record": capture(page), "errors": page.errors}
+                result[device] = {"record": capture(page), "errors": page.errors, "warnings": page.warnings}
             finally:
                 page.close()
     return result
@@ -299,6 +299,11 @@ def main() -> int:
         if run_result["errors"]:
             print(f"[{device}] runtime errors: {run_result['errors'][:3]}")
             total += len(run_result["errors"])
+        # The site warns when an animation falls back; a clean run takes no fallback.
+        fallbacks = [warning for warning in run_result["warnings"] if "[EurekaWeb]" in warning]
+        if fallbacks:
+            print(f"[{device}] fallbacks taken: {fallbacks[:3]}")
+            total += len(fallbacks)
         lines = diff_exact(baseline.get(device, {}).get("record"), run_result["record"])
         kept = [line for line in lines if not any(p.search(line) for p in ignored_patterns)]
         ignored += len(lines) - len(kept)

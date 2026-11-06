@@ -15,7 +15,7 @@ import {
   isTouchFirst,
   shouldReduceMotion,
 } from "../core/viewport.js?v=c7860737";
-import { activeTheme } from "../theme.js?v=00394b9c";
+import { activeTheme } from "../theme.js?v=ce83fa63";
 
 export const brainWrap = document.querySelector(".brain-wrap");
 export const brainMount = document.querySelector("#brain-three-mount");

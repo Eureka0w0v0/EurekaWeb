@@ -499,6 +499,7 @@ export async function switchLanguageWithAnimation(language) {
 
     await runKineticLanguageBatches(animated, liteNodes, pool);
   } catch (error) {
+    console.warn("[EurekaWeb] The animated language switch failed; switching instantly.", error);
     applyLanguage(nextLanguage);
   } finally {
     isLanguageTransitioning = false;

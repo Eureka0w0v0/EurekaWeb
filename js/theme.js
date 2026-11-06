@@ -407,6 +407,7 @@ async function runMobileThemeWave(originX, originY, nextTheme) {
     );
     await fadeAnimation.finished;
   } catch (error) {
+    console.warn("[EurekaWeb] The mobile theme wave failed; applying the theme without it.", error);
     if (!didCommit) {
       applyTheme(nextTheme, { deferHeavyWork: true, skipHeavyWork: true });
       didCommit = true;
@@ -471,6 +472,7 @@ async function runMobileThemeSafetyFade(nextTheme) {
     }
     await waitForFrames(2);
   } catch (error) {
+    console.warn("[EurekaWeb] The theme safety fade failed; applying the theme without it.", error);
     if (!didCommit) {
       beginThemeTransitionContext();
       applyTheme(nextTheme, { deferHeavyWork: true, skipHeavyWork: true });
@@ -537,6 +539,7 @@ async function runFallbackThemeWave(originX, originY, nextTheme) {
 
     await fadeAnimation.finished;
   } catch (error) {
+    console.warn("[EurekaWeb] The theme wave failed; applying the theme without it.", error);
     await commitThemeState(nextTheme);
   } finally {
     resetThemeWave();
@@ -743,6 +746,7 @@ export async function triggerThemeWave(originX, originY, nextTheme) {
       await runFallbackThemeWave(originX, originY, nextTheme);
     }
   } catch (error) {
+    console.warn("[EurekaWeb] The theme transition failed; falling back to a plainer one.", error);
     if (isTouchFirst()) {
       await runMobileThemeSafetyFade(nextTheme);
     } else {
