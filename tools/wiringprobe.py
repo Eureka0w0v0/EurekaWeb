@@ -20,7 +20,8 @@ Per device it records:
                    off screen and in view: the page events, the view
                    transition, every WAAPI animation and every class change
   - language       an animated language switch from the top of the page and
-                   from the hero: the page events and every WAAPI animation
+                   from the hero: the page events, every WAAPI animation, and
+                   each accessible name and title the switch rewrote
 
 Handlers and callers are recorded by name, so code that moves between files
 compares equal; the order is the thing being compared. Use --ignore for a
@@ -174,6 +175,9 @@ TRACE_READ = """(() => {
   return { animations, emits, mutations };
 })()"""
 
+LABELS_READ = """[...document.querySelectorAll("[data-i18n-aria], [data-i18n-title]")].map((node) =>
+  [node.id || node.tagName.toLowerCase(), node.getAttribute("aria-label"), node.getAttribute("title")])"""
+
 WIRING_READ = """(() => {
   const { listeners, subscriptions } = window.__wiring;
   return { listeners, subscriptions };
@@ -245,7 +249,7 @@ def language_trace(page: Page, y: float, language: str) -> dict:
     page.wait_for(f"document.documentElement.lang === {json.dumps(language)}", timeout=8)
     time.sleep(LANGUAGE_SETTLE_S)
     trace = read_trace(page)
-    return {"emits": trace["emits"], "animations": trace["animations"]}
+    return {"emits": trace["emits"], "animations": trace["animations"], "labels": page.evaluate(LABELS_READ)}
 
 
 def capture(page: Page) -> dict:

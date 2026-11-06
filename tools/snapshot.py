@@ -39,6 +39,8 @@ from smoke import PHOTO_STATE, SCROLL_TO, SKIP_INTRO, THEME_SETTLED, scroll_phot
 CONFIGURATIONS = (("desktop", False), ("desktop", True), ("mobile", False), ("tablet", True))
 SETTLE_INTERVAL_S = 0.3
 SETTLE_TIMEOUT_S = 15.0
+FRAMES_TIMEOUT_S = 60.0
+RESOURCES_TIMEOUT_S = 30.0
 LANGUAGE_SETTLE_S = 3.5
 STABLE_CAPTURES = 2
 INTERACTION_DELAY_S = 0.4
@@ -159,7 +161,7 @@ def settled_capture(page: Page, viewport_only: bool) -> dict:
     stable = 0
     while stable < STABLE_CAPTURES:
         time.sleep(SETTLE_INTERVAL_S)
-        page.evaluate(THREE_FRAMES, timeout=SETTLE_TIMEOUT_S)
+        page.evaluate(THREE_FRAMES, timeout=FRAMES_TIMEOUT_S)
         current = capture(page, viewport_only)
         # Strict equality here, tolerance only when comparing runs: an
         # exponential follow moves less than the tolerance near its end and
@@ -242,6 +244,19 @@ def diff_snapshots(old: dict, new: dict) -> list[str]:
         else:
             lines.extend(diff_records(key, old_records[key], new_records[key]))
     return lines
+
+
+def wait_for_resources(page: Page) -> None:
+    """Wait until nothing has finished loading for a while. Lazy images near
+    the fold load on their own schedule, and an offscreen one that has not
+    arrived yet has no height."""
+    deadline = time.monotonic() + RESOURCES_TIMEOUT_S
+    previous, quiet = -1, 0
+    while quiet < STABLE_CAPTURES + 1 and time.monotonic() < deadline:
+        time.sleep(SETTLE_INTERVAL_S)
+        count = page.evaluate("performance.getEntriesByType('resource').length")
+        quiet = quiet + 1 if count == previous else 0
+        previous = count
 
 
 def journey(page: Page, shots: Path | None, label: str) -> dict:
@@ -327,6 +342,7 @@ def run(configurations, shots: Path | None, root: Path) -> dict:
                 page.navigate(server.url)
                 page.wait_for("!document.getElementById('intro-overlay')", timeout=15)
                 time.sleep(1.0)
+                wait_for_resources(page)
                 result[label] = {"stops": journey(page, shots, label), "errors": page.errors}
             finally:
                 page.close()
