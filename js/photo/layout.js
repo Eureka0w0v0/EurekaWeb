@@ -18,7 +18,7 @@ import {
   getPhotoDropStartProgress,
 } from "./config.js?v=0c53704a";
 import { photoFloatingCards, photoQueueAnchor, photoQueueCards } from "./dom.js?v=64ce044a";
-import { carousel, expand, isExpandAnimating } from "./state.js?v=b4cbf01b";
+import { carousel, expand, isExpandAnimating } from "./state.js?v=00213f2e";
 
 let photoLayoutMetricsCache = null;
 
@@ -374,39 +374,22 @@ export function resolveExpandedLayout(frame, card, slot, carouselLayout, expande
   };
 }
 
-/* How a floating card's fall is shaped: where it starts relative to its gap,
-   how far the path bows, and its tilt at the start and the two midpoints.
-   A single card drops down the middle; three fan in from the sides. */
-function getDropPathShape(frame, index) {
-  const { cardWidth, hasSingleFloatingCard, isCompact, viewportWidth } = frame;
-  const compactStartOffset = Math.min(viewportWidth * 0.24, cardWidth * 1.35);
-  const startOffset = hasSingleFloatingCard
-    ? 0
-    : (isCompact ? [-compactStartOffset, 0, compactStartOffset][index] : [-250, 0, 250][index]);
-  const curveOffset = hasSingleFloatingCard
-    ? (isCompact ? 7 : 16)
-    : (isCompact ? [10, 6, -10][index] : [24, 14, -24][index]);
-  const startRotate = isCompact
-    ? (hasSingleFloatingCard ? 1.6 : [-2.8, 1.8, 2.8][index])
-    : (hasSingleFloatingCard ? 2.2 : [-4, 2, 4][index]);
-  const firstMidRotate = isCompact
-    ? (hasSingleFloatingCard ? 0.8 : [-1.4, 0.9, 1.4][index])
-    : (hasSingleFloatingCard ? 1.1 : [-2, 1, 2][index]);
-  const secondMidRotate = isCompact
-    ? (hasSingleFloatingCard ? 0.3 : [-0.7, 0, 0.7][index])
-    : (hasSingleFloatingCard ? 0.5 : [-1, 0, 1][index]);
-  return { startOffset, curveOffset, startRotate, firstMidRotate, secondMidRotate };
+/* How the floating card's fall is shaped: how far the path bows, and its tilt
+   at the start and the two midpoints. It drops down the middle of the queue. */
+function getDropPathShape(isCompact) {
+  return isCompact
+    ? { curveOffset: 7, startRotate: 1.6, firstMidRotate: 0.8, secondMidRotate: 0.3 }
+    : { curveOffset: 16, startRotate: 2.2, firstMidRotate: 1.1, secondMidRotate: 0.5 };
 }
 
-/* The path a floating card falls along, at the current progress. */
-export function getPhotoDropPathFrame(frame, { index, gapSlot = frame.centerInsertSlot }) {
+/* The path the floating card falls along, at the current progress. */
+export function getPhotoDropPathFrame(frame) {
   const {
-    cardWidth, dropStartBaseY, finalStartX, finalStep, hasSingleFloatingCard, insertionAnchorY,
-    isCompact, photoDropStartProgress, progress, queueCenterX,
+    cardWidth, dropStartBaseY, insertionAnchorY, isCompact, photoDropStartProgress, progress, queueCenterX,
   } = frame;
   const dropStart = photoDropStartProgress;
-  const appearStart = dropStart + index * 0.012;
-  const appearEnd = dropStart + 0.09 + index * 0.012;
+  const appearStart = dropStart;
+  const appearEnd = dropStart + 0.09;
   const dropEnd = PHOTO_INTRO_PHASES.dropEnd;
   const dropProgress = shouldReduceMotion()
     ? 1
@@ -414,20 +397,18 @@ export function getPhotoDropPathFrame(frame, { index, gapSlot = frame.centerInse
   const appearProgress = shouldReduceMotion()
     ? 1
     : mapScrollSegment(progress, appearStart, appearEnd);
-  const insertedX = hasSingleFloatingCard ? queueCenterX : finalStartX + gapSlot * finalStep;
-  const insertedY = insertionAnchorY;
   const insertedLayout = {
-    x: insertedX - cardWidth / 2,
-    y: insertedY,
+    x: queueCenterX - cardWidth / 2,
+    y: insertionAnchorY,
     scale: 1,
     rotate: 0,
     opacity: 1,
   };
   const insertedCenterX = insertedLayout.x + cardWidth / 2;
   const insertedCenterY = insertedLayout.y;
-  const { startOffset, curveOffset, startRotate, firstMidRotate, secondMidRotate } = getDropPathShape(frame, index);
-  const startX = insertedCenterX + startOffset;
-  const startY = dropStartBaseY + index * (isCompact ? 12 : 16);
+  const { curveOffset, startRotate, firstMidRotate, secondMidRotate } = getDropPathShape(isCompact);
+  const startX = insertedCenterX;
+  const startY = dropStartBaseY;
   const firstMidX = startX + (insertedCenterX - startX) * 0.3 + curveOffset;
   const secondMidX = startX + (insertedCenterX - startX) * 0.68 + curveOffset * 0.35;
   const firstMidY = startY + (insertedCenterY - startY) * 0.3;
@@ -469,7 +450,7 @@ export function getFloatingExpandedLayout(frame, slot) {
    phone gliding back into the queue after the carousel was used. null when
    it eases straight from the insert layout instead. */
 export function getQueueLineMetrics(frame, { index, insertSlot, isReinsert, reinsertVisualOffset }) {
-  const { initialStartX, initialStep, isCompact, layoutAnchorSlot, queueCenterX } = frame;
+  const { contentSlot, initialStartX, initialStep, isCompact, queueCenterX } = frame;
   if (isReinsert) {
     if (!isCompact) {
       return null;
@@ -484,7 +465,7 @@ export function getQueueLineMetrics(frame, { index, insertSlot, isReinsert, rein
     return getPhotoInsertStackMetrics(frame, reinsertLineRelativeOffset, true);
   }
 
-  const lineRelativeOffset = getCompressedLineOffset(insertSlot, layoutAnchorSlot);
+  const lineRelativeOffset = getCompressedLineOffset(insertSlot, contentSlot);
   const initialLineMetrics = isCompact
     ? getPhotoInsertStackMetrics(frame, lineRelativeOffset, true)
     : null;

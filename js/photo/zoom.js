@@ -17,7 +17,7 @@ import {
   photoSlotContentMap,
   requestPhotoSceneUpdate,
   zoom,
-} from "./state.js?v=b4cbf01b";
+} from "./state.js?v=00213f2e";
 
 function ensurePhotoZoomViewer() {
   return Boolean(photoZoomOverlay && photoZoomImage && photoZoomCloseButton && photoZoomLoading);

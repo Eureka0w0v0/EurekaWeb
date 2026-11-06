@@ -22,13 +22,13 @@ import {
   toggleLanguageMenu,
 } from "./i18n/language.js?v=651a14fb";
 import { initJumpLinks, initSectionRail } from "./nav.js?v=2bf12000";
-import { initPhotoQueueCards } from "./photo/cards.js?v=f9b5c68e";
+import { initPhotoQueueCards } from "./photo/cards.js?v=0d2fe9e6";
 import {
   handlePhotoCarouselTouchEnd,
   handlePhotoCarouselTouchMove,
   handlePhotoCarouselTouchStart,
   handlePhotoCarouselWheel,
-} from "./photo/carousel.js?v=1d3e910b";
+} from "./photo/carousel.js?v=001575e3";
 import {
   photoSection,
   photoShowAllButton,
@@ -36,27 +36,27 @@ import {
   photoZoomCloseButton,
   photoZoomOverlay,
 } from "./photo/dom.js?v=64ce044a";
-import { bindPhotoReactions, togglePhotoAllExpanded } from "./photo/expand.js?v=41907812";
+import { bindPhotoReactions, togglePhotoAllExpanded } from "./photo/expand.js?v=ad147372";
 import { initPhotoCardHoverGlow } from "./photo/hover-glow.js?v=a03d1150";
 import {
   handlePhotoCardKeydown,
   handlePhotoMainCardClick,
   handlePhotoMainCardPointerPreload,
   handlePhotoMainCardTouchPreload,
-} from "./photo/interaction.js?v=e3afb3c5";
-import { invalidatePhotoLayoutCaches } from "./photo/layout.js?v=c9fe971e";
-import { updatePhotoScene } from "./photo/scene.js?v=f181b0cb";
+} from "./photo/interaction.js?v=36983a24";
+import { invalidatePhotoLayoutCaches } from "./photo/layout.js?v=87da4d8f";
+import { updatePhotoScene } from "./photo/scene.js?v=84b701ef";
 import {
   cancelPhotoSceneFrame,
   isPhotoZoomOpen,
   requestPhotoSceneUpdate,
-} from "./photo/state.js?v=b4cbf01b";
+} from "./photo/state.js?v=00213f2e";
 import {
   closePhotoZoom,
   handlePhotoZoomClosePointerDown,
   handlePhotoZoomOverlayPointerDown,
   stopPhotoZoomScroll,
-} from "./photo/zoom.js?v=c883e1e6";
+} from "./photo/zoom.js?v=3c85aa78";
 import {
   bindBrainReactions,
   brainSceneController,

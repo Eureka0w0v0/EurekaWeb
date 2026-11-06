@@ -31,7 +31,7 @@ import {
   photoCardSlotMap,
   photoCardStyleCache,
   photoSlotContentMap,
-} from "./state.js?v=b4cbf01b";
+} from "./state.js?v=00213f2e";
 
 export function initPhotoQueueCards() {
   if (!photoStage) {
@@ -198,24 +198,8 @@ export function ensurePhotoSlotContentMap({
     return;
   }
 
-  const initialFloatingSlots = (() => {
-    if (photoFloatingCards.length === 1) {
-      return [centerSlot];
-    }
-
-    if (photoFloatingCards.length === 3) {
-      return [
-        Math.max(0, centerSlot - 5),
-        centerSlot,
-        Math.min(finalCount - 1, centerSlot + 4),
-      ];
-    }
-
-    return photoFloatingCards.map((_, index) => Math.min(finalCount - 1, centerSlot + index));
-  })();
-  const initialFloatingSlotSet = new Set(initialFloatingSlots);
   const initialQueueSlots = Array.from({ length: finalCount }, (_, index) => index)
-    .filter((slot) => !initialFloatingSlotSet.has(slot))
+    .filter((slot) => slot !== centerSlot)
     .slice(0, initialCount);
 
   photoQueueCards.forEach((card, index) => {
@@ -226,11 +210,10 @@ export function ensurePhotoSlotContentMap({
     }
   });
 
-  photoFloatingCards.forEach((card, index) => {
-    const slot = initialFloatingSlots[index];
+  photoFloatingCards.forEach((card) => {
     const content = readPhotoCardContent(card);
-    if (Number.isFinite(slot) && content) {
-      photoSlotContentMap.set(slot, content);
+    if (Number.isFinite(centerSlot) && content) {
+      photoSlotContentMap.set(centerSlot, content);
     }
   });
 }

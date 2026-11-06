@@ -16,12 +16,12 @@ import {
   createPhotoHitRectCollector,
   ensurePhotoSlotContentMap,
   syncPhotoCardImageContent,
-} from "./cards.js?v=f9b5c68e";
+} from "./cards.js?v=0d2fe9e6";
 import {
   clearCarouselWheelState,
   resetPhotoCarouselTouchState,
   setPhotoSelectedSlot,
-} from "./carousel.js?v=1d3e910b";
+} from "./carousel.js?v=001575e3";
 import {
   PHOTO_DROP_EXTRA_DISTANCE_PX,
   PHOTO_INTRO_PHASES,
@@ -52,7 +52,7 @@ import {
   getQueueExpandedLayout,
   getQueueLineMetrics,
   resolveExpandedLayout,
-} from "./layout.js?v=c9fe971e";
+} from "./layout.js?v=87da4d8f";
 import {
   carousel,
   clampPhotoCarouselIndex,
@@ -67,8 +67,8 @@ import {
   photoSlotContentMap,
   progressState,
   setPhotoSceneUpdater,
-} from "./state.js?v=b4cbf01b";
-import { preloadNearbyPhotoZoomImages } from "./zoom.js?v=c883e1e6";
+} from "./state.js?v=00213f2e";
+import { preloadNearbyPhotoZoomImages } from "./zoom.js?v=3c85aa78";
 
 /* updatePhotoScene runs once per frame while the photo section is near the
    viewport or something in it is still moving. It is a pipeline: each step
@@ -211,30 +211,8 @@ function measurePhotoGeometry(frame) {
   const initialStep = cardWidth + gap;
   const finalStep = cardWidth + gap;
   const initialStartX = queueCenterX - ((initialCount - 1) * initialStep) / 2;
-  const finalStartX = queueCenterX - ((finalCount - 1) * finalStep) / 2;
   const centerSlot = Math.floor(finalCount / 2);
-  const centerInsertSlot = centerSlot;
-  const hasSingleFloatingCard = photoFloatingCards.length === 1;
-  Object.assign(frame, { centerInsertSlot, centerSlot, dropStartBaseY, finalCount, finalStartX, finalStep, hasSingleFloatingCard, initialCount, initialStartX, initialStep, insertionAnchorY, queueCenterX, queueLocalOffsetY, stageRect });
-}
-
-/* Where the floating cards open gaps in the queue: around the chosen card
-   when there is one floating card, spread across the middle when three. */
-function getInsertGapSlots(frame, contentSlot) {
-  const { centerSlot, finalCount, hasSingleFloatingCard } = frame;
-  if (hasSingleFloatingCard) {
-    return [contentSlot];
-  }
-
-  if (photoFloatingCards.length === 3) {
-    return [
-      Math.max(0, centerSlot - 5),
-      centerSlot,
-      Math.min(finalCount - 1, centerSlot + 4),
-    ];
-  }
-
-  return photoFloatingCards.map((_, index) => Math.min(finalCount - 1, centerSlot + index));
+  Object.assign(frame, { centerSlot, dropStartBaseY, finalCount, finalStep, initialCount, initialStartX, initialStep, insertionAnchorY, queueCenterX, queueLocalOffsetY, stageRect });
 }
 
 /* Each slot's distance from the chosen card, for the reinsert glide. */
@@ -252,59 +230,43 @@ function getReinsertOffsets(finalCount, contentSlot) {
   return reinsertRelativeOffsetBySlot;
 }
 
-/* Which slot each card takes, around the card the visitor last chose. */
+/* Which slot each card takes. The floating card takes the slot of the card
+   the visitor last chose: it carries that photo, the queue opens around it,
+   and the carousel starts on it. The queue fills the other slots in order. */
 function planPhotoSlots(frame) {
-  const { centerInsertSlot, centerSlot, finalCount, hasSingleFloatingCard, initialCount } = frame;
+  const { centerSlot, finalCount, initialCount } = frame;
   ensurePhotoSlotContentMap({
     finalCount,
     initialCount,
-    centerSlot: centerInsertSlot,
+    centerSlot,
   });
   const hasValidSelectedSlot = (
     Number.isFinite(carousel.selectedSlot) &&
     carousel.selectedSlot >= 0 &&
     carousel.selectedSlot < finalCount
   );
-  const selectedSlot = hasValidSelectedSlot ? carousel.selectedSlot : centerInsertSlot;
+  const selectedSlot = hasValidSelectedSlot ? carousel.selectedSlot : centerSlot;
   const contentSlot = Math.min(Math.max(Math.round(selectedSlot), 0), Math.max(finalCount - 1, 0));
-  const layoutAnchorSlot = hasSingleFloatingCard
-    ? contentSlot
-    : centerInsertSlot;
-  const insertGapSlots = getInsertGapSlots(frame, contentSlot);
-  // Single-card replay separates identity from layout:
-  // - contentSlot is the selected card's identity and becomes the active carousel slot.
-  // - insertGapSlots follows contentSlot, so the queue opens around the current active card.
-  const insertFinalSlots = hasSingleFloatingCard ? [contentSlot] : insertGapSlots;
-  const initialCarouselIndex = hasSingleFloatingCard
-    ? contentSlot
-    : centerSlot;
-  const insertGapSlotSet = new Set(insertGapSlots);
-  const floatingSlotSet = new Set(insertFinalSlots);
   const baseFinalSlots = Array.from({ length: finalCount }, (_, index) => index)
-    .filter((slot) => !floatingSlotSet.has(slot))
+    .filter((slot) => slot !== contentSlot)
     .slice(0, initialCount);
-  const baseInsertSlots = hasSingleFloatingCard
-    ? Array.from({ length: finalCount }, (_, index) => index)
-      .filter((slot) => !insertGapSlotSet.has(slot))
-      .slice(0, initialCount)
-    : baseFinalSlots;
   const reinsertRelativeOffsetBySlot = getReinsertOffsets(finalCount, contentSlot);
   carousel.minIndex = 0;
   carousel.maxIndex = Math.max(photoCarouselCards.length - 1, finalCount - 1, 0);
-  Object.assign(frame, { baseFinalSlots, baseInsertSlots, contentSlot, hasValidSelectedSlot, initialCarouselIndex, insertFinalSlots, insertGapSlots, layoutAnchorSlot, reinsertRelativeOffsetBySlot });
+  Object.assign(frame, { baseFinalSlots, contentSlot, hasValidSelectedSlot, reinsertRelativeOffsetBySlot });
 }
 
 /* The drop-in has finished: the cards become a carousel. It starts on the
    middle card unless the visitor already moved it, in which case it keeps the
    card they were on. */
 function enableCarousel(frame) {
-  const { initialCarouselIndex, isCompact } = frame;
+  const { contentSlot, isCompact } = frame;
   const wasSettling = isCarouselSettling();
   carousel.phase.send("enable");
   if (!carousel.hasInteracted && !wasSettling) {
-    carousel.targetIndex = initialCarouselIndex;
-    carousel.visualIndex = initialCarouselIndex;
-    carousel.previousIndex = initialCarouselIndex;
+    carousel.targetIndex = contentSlot;
+    carousel.visualIndex = contentSlot;
+    carousel.previousIndex = contentSlot;
     carousel.transitionDirection = 0;
   } else {
     carousel.targetIndex = clampPhotoCarouselIndex(Math.round(carousel.visualIndex));
@@ -317,12 +279,11 @@ function enableCarousel(frame) {
    the chosen card back into the queue; otherwise everything resets, Show All
    included. */
 function parkCarousel(frame, { photoSectionIsVisible, carouselIntroResetReady }) {
-  const { contentSlot, hasSingleFloatingCard, hasValidSelectedSlot, initialCarouselIndex, isCompact } = frame;
+  const { contentSlot, hasValidSelectedSlot, isCompact } = frame;
   clearCarouselWheelState();
   resetPhotoCarouselTouchState();
 
   const canReplaySelectedCard = (
-    hasSingleFloatingCard &&
     !isExpandTargeted() &&
     expand.progress < 0.01 &&
     (carousel.hasInteracted || (isCompact && hasValidSelectedSlot))
@@ -345,9 +306,9 @@ function parkCarousel(frame, { photoSectionIsVisible, carouselIntroResetReady })
   expand.progress = 0;
   expand.animationStart = 0;
   expand.layouts.clear();
-  carousel.targetIndex = initialCarouselIndex;
-  carousel.visualIndex = initialCarouselIndex;
-  carousel.previousIndex = initialCarouselIndex;
+  carousel.targetIndex = contentSlot;
+  carousel.visualIndex = contentSlot;
+  carousel.previousIndex = contentSlot;
   carousel.transitionDirection = 0;
 }
 
@@ -431,8 +392,8 @@ function advanceExpandAnimation(frame) {
 
 /* The card the carousel is centred on, fractional while it moves. */
 function measureCarouselFocus(frame) {
-  const { initialCarouselIndex, isCompact, photoCarouselLayoutActive } = frame;
-  const activeIndex = photoCarouselLayoutActive ? carousel.visualIndex : initialCarouselIndex;
+  const { contentSlot, isCompact, photoCarouselLayoutActive } = frame;
+  const activeIndex = photoCarouselLayoutActive ? carousel.visualIndex : contentSlot;
   const nearestCenterSlot = isCompact || !photoCarouselLayoutActive
     ? Math.round(activeIndex)
     : Math.round(carousel.targetIndex);
@@ -509,9 +470,9 @@ function applyPhotoQueueAnchor(frame) {
   applyPhotoQueueAnchorFrame({ cardHeight, queueBleed, queueProgress });
 }
 
-/* A floating card: falling, held in the gap, then easing into the carousel. */
-function computePhotoDropLayout(frame, { index, slot, gapSlot = slot }) {
-  const { cardWidth, hasSingleFloatingCard, insertHoldProgress, insertionAnchorY, isCompact, previewEase, previewProgress, previewScaleEase, queueCenterX } = frame;
+/* The floating card: falling, held in the gap, then easing into the carousel. */
+function computePhotoDropLayout(frame, slot) {
+  const { cardWidth, insertHoldProgress, insertionAnchorY, isCompact, previewEase, previewProgress, previewScaleEase, queueCenterX } = frame;
   const {
     dropProgress,
     appearProgress,
@@ -522,8 +483,8 @@ function computePhotoDropLayout(frame, { index, slot, gapSlot = slot }) {
     droppedY,
     rotate,
     dropScale,
-  } = getPhotoDropPathFrame(frame, { index, gapSlot });
-  const carouselMetrics = isCarouselReinserting() && hasSingleFloatingCard
+  } = getPhotoDropPathFrame(frame);
+  const carouselMetrics = isCarouselReinserting()
     ? getPhotoPreviewMetrics(frame, 0)
     : getCarouselMetrics(frame, slot);
   const previewX = queueCenterX + carouselMetrics.x;
@@ -543,7 +504,7 @@ function computePhotoDropLayout(frame, { index, slot, gapSlot = slot }) {
   const opacity = appearProgress * interpolate(heldOpacity, previewOpacity, previewEase);
   const blur = (1 - appearProgress) * (isCompact ? 8 : 10);
 
-  const dropZIndex = isCarouselReinserting() && hasSingleFloatingCard
+  const dropZIndex = isCarouselReinserting()
     ? 1200
     : (previewProgress > 0.01 ? carouselMetrics.zIndex : 25);
 
@@ -567,15 +528,13 @@ function computePhotoDropLayout(frame, { index, slot, gapSlot = slot }) {
 /* A queue card: in line, making room for the insert, then easing into the carousel. */
 function computePhotoQueueInsertLayout(frame, { index, slot }) {
   const {
-    baseInsertSlots, cardWidth, carouselReadyThreshold, contentSlot, hasSingleFloatingCard, isCompact,
-    layoutAnchorSlot, previewEase, previewProgress, previewScaleEase, queueLocalOffsetY, queueProgress,
-    queueVisibility, reinsertRelativeOffsetBySlot,
+    cardWidth, carouselReadyThreshold, contentSlot, isCompact, previewEase, previewProgress,
+    previewScaleEase, queueLocalOffsetY, queueProgress, queueVisibility, reinsertRelativeOffsetBySlot,
   } = frame;
-  const isReinsert = isCarouselReinserting() && hasSingleFloatingCard;
-  const insertSlot = baseInsertSlots[index] ?? slot;
+  const isReinsert = isCarouselReinserting();
   const reinsertVisualOffset = reinsertRelativeOffsetBySlot.get(slot) ?? (slot - contentSlot);
-  const relativeOffset = isReinsert ? reinsertVisualOffset : insertSlot - layoutAnchorSlot;
-  const lineMetrics = getQueueLineMetrics(frame, { index, insertSlot, isReinsert, reinsertVisualOffset });
+  const relativeOffset = isReinsert ? reinsertVisualOffset : slot - contentSlot;
+  const lineMetrics = getQueueLineMetrics(frame, { index, insertSlot: slot, isReinsert, reinsertVisualOffset });
   const insertMetrics = getPhotoInsertMetrics(frame, relativeOffset);
   const previewMetrics = getPhotoPreviewMetrics(frame, relativeOffset);
   const carouselMetrics = isReinsert ? previewMetrics : getCarouselMetrics(frame, slot);
@@ -625,7 +584,7 @@ function applyPhotoSceneCards(frame) {
   };
 
   photoQueueCards.forEach((card, index) => addQueueCardFrame(frame, pass, card, index));
-  photoFloatingCards.forEach((card, index) => addFloatingCardFrame(frame, pass, card, index));
+  photoFloatingCards.forEach((card) => addFloatingCardFrame(frame, pass, card));
 
   applyPhotoCardFrames({
     cardFrames: pass.cardFrames,
@@ -663,23 +622,21 @@ function addQueueCardFrame(frame, pass, card, index) {
   pass.hitCollector.include(layout, stageRect.width / 2);
 }
 
-function addFloatingCardFrame(frame, pass, card, index) {
-  const { hasSingleFloatingCard, insertFinalSlots, insertGapSlots, isCompact } = frame;
-  const slot = insertFinalSlots[index];
-  const gapSlot = insertGapSlots[index] ?? slot;
-  const dropLayout = computePhotoDropLayout(frame, { index, slot, gapSlot });
+function addFloatingCardFrame(frame, pass, card) {
+  const { contentSlot: slot, isCompact } = frame;
+  const dropLayout = computePhotoDropLayout(frame, slot);
   const layout = resolveExpandedLayout(frame, card, slot, dropLayout.carouselLayout, dropLayout.expandedLayout);
 
-  if (hasSingleFloatingCard && pass.selectedContent) {
+  if (pass.selectedContent) {
     syncPhotoCardImageContent(card, pass.selectedContent);
   }
 
   pass.slotMap.set(slot, card);
-  const identity = hasSingleFloatingCard ? getFloatingCardIdentity(frame, pass) : { data: [], attributes: [] };
+  const identity = getFloatingCardIdentity(frame, pass);
   pass.cardFrames.push({
     card,
     layout,
-    data: [["photoSlot", String(slot)], ["photoGapSlot", String(gapSlot)], ...identity.data],
+    data: [["photoSlot", String(slot)], ...identity.data],
     attributes: [["role", "button"], ["tabindex", pass.tabIndex(slot)], ...identity.attributes],
     options: {
       filter: `blur(${dropLayout.blur.toFixed(2)}px)`,
@@ -692,8 +649,8 @@ function addFloatingCardFrame(frame, pass, card, index) {
   pass.hitCollector.include(layout, 0);
 }
 
-/* The single floating card shows whichever photo was chosen, so it carries
-   that photo's identity and label rather than its own. */
+/* The floating card shows whichever photo was chosen, so it carries that
+   photo's identity and label rather than its own. */
 function getFloatingCardIdentity(frame, pass) {
   const { selectedContent, selectedContentCard } = pass;
   const data = [["photoContentSlot", String(frame.contentSlot)]];

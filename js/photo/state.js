@@ -41,7 +41,7 @@ export const progressState = {
      active       the cards are a carousel: wheel, swipe, click to step
      settling     active, and gliding to the nearest card after a gesture
      reinserting  scrolled back up after using the carousel: the chosen card
-                  glides back into the queue (one floating card only)
+                  glides back into the queue
      reinserted   ...and has arrived, while the drop-in runs backwards
 
    Every frame updatePhotoScene decides between enable, replay and reset from
