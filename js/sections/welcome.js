@@ -162,12 +162,10 @@ function buildWelcomeLayer(wordElement, canvasElement, context, text) {
 
   const metrics = measureWelcomeText(wordElement);
   const { width, height } = metrics;
-  const dpr = 1;
-  canvasElement.width = Math.round(width * dpr);
-  canvasElement.height = Math.round(height * dpr);
+  canvasElement.width = width;
+  canvasElement.height = height;
   canvasElement.style.width = `${width}px`;
   canvasElement.style.height = `${height}px`;
-  context.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   const points = collectWelcomeParticles(sampleWelcomeText(metrics, text), metrics);
   const texture = paintWelcomeTexture(metrics, text);
@@ -203,7 +201,7 @@ export function buildWelcomeCanvas(text = getActiveCopy().welcomeWord) {
   );
 
   if (primaryLayer) {
-    welcomeLayers.push({ ...primaryLayer, type: "primary" });
+    welcomeLayers.push(primaryLayer);
   }
 }
 
@@ -258,12 +256,12 @@ export function drawWelcome() {
 /* The word, shifted and fading as it goes, with the particles that have
    already left cut out of it. */
 function paintWelcomeWord(layer, eased, crumble) {
-  const { context, width, height, texture, points, type } = layer;
+  const { context, width, height, texture, points } = layer;
   context.clearRect(0, 0, width, height);
 
-  const textOpacity = Math.max(0, 1 - eased * (type === "primary" ? 1.08 : 1.18));
-  const textShiftX = eased * (type === "primary" ? 18 : 10);
-  const textShiftY = -eased * (type === "primary" ? 10 : 6);
+  const textOpacity = Math.max(0, 1 - eased * 1.08);
+  const textShiftX = eased * 18;
+  const textShiftY = -eased * 10;
   context.save();
   context.globalAlpha = textOpacity;
   context.translate(textShiftX, textShiftY);
@@ -415,8 +413,4 @@ export function bindWelcomeReactions() {
       requestWelcomeRender();
     }
   });
-}
-
-export function requestWelcomeScatterUpdate() {
-  requestWelcomeRender();
 }

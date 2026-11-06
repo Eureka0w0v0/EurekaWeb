@@ -85,7 +85,7 @@ import {
   tiltCard,
   updateHeroParallax,
 } from "./sections/hero.js?v=443e4818";
-import { runIntroAnimation } from "./sections/intro.js?v=c8870d8a";
+import { runIntroAnimation } from "./sections/intro.js?v=953028ed";
 import {
   activeLanguageNode,
   bindLanguageUniverseMotion,
@@ -104,8 +104,7 @@ import {
   buildWelcomeCanvas,
   drawWelcome,
   requestWelcomeRender,
-  requestWelcomeScatterUpdate,
-} from "./sections/welcome.js?v=842ffdae";
+} from "./sections/welcome.js?v=f3af0779";
 import {
   activeTheme,
   commitThemeState,
@@ -284,7 +283,7 @@ function wireGlobalListeners() {
   tiltCard?.addEventListener("mouseleave", resetTilt);
   window.addEventListener("resize", handleWindowResize, { passive: true });
   window.visualViewport?.addEventListener("resize", handleVisualViewportResize);
-  window.addEventListener("scroll", requestWelcomeScatterUpdate, { passive: true });
+  window.addEventListener("scroll", requestWelcomeRender, { passive: true });
   window.addEventListener("scroll", requestHeroParallaxUpdate, { passive: true });
   window.addEventListener("scroll", requestCareerSceneUpdate, { passive: true });
   window.addEventListener("scroll", requestPhotoSceneUpdate, { passive: true });
