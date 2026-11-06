@@ -39,16 +39,11 @@ import {
 } from "./sections/brain.js?v=e377b90d";
 import {
   bindCareerReactions,
-  careerCardStack,
-  handleCareerLayerKeydown,
-  handleCareerLayerTouchEnd,
-  handleCareerLayerTouchMove,
-  handleCareerLayerTouchStart,
-  handleCareerLayerWheel,
   requestCareerSceneUpdate,
   updateCareerLayerClasses,
   updateCareerScene,
-} from "./sections/career.js?v=86af8c4b";
+  wireCareerGestures,
+} from "./sections/career.js?v=96cf31da";
 import {
   bindHeroReactions,
   bindTiltReactions,
@@ -258,11 +253,7 @@ function wireGlobalListeners() {
 }
 
 function wireSectionGestures() {
-  careerCardStack?.addEventListener("wheel", handleCareerLayerWheel, { passive: false, capture: true });
-  careerCardStack?.addEventListener("touchstart", handleCareerLayerTouchStart, { passive: true, capture: true });
-  careerCardStack?.addEventListener("touchmove", handleCareerLayerTouchMove, { passive: false, capture: true });
-  careerCardStack?.addEventListener("touchend", handleCareerLayerTouchEnd, { passive: true, capture: true });
-  careerCardStack?.addEventListener("keydown", handleCareerLayerKeydown);
+  wireCareerGestures();
   window.addEventListener("resize", measureMagnetChars, { passive: true });
   document.fonts?.ready?.then(requestLanguageNetworkSync);
 }

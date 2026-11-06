@@ -15,7 +15,7 @@ import {
 
 const careerSection = document.querySelector("#career-section");
 const careerScene = document.querySelector(".career-scene");
-export const careerCardStack = document.querySelector(".career-card-stack");
+const careerCardStack = document.querySelector(".career-card-stack");
 const careerUfo = document.querySelector(".career-ufo");
 const careerAlien = document.querySelector(".career-alien");
 const careerCardLayers = document.querySelectorAll("[data-career-layer]");
@@ -542,7 +542,7 @@ function stepCareerLayer(direction) {
    the second and third cards unreachable without a pointer. Arrows step one
    card, Home/End jump to the ends; at either end we fall through so the key
    still scrolls the page instead of trapping focus. */
-export function handleCareerLayerKeydown(event) {
+function handleCareerLayerKeydown(event) {
   if (!careerCardStack || isCareerSceneThemeLocked()) {
     return;
   }
@@ -614,7 +614,7 @@ function canScrollCareerLayer(scrollArea, deltaY) {
 }
 
 
-export function handleCareerLayerWheel(event) {
+function handleCareerLayerWheel(event) {
   /* setCareerLayer refuses to act while the theme is transitioning, but this
      ran first and had already called preventDefault and armed
      careerWheelUnlockTimer by then. The step was dropped and the page was
@@ -646,14 +646,14 @@ export function handleCareerLayerWheel(event) {
   }, unlockDelay);
 }
 
-export function handleCareerLayerTouchStart(event) {
+function handleCareerLayerTouchStart(event) {
   event.stopPropagation();
   careerTouchStartX = event.touches?.[0]?.clientX ?? 0;
   careerTouchStartY = event.touches?.[0]?.clientY ?? 0;
   careerTouchSwitchLocked = false;
 }
 
-export function handleCareerLayerTouchMove(event) {
+function handleCareerLayerTouchMove(event) {
   /* Same reasoning as handleCareerLayerWheel: bail before preventDefault
      rather than hold the gesture for a step setCareerLayer will refuse. */
   if (!careerCardStack || isCareerSceneThemeLocked()) {
@@ -704,9 +704,17 @@ export function handleCareerLayerTouchMove(event) {
   }, getCareerLayerSwitchDuration() + 30);
 }
 
-export function handleCareerLayerTouchEnd(event) {
+function handleCareerLayerTouchEnd(event) {
   event.stopPropagation();
   careerTouchSwitchLocked = false;
+}
+
+export function wireCareerGestures() {
+  careerCardStack?.addEventListener("wheel", handleCareerLayerWheel, { passive: false, capture: true });
+  careerCardStack?.addEventListener("touchstart", handleCareerLayerTouchStart, { passive: true, capture: true });
+  careerCardStack?.addEventListener("touchmove", handleCareerLayerTouchMove, { passive: false, capture: true });
+  careerCardStack?.addEventListener("touchend", handleCareerLayerTouchEnd, { passive: true, capture: true });
+  careerCardStack?.addEventListener("keydown", handleCareerLayerKeydown);
 }
 
 export function updateCareerScene() {
