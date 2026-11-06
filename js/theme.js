@@ -220,7 +220,6 @@ function resetThemeWave() {
   themeWave?.classList.remove(
     "is-active",
     "is-outline",
-    "is-mobile-wave",
     "is-mobile-clip-wave",
     "theme-light-wave",
     "theme-dark-wave"

@@ -11,7 +11,7 @@ import {
   isThemeTransitionLite,
   isThemeTransitionRunning,
   themeWave,
-} from "../theme.js?v=29c3a7f7";
+} from "../theme.js?v=00394b9c";
 
 const careerSection = document.querySelector("#career-section");
 const careerScene = document.querySelector(".career-scene");

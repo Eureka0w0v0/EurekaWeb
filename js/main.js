@@ -9,7 +9,7 @@ import {
   syncViewportHeightVar,
   visualViewportWidthChanged,
 } from "./core/viewport.js?v=c7860737";
-import { initGrainCanvas } from "./effects/grain.js?v=1b1ff6c7";
+import { initGrainCanvas } from "./effects/grain.js?v=7c43266b";
 import {
   applyLanguage,
   bindLanguageMenuReactions,
@@ -62,7 +62,7 @@ import {
   brainSceneController,
   brainSceneOnScreen,
   scheduleBrainSceneLoad,
-} from "./sections/brain.js?v=944d5227";
+} from "./sections/brain.js?v=a1992977";
 import {
   bindCareerReactions,
   careerCardStack,
@@ -74,7 +74,7 @@ import {
   requestCareerSceneUpdate,
   updateCareerLayerClasses,
   updateCareerScene,
-} from "./sections/career.js?v=f0ee8cbd";
+} from "./sections/career.js?v=4652fee4";
 import {
   bindHeroReactions,
   bindTiltReactions,
@@ -97,7 +97,7 @@ import {
   resetLanguageUniverseParallax,
   revealLanguageUniverse,
   setActiveLanguageNode,
-} from "./sections/language-universe.js?v=dd3395d9";
+} from "./sections/language-universe.js?v=8f97804b";
 import { initMarsClock } from "./sections/mars-clock.js?v=060a7c24";
 import {
   bindWelcomeReactions,
@@ -116,7 +116,7 @@ import {
   storageKey,
   themeToggle,
   triggerThemeWave,
-} from "./theme.js?v=29c3a7f7";
+} from "./theme.js?v=00394b9c";
 
 syncInputDeviceClass();
 
