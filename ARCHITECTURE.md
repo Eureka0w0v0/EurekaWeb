@@ -26,8 +26,10 @@ This document maps the code and the rules that hold it together. [README.md](REA
 
 | Module | Responsibility |
 |---|---|
-| `main.js` | Entry point. Wires every section to the page, in the order the page needs. |
-| `theme.js` | Light/dark theme: state, the transition waves, and the participant hooks. |
+| `main.js` | Entry point. Wires the page-wide listeners and calls each feature's own wiring, in the order the page needs. |
+| `theme/index.js` | The theme's public face: picking a wave, the toggle, following the system, and whether a wave is still on screen. |
+| `theme/state.js` | The active theme, the transition machine, the participants, and applying a theme to the page. |
+| `theme/waves.js` | The five transition waves: view transition, lite snapshot, clip wave, geometry-locked and fallback. |
 | `nav.js` | The section rail and in-page jump links. |
 | `core/config.js` | `site-config.json` and the maintenance redirect. |
 | `core/dom.js` | The document's two root elements. |
@@ -40,14 +42,20 @@ This document maps the code and the rules that hold it together. [README.md](REA
 | `core/style-writes.js` | Style and attribute writes that skip the DOM when nothing changed. |
 | `core/viewport.js` | The viewport questions (compact, touch-first, wide) and the stable app height. |
 | `i18n/translations.js` | All page copy, in Chinese, English and Japanese. |
-| `i18n/language.js` | The active language, the language menu, and the letter-by-letter switch. |
+| `i18n/language.js` | The active language, the language menu, and switching between languages. |
+| `i18n/kinetic.js` | The letter-by-letter switch: which nodes get which animation, and the animations themselves. |
 | `sections/intro.js` | The intro curtain, shown once per session. |
 | `sections/welcome.js` | The Welcome word, drawn to a canvas and scattered into dust on scroll. |
-| `sections/hero.js` | Parallax, the tilt card and the magnetic heading. |
+| `sections/hero.js` | The hero: parallax, the tilt card and the magnetic heading. |
 | `sections/mars-clock.js` | Coordinated Mars Time next to the Mars address. |
 | `sections/language-universe.js` | The language pills, the connector lines and the insight panel. |
-| `sections/brain.js` | The three.js wireframe brain: seeded geometry, render loop and projected silhouettes. |
-| `sections/career.js` | The career card stack, its gestures, and how it holds still during a theme change. |
+| `sections/brain.js` | The three.js wireframe brain: when it loads and when it runs. |
+| `sections/brain/geometry.js` | The brain's points and edges, built from a seeded random stream. No DOM. |
+| `sections/brain/scene.js` | The three.js scene: meshes, materials, camera and the render loop. |
+| `sections/brain/silhouette.js` | Where the shell lands on screen, so the connector lines end on its outline. |
+| `sections/career.js` | The career card stack and its gestures. |
+| `sections/career-theme-lock.js` | How the career scene holds still during a theme change. |
+| `photo/index.js` | The photo theatre's public face, and the wiring of its gestures. |
 | `photo/dom.js`, `photo/config.js` | The photo theatre's elements, timing and spacing constants. |
 | `photo/state.js` | Everything the theatre remembers between frames, its state machines, and the frame scheduler. |
 | `photo/layout.js` | Where each card goes: pure layout math over the per-frame context. |
@@ -56,9 +64,11 @@ This document maps the code and the rules that hold it together. [README.md](REA
 | `photo/carousel.js` | Stepping the carousel: wheel, swipe, settling and the touch gesture. |
 | `photo/expand.js` | Show All. |
 | `photo/interaction.js` | Clicks, keys and hovers on the cards. |
-| `photo/zoom.js` | The lightbox, and preloading the photos it is likely to open next. |
+| `photo/zoom.js` | The lightbox. |
+| `photo/preload.js` | Preloading the photos the lightbox is likely to open next. |
 | `photo/hover-glow.js` | The glow that follows the pointer across a card. |
 | `effects/grain.js` | The film-grain overlay canvas. |
+| `effects/section-parallax.js` | The slow scale and drift of a section as it crosses the viewport. |
 
 ### Dependency rules
 
@@ -66,15 +76,18 @@ Imports point down this list, or sideways within a layer. A layer may import fro
 
 ```
 main.js
-  ├── sections/   effects/   (may import theme, i18n, core)
-  ├── photo/                 (may import i18n, core)
-  ├── nav.js                 (core)
-  ├── theme.js               (core)
-  ├── i18n/                  (core)
-  └── core/                  (nothing outside core)
+  ├── sections/   (may import theme, i18n, core)
+  ├── effects/    (may import theme, core)
+  ├── photo/      (may import i18n, core)
+  ├── nav.js      (core)
+  ├── theme/      (core)
+  ├── i18n/       (core)
+  └── core/       (nothing outside core)
 ```
 
-`tools/check-site.py` enforces the graph mechanically. Every import must resolve, the graph must have no cycles, every module must be reachable from `js/main.js`, and each module must be imported under exactly one URL. Two `?v=` stamps for one file would make the browser run two copies of it, each with its own state. It also enforces the layers above, from the `LAYERS` table at the top of the module checks: an import that points the wrong way fails even when it forms no cycle.
+Three folders are packages: from outside, only their entry is imported. Those are `photo/index.js`, `theme/index.js`, and `sections/brain.js` for `sections/brain/`.
+
+`tools/check-site.py` enforces the graph mechanically. Every import must resolve, the graph must have no cycles, every module must be reachable from `js/main.js`, and each module must be imported under exactly one URL. Two `?v=` stamps for one file would make the browser run two copies of it, each with its own state. It also enforces the layers above, from the `LAYERS` table at the top of the module checks: an import that points the wrong way fails even when it forms no cycle. The `PACKAGES` table next to it keeps a package's other files private.
 
 When a lower layer needs something to happen in a higher one, it does not import upwards. It uses one of three mechanisms:
 
@@ -89,11 +102,11 @@ When a lower layer needs something to happen in a higher one, it does not import
 | `language:will-change` | `i18n/language.js` | An animated language switch is starting. |
 | `language:change` | `i18n/language.js` | The new language's copy is being applied, `{ language, copy, animated }`. |
 | `language:did-change` | `i18n/language.js` | The animated switch has finished, or fallen back to an instant one. |
-| `theme:will-transition` | `theme.js` | A theme transition is starting. |
-| `theme:snapshot` | `theme.js` | Inside a view transition's update callback. Only what is on screen is redrawn, because only that is captured. |
-| `theme:applied` | `theme.js` | The theme has just been applied. |
-| `theme:render-now` | `theme.js` | Redraw everything now. |
-| `theme:render-frame` | `theme.js` | Redraw on the next frame, cheaply where off screen. |
+| `theme:will-transition` | `theme/index.js` | A theme transition is starting. |
+| `theme:snapshot` | `theme/state.js` | Inside a view transition's update callback. Only what is on screen is redrawn, because only that is captured. |
+| `theme:applied` | `theme/state.js` | The theme has just been applied. |
+| `theme:render-now` | `theme/state.js` | Redraw everything now. |
+| `theme:render-frame` | `theme/state.js` | Redraw on the next frame, cheaply where off screen. |
 | `pointer:frame` | `core/pointer.js` | At most once per animation frame, carrying the latest `pointermove` event. |
 | `brain:frame` | `sections/brain.js` | After each brain frame is drawn. The connector lines follow it. |
 
@@ -103,8 +116,8 @@ Any state that moves through three or more phases is an explicit machine from `c
 
 | Machine | Where | States | Notes |
 |---|---|---|---|
-| theme transition | `theme.js` | `idle` → `running` ⇄ `lite` → `idle` | `lite` is a running transition on the lighter snapshot path for touch devices. |
-| career theme lock | `sections/career.js` | `idle`, `frozen`, `resuming`, `restoring` | Holds the card scene still while a theme transition captures it, then lets it go. |
+| theme transition | `theme/state.js` | `idle` → `running` ⇄ `lite` → `idle` | `lite` is a running transition on the lighter snapshot path for touch devices. |
+| career theme lock | `sections/career-theme-lock.js` | `idle`, `frozen`, `resuming`, `restoring` | Holds the card scene still while a theme transition captures it, then lets it go. |
 | photo carousel | `photo/state.js` | `inactive`, `active`, `settling`, `reinserting`, `reinserted` | Every frame chooses between `enable`, `replay` and `reset` from the scroll position. Gestures `settle` and `step`, and arriving at the target is `converge`. |
 | photo show all | `photo/state.js` | `collapsed`, `expanding`, `expanded`, `collapsing` | A `toggle` mid-animation reverses from where the cards actually are. Frames keep coming until the animation's last frame sends `finish`. With reduced motion, a toggle settles in the frame it is drawn. |
 | photo touch gesture | `photo/state.js` | `idle`, `tracking`, `locked`, `released` | Decides between a swipe and a vertical scroll. `locked` makes one swipe step exactly one card. |
@@ -119,7 +132,7 @@ The full transition tables are in the code, next to comments on what each state 
 1. Subscribe the sections to the page events.
 2. Start the maintenance check without awaiting it. `site-config.json` is fetched in the background with a 3-second deadline. A `"maintenance": true` answer redirects to `maintenance/` while the intro still covers the page; a late or failed answer means "not in maintenance".
 3. Start the intro.
-4. Wire the controls, the global listeners and the section gestures. Listeners that share an event run in registration order, and so do the animation frames they request, so this order is preserved.
+4. Wire the controls, the global listeners and the section gestures. Each feature wires its own elements (`wireLanguageMenu`, `wireThemeToggle`, `wireCareerGestures`, …), and `main.js` calls them in a fixed order. Listeners that share an event run in registration order, and so do the animation frames they request, so this order is preserved.
 5. Render the first frame. Language and theme are settled before the scenes that draw with them. The brain is scheduled to load when the language section comes near.
 6. Start the effects. Then wire the lifecycle handlers: follow the system theme when no theme is stored, and pause the brain and the photo frames while the tab is hidden. Then wire the navigation.
 7. Wait for the intro to finish.
@@ -140,7 +153,7 @@ nginx serves CSS, JS and images with a one-year `immutable` cache. So every loca
 - It iterates to a fixed point, because stamped files reference each other (module → module, `index.html` → manifest → icons).
 - It regenerates the `modulepreload` list in `index.html` from `js/main.js`'s static import graph. The browser then fetches the whole graph at once instead of one level per round trip.
 
-`tools/build-photos.py` generates the photo cards from `data/photos.json`. `data-photo-base` and the aria-label number follow the list order, so they cannot drift from it.
+`tools/build-photos.py` generates the photo cards from `data/photos.json`. `data-photo-base` and the number in each card's label, `data-i18n-n`, follow the list order, so they cannot drift from it.
 
 Both tools have a `--check` mode. CI runs both checks, and so does `tools/deploy.py` before it publishes anything.
 
