@@ -1,7 +1,7 @@
 /* The photo theatre's public face. Everything outside js/photo/ goes through
    here, and tools/check-site.py enforces that. */
 
-import { initPhotoQueueCards } from "./cards.js?v=0372ff7b";
+import { initPhotoQueueCards } from "./cards.js?v=5059b52c";
 import {
   handlePhotoCarouselTouchEnd,
   handlePhotoCarouselTouchMove,
@@ -15,23 +15,23 @@ import {
   photoZoomCloseButton,
   photoZoomOverlay,
 } from "./dom.js?v=64ce044a";
-import { togglePhotoAllExpanded } from "./expand.js?v=220ee585";
+import { togglePhotoAllExpanded } from "./expand.js?v=8e7e5c97";
 import { initPhotoCardHoverGlow } from "./hover-glow.js?v=a03d1150";
 import {
   handlePhotoCardKeydown,
   handlePhotoMainCardClick,
   handlePhotoMainCardPointerPreload,
   handlePhotoMainCardTouchPreload,
-} from "./interaction.js?v=e16ffc55";
+} from "./interaction.js?v=7e08d61e";
 import {
   handlePhotoZoomClosePointerDown,
   handlePhotoZoomOverlayPointerDown,
   stopPhotoZoomScroll,
 } from "./zoom.js?v=40b9a5bf";
 
-export { bindPhotoReactions } from "./expand.js?v=220ee585";
+export { bindPhotoReactions } from "./expand.js?v=8e7e5c97";
 export { invalidatePhotoLayoutCaches } from "./layout.js?v=9b3638be";
-export { updatePhotoScene } from "./scene.js?v=ca7e5c71";
+export { updatePhotoScene } from "./scene.js?v=04ac619c";
 export { cancelPhotoSceneFrame, requestPhotoSceneUpdate } from "./state.js?v=9e5ef0e0";
 export { handlePhotoZoomKeydown } from "./zoom.js?v=40b9a5bf";
 

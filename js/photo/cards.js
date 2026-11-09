@@ -8,7 +8,7 @@ import {
   setStylePropertyIfChanged,
 } from "../core/style-writes.js?v=d4be61ed";
 import { isTouchFirst } from "../core/viewport.js?v=c7860737";
-import { getActiveCopy } from "../i18n/language.js?v=16cd1f4f";
+import { getActiveCopy } from "../i18n/language.js?v=8b88be35";
 import { pageTranslations } from "../i18n/translations.js?v=2ea6af69";
 import {
   PHOTO_AFTER_COMPLETE_SCROLL_PX,

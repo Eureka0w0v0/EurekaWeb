@@ -3,7 +3,7 @@
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
 import { safeStorageGet, safeStorageSet } from "../core/storage.js?v=55891515";
 import { shouldReduceMotion } from "../core/viewport.js?v=c7860737";
-import { getKineticTextPlan, getScramblePool, runKineticLanguageBatches } from "./kinetic.js?v=64215532";
+import { getKineticTextPlan, getScramblePool, runKineticLanguageBatches } from "./kinetic.js?v=4cddeed9";
 import { pageTranslations } from "./translations.js?v=2ea6af69";
 
 const languageSwitcher = document.querySelector("#language-switcher");

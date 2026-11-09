@@ -106,7 +106,9 @@ export function getKineticTextPlan(language, i18nNodes) {
 
     const isVisible = isNodeInAnimationViewport(node);
 
-    if (key === "welcomeWord" || !isVisible) {
+    /* data-i18n-static swaps the text without the letter-by-letter switch: the
+       welcome word is painted on a canvas, and its span is only the fallback. */
+    if (node.hasAttribute("data-i18n-static") || !isVisible) {
       staticNodes.push({ node, key, toText });
       return;
     }
