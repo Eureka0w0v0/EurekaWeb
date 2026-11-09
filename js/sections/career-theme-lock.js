@@ -1,15 +1,15 @@
 /* How the career scene holds still during a theme change. */
 
-import { root } from "../core/dom.js?v=5057c320";
 import { waitForFrames } from "../core/frames.js?v=0b68ae2a";
 import { createMachine } from "../core/machine.js?v=73a7d34e";
 import { isTouchFirst, stableMobileAppHeight } from "../core/viewport.js?v=c7860737";
 import {
   addThemeTransitionParticipant,
+  isThemeSnapshotActive,
   isThemeTransitionLite,
   isThemeTransitionRunning,
-  themeWave,
-} from "../theme/index.js?v=1035ba95";
+  isThemeWaveVisible,
+} from "../theme/index.js?v=79c0f7b6";
 
 const careerSection = document.querySelector("#career-section");
 const careerScene = document.querySelector(".career-scene");
@@ -352,14 +352,7 @@ function scheduleCareerSceneResumeAfterTheme() {
   cancelThemeLockFrame();
 
   const resumeWhenThemeWaveSettles = () => {
-    if (
-      isTouchFirst() &&
-      (
-        isThemeTransitionRunning() ||
-        themeWave?.classList.contains("is-active") ||
-        root.classList.contains("theme-snapshot-active")
-      )
-    ) {
+    if (isTouchFirst() && (isThemeTransitionRunning() || isThemeWaveVisible())) {
       themeLock.resumeFrame = window.requestAnimationFrame(resumeWhenThemeWaveSettles);
       return;
     }
@@ -424,7 +417,7 @@ export function isCareerSceneThemeLocked() {
     isCoolingDown ||
     isThemeTransitionRunning() ||
     isThemeTransitionLite() ||
-    root.classList.contains("theme-snapshot-active")
+    isThemeSnapshotActive()
   );
 }
 

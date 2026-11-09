@@ -3,8 +3,8 @@
 
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
 import { isElementInViewport, reducedMotionQuery, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
-import { activeTheme } from "../theme/index.js?v=1035ba95";
-import { createBrainWireframeScene } from "./brain/scene.js?v=f26edbcf";
+import { activeTheme } from "../theme/index.js?v=79c0f7b6";
+import { createBrainWireframeScene } from "./brain/scene.js?v=75365232";
 
 export const brainWrap = document.querySelector(".brain-wrap");
 export const brainMount = document.querySelector("#brain-three-mount");

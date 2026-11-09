@@ -21,8 +21,18 @@ import {
   themeTransition,
 } from "./state.js?v=4f819fef";
 
-export const themeWave = document.querySelector(".theme-wave");
+const themeWave = document.querySelector(".theme-wave");
 const themeWaveCore = document.querySelector(".theme-wave-core");
+
+/* For code outside js/theme/ that has to wait a wave out. The classes are the
+   theme's own, so this is the only place that reads them. */
+export function isThemeSnapshotActive() {
+  return root.classList.contains("theme-snapshot-active");
+}
+
+export function isThemeWaveVisible() {
+  return Boolean(themeWave?.classList.contains("is-active")) || isThemeSnapshotActive();
+}
 
 const themeWaveConfig = {
   EXPAND_DURATION_MS: 560,

@@ -3,7 +3,7 @@
 import { redirectIfInMaintenance } from "./core/config.js?v=aee1329a";
 import { handlePointerMove } from "./core/pointer.js?v=c2183471";
 import { syncInputDeviceClass, syncViewportHeightVar, visualViewportWidthChanged } from "./core/viewport.js?v=c7860737";
-import { initGrainCanvas } from "./effects/grain.js?v=0d4f5285";
+import { initGrainCanvas } from "./effects/grain.js?v=397c8b3f";
 import { initCinematicParallax } from "./effects/section-parallax.js?v=91133294";
 import {
   applyPreferredLanguage,
@@ -27,14 +27,14 @@ import {
   resizeBrainScene,
   resumeBrainScene,
   scheduleBrainSceneLoad,
-} from "./sections/brain.js?v=bbf55c16";
+} from "./sections/brain.js?v=47c296c0";
 import {
   bindCareerReactions,
   requestCareerSceneUpdate,
   updateCareerLayerClasses,
   updateCareerScene,
   wireCareerGestures,
-} from "./sections/career.js?v=2c8dbca2";
+} from "./sections/career.js?v=5ee88395";
 import {
   bindHeroReactions,
   bindTiltReactions,
@@ -50,7 +50,7 @@ import {
   renderActiveLanguageNode,
   requestLanguageNetworkSync,
   wireLanguageUniverseControls,
-} from "./sections/language-universe.js?v=a293ec96";
+} from "./sections/language-universe.js?v=2e54c3ba";
 import { initMarsClock } from "./sections/mars-clock.js?v=060a7c24";
 import {
   bindWelcomeReactions,
@@ -58,7 +58,7 @@ import {
   requestWelcomeRender,
   scheduleWelcomeRebuild,
 } from "./sections/welcome.js?v=243e1157";
-import { commitThemeState, followSystemTheme, resolveTheme, wireThemeToggle } from "./theme/index.js?v=1035ba95";
+import { commitThemeState, followSystemTheme, resolveTheme, wireThemeToggle } from "./theme/index.js?v=79c0f7b6";
 
 syncInputDeviceClass();
 initPhotoTheatre();

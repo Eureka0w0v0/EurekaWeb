@@ -3,7 +3,7 @@
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
 import { clamp01, easeInOut, mapScrollSegment } from "../core/math.js?v=54e566c4";
 import { isTouchFirst, shouldReduceMotion, stableMobileAppHeight } from "../core/viewport.js?v=c7860737";
-import { bindCareerThemeLock, isCareerSceneThemeLocked } from "./career-theme-lock.js?v=7f432224";
+import { bindCareerThemeLock, isCareerSceneThemeLocked } from "./career-theme-lock.js?v=610b02bc";
 
 const careerSection = document.querySelector("#career-section");
 const careerCardStack = document.querySelector(".career-card-stack");

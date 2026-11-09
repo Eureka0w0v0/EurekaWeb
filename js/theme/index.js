@@ -24,7 +24,7 @@ import {
   runMobileThemeWave,
   runSnapshotThemeWave,
   supportsSnapshotThemeWave,
-} from "./waves.js?v=22f31ad6";
+} from "./waves.js?v=79eec3b0";
 
 export {
   activeTheme,
@@ -34,7 +34,7 @@ export {
   isThemeTransitionRunning,
   resolveTheme,
 } from "./state.js?v=4f819fef";
-export { themeWave } from "./waves.js?v=22f31ad6";
+export { isThemeSnapshotActive, isThemeWaveVisible } from "./waves.js?v=79eec3b0";
 
 async function triggerThemeWave(originX, originY, nextTheme) {
   prepareThemeParticipants();
