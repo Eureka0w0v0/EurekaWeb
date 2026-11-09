@@ -14,9 +14,10 @@ a .webp in all three tiers: images/photo-preview, images/medium and
 images/full (tools/add-photo.py makes all three).
 
 The cards used to be written by hand, and each one carries ordering state --
-data-photo-base and the number in its aria-label -- that the scroll
-choreography in js/photo/ reads. Deriving both from the queue position means
-they can no longer drift from the order of the cards.
+data-photo-base, which the scroll choreography in js/photo/ reads, and the
+number in its aria-label, which data-i18n-n carries for the language switch.
+Deriving them from the queue position means they can no longer drift from the
+order of the cards.
 
 The cards go between marker comments in index.html, one pair for the
 dropping card and one inside .photo-queue; everything around them stays
@@ -127,7 +128,7 @@ def image_lines(name: str, loading: str, extra: tuple[str, ...] = ()) -> list[st
 def insert_card(name: str) -> list[str]:
     return [
         '<article class="photo-card photo-floating-card" data-photo-insert="1" '
-        'data-i18n-aria="photoInsertLabel" aria-label="即将插入的照片 1">',
+        'data-i18n-aria="photoInsertLabel" data-i18n-n="1" aria-label="即将插入的照片 1">',
         *(f"  {line}" for line in image_lines(name, "eager", ('fetchpriority="high"',))),
         '  <span class="photo-card-shine" aria-hidden="true"></span>',
         "</article>",
@@ -138,7 +139,7 @@ def queue_card(name: str, position: int) -> list[str]:
     loading = "eager" if position <= EAGER_QUEUE_CARDS else "lazy"
     return [
         f'<article class="photo-card photo-queue-card" data-photo-base="{position}" '
-        f'data-i18n-aria="photoCardLabel" aria-label="照片 {position}">',
+        f'data-i18n-aria="photoCardLabel" data-i18n-n="{position}" aria-label="照片 {position}">',
         *(f"  {line}" for line in image_lines(name, loading)),
         "</article>",
     ]

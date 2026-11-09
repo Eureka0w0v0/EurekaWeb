@@ -70,10 +70,9 @@ function syncLanguageChrome(copy, language) {
    whichever language they were written in, half Chinese and half English, on a
    page with a three-way switcher.
 
-   The photo cards take a count rather than twenty strings per language: the
-   number is already on the element, as data-photo-base on the queue, as
-   data-photo-insert on the incoming card, and as data-photo-clone-source on
-   the copies the carousel makes. */
+   The photo cards take a count rather than twenty strings per language: a
+   label with {n} in it gets the number from the element's data-i18n-n, so this
+   module does not need to know how the photo theatre numbers its cards. */
 function applyAriaLabels(copy) {
   document.querySelectorAll(i18nAriaSelector).forEach((node) => {
     const key = node.dataset.i18nAria;
@@ -82,8 +81,7 @@ function applyAriaLabels(copy) {
     }
 
     const value = copy[key];
-    const index =
-      node.dataset.photoBase || node.dataset.photoInsert || node.dataset.photoCloneSource;
+    const index = node.dataset.i18nN;
     node.setAttribute("aria-label", index ? value.replace("{n}", index) : value);
   });
 

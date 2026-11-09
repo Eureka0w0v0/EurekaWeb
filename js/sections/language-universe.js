@@ -2,7 +2,7 @@
 
 import { pageEvents } from "../core/events.js?v=8c4a4d4a";
 import { isCompactLayout, isWideLayout, shouldReduceMotion } from "../core/viewport.js?v=c7860737";
-import { getActiveCopy } from "../i18n/language.js?v=3f7a40af";
+import { getActiveCopy } from "../i18n/language.js?v=16cd1f4f";
 import { brainMount, brainSceneController, brainWrap } from "./brain.js?v=bbf55c16";
 
 export const languageUniverse = document.querySelector("#language-universe");

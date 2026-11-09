@@ -16,7 +16,7 @@ import {
   createPhotoHitRectCollector,
   ensurePhotoSlotContentMap,
   syncPhotoCardImageContent,
-} from "./cards.js?v=2f0d70a0";
+} from "./cards.js?v=0372ff7b";
 import {
   clearCarouselWheelState,
   resetPhotoCarouselTouchState,
